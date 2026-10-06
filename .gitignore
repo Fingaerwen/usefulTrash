@@ -1,0 +1,20 @@
+# Python virtual environment (one shared venv for the whole repo)
+.venv/
+__pycache__/
+*.pyc
+
+# Secrets: never committed, never uploaded anywhere
+.env
+.env.*
+*.jks
+*.keystore
+*.p12
+*.pem
+signing/
+
+# Local data and build output
+*.db
+.flet/
+build/
+.pytest_cache/
+.ruff_cache/

@@ -1,0 +1,5 @@
+# usefulTrash: personal Python app suite (gym tracker first, diet app later)
+[project]
+name = "usefulTrash"
+version = "0.0.0"  # the suite itself is unversioned; each app gets its own 0.x-alpha version
+requires-python = "==3.14.*"  # pinned to the Python Flet bundles for Android (plan R3)

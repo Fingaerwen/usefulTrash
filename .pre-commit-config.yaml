@@ -1,0 +1,10 @@
+# Runs before every commit: blocks any commit that contains something that looks like a secret (plan K4a).
+# Uses the detect-secrets copy inside .venv, so nothing is downloaded at commit time.
+repos:
+  - repo: local
+    hooks:
+      - id: detect-secrets
+        name: block secrets (detect-secrets)
+        entry: .venv/bin/detect-secrets-hook --baseline .secrets.baseline
+        language: system
+        pass_filenames: true
