@@ -6,6 +6,8 @@ __pycache__/
 # Secrets: never committed, never uploaded anywhere
 .env
 .env.*
+# empty template, safe to commit
+!.env.example
 *.jks
 *.keystore
 *.p12
