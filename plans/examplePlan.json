@@ -1,0 +1,23 @@
+{
+  "planId": "pushPullLegs",
+  "name": "Push Pull Legs (example)",
+  "version": 1,
+  "weeklyTarget": 4,
+  "cycle": [
+    {"title": "Push", "exercises": [
+      {"exerciseId": "benchPress", "name": "Bench Press", "equipment": "barbell", "body": "upper",
+       "sets": 4, "repsMin": 8, "repsMax": 12, "weightKg": 80, "restSec": 120, "incrementKg": 2.5,
+       "notes": "pause at bottom"},
+      {"exerciseId": "lateralRaise", "name": "Lateral Raise", "equipment": "dumbbell", "body": "upper",
+       "sets": 3, "repsMin": 12, "repsMax": 15, "weightKg": 8, "restSec": 60, "incrementKg": 1},
+      {"exerciseId": "dips", "name": "Dips", "equipment": "bodyweight",
+       "sets": 3, "repsMin": 8, "repsMax": 12, "restSec": 90},
+      {"exerciseId": "inclineWalk", "name": "Incline Walk", "type": "cardio", "minutes": 15}
+    ]},
+    {"title": "Rest", "restDay": true},
+    {"title": "Pull", "exercises": [
+      {"exerciseId": "deadlift", "name": "Deadlift", "equipment": "barbell", "body": "lower",
+       "sets": 3, "repsMin": 5, "repsMax": 8, "weightKg": 140, "restSec": 180}
+    ]}
+  ]
+}
