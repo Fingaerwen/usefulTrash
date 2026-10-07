@@ -12,3 +12,8 @@ org = "io.github.fingaerwen"  # Android package prefix (based on the public GitH
 
 [tool.flet.app]
 path = "src"
+
+# Workaround for a Flet 1.0.3 template bug: it pins Dart package jni to 1.0.0,
+# but jni_flutter 1.0.4+1 requires jni ^1.1.0, so the Android build fails.
+[tool.flet.flutter.pubspec.dependency_overrides]
+jni = "1.1.0"
