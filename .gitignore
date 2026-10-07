@@ -20,3 +20,6 @@ signing/
 build/
 .pytest_cache/
 .ruff_cache/
+
+# Python packaging leftovers
+*.egg-info/

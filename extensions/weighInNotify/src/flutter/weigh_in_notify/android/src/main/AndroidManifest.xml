@@ -1,0 +1,24 @@
+<!-- Merged into the app's manifest automatically: permissions and alarm receivers for weighInNotify. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Show notifications (Android 13+ also asks the user at runtime). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Re-create the weekly alarm after a phone restart. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Exact alarm times (Android 13+ grants USE_EXACT_ALARM automatically; older versions use SCHEDULE_EXACT_ALARM). -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
+
+    <application>
+        <!-- Fires when an alarm goes off and shows the notification. -->
+        <receiver android:name="io.github.fingaerwen.weighinnotify.AlarmReceiver" android:exported="false" />
+        <!-- Re-schedules the weekly alarm after reboot, app update or clock/time-zone change. -->
+        <receiver android:name="io.github.fingaerwen.weighinnotify.RescheduleReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

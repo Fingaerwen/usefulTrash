@@ -4,7 +4,11 @@ name = "phase0"
 version = "0.1-alpha"  # check 12: does the Android build accept this version name?
 description = "usefulTrash Phase 0 feasibility checks"
 requires-python = "==3.14.*"  # same Python as Flet's Android build (check 11)
-dependencies = ["flet==1.0.3"]
+dependencies = [
+    "flet==1.0.3",
+    # our own notification extension (check 5), installed from this repo
+    "weighInNotify @ file:///var/mnt/nvme1tb/claudProjects/usefulTrash/extensions/weighInNotify",
+]
 
 [tool.flet]
 product = "usefulTrash Phase 0"
