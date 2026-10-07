@@ -1,0 +1,14 @@
+# Phase 0 feasibility spike: a throwaway app that tests the plan's risky parts on a real phone.
+[project]
+name = "phase0"
+version = "0.1-alpha"  # check 12: does the Android build accept this version name?
+description = "usefulTrash Phase 0 feasibility checks"
+requires-python = "==3.14.*"  # same Python as Flet's Android build (check 11)
+dependencies = ["flet==1.0.3"]
+
+[tool.flet]
+product = "usefulTrash Phase 0"
+org = "io.github.fingaerwen"  # Android package prefix (based on the public GitHub username)
+
+[tool.flet.app]
+path = "src"
