@@ -530,11 +530,12 @@ def main(page: ft.Page):
         }
         showCheck4(f"{restoreLines.get(restoreResult, restoreResult)} ({keyLine})")
         if restoreResult == "restored":
-            signInResultText.value = f"Restored: {describeSession(keeper.session)}"
             try:
                 await keeper.freshAccessToken()  # renews now if the access token is (nearly) expired; offline is fine
             except SupabaseError:
                 pass  # offline or refused: the status line shows it
+            if keeper.isSignedIn():  # written after the renewal, so it shows the renewed session's time
+                signInResultText.value = f"Restored: {describeSession(keeper.session)}"
         await refreshCheck4Status()
         page.run_task(syncLoop)
 
