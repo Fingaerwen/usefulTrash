@@ -70,6 +70,7 @@ This is a personal suite of Python apps in one public repo (`claudProjects/usefu
 - **Strict about extra rest:** an unplanned rest day does not use up a planned Rest step (13.3).
 - **Train anyway** on a planned Rest step: the next workout is done and the rest step is kept for later (19.1c-2 / 13.1a).
 - **A planned Rest step is used up when the day ends** with it as the current step and no workout logged, even if the app was never opened (R4a).
+- **Nothing here is stored; it's all recalculated (F10.1).** Cycle position, rest-step use and midnight auto-finish are worked out each time from the facts: logged sessions, and plan imports with the date and starting step you chose. So the phone and the PC view always agree, and nothing has to run at midnight. These rules get written as automated tests first, including edge cases such as "train anyway" twice in a row on a Rest step.
 
 ## 6. Today screen (19.1)
 ```
@@ -86,7 +87,7 @@ Bench Press   4×9 @ 82.5 kg ↑new  [✓]   rest 2:00 · "pause at bottom"  ▾
 - **Miss** = 2 or more sets under `repsMin` (a 1-set exercise: that set) (8.14a). **2 missed sessions in a row** → drop to the **last lower weight that worked**, with the **reps you last achieved there** as the target (R7b). If there is none → no suggestion (8.10 / 8.15 / 8.16d).
 - **After a drop, you must hit the top of the range 2 sessions in a row** before the app suggests going heavier again, which prevents yo-yoing (R7c-1).
 - **Skipped exercises are ignored** by progression (19.1e-1).
-- Suggestions are **pre-filled** and tagged `↑new`, with Undo; logging one counts as accepting it (8.3).
+- Suggestions are **pre-filled** and tagged `↑new`, with Undo; logging one counts as accepting it (8.3). Suggestions are recalculated from your logged history, not stored (F10.1); an Undo is saved as a fact on that day's exercise entry.
 - **Bodyweight exercises:** reps keep rising past the range, with no weight suggestions (10.9a).
 
 ## 8. Progress & stats
@@ -133,7 +134,7 @@ Dark mode that follows the phone setting, minimal screens and taps, medium-sized
 - Same Supabase project, login and naming. For now the gym app only **shares weight + training days**. Nutrition tables and goals are designed when the diet app is planned (15.1).
 
 ## 14. Data model (draft, camelCase)
-`exercises` (stable `exerciseId`, current name, past names, equipment; feeds 11.3 matching and "Past exercises") (R8), `plans`, `cycleState`, `sessions`, `exerciseLogs` (planned vs actual, per-set rows, skipped), `suggestions`, `cardioLogs`, `bodyWeight`, `backups`. Every row has `id` (UUID), `userId`, `updatedAt` (the time the edit was made on the device) and `deleted`. Conflicting edits: **the newest edit time wins** (G7a), so a late-arriving offline edit can't overwrite a newer one.
+`exercises` (stable `exerciseId`, current name, past names, equipment; feeds 11.3 matching and "Past exercises") (R8), `plans` (each import: the plan, the date it takes effect and the starting step you chose), `sessions`, `exerciseLogs` (planned vs actual, per-set rows, skipped, a declined suggestion), `cardioLogs`, `bodyWeight`, `backups`. **Only facts are stored (F10.1):** cycle position, rest-step use, auto-finish and suggestions are recalculated from these tables, so there are no `cycleState` or `suggestions` tables. Every row has `id` (UUID), `userId`, `updatedAt` (the time the edit was made on the device) and `deleted`. Conflicting edits: **the newest edit time wins** (G7a), so a late-arriving offline edit can't overwrite a newer one.
 
 ---
 
@@ -190,3 +191,4 @@ Newest at the bottom. Every decision made after the plan was approved gets a lin
 - **2026-10-07 · C5a / C5d:** scheduled notifications through our own Kotlin plugin (`extensions/weighInNotify`) instead of a third-party library or a fork of Flet's Android template.
 - **2026-10-12 · F1.1:** if Google sign-in fails on the phone, fall back to an emailed 6-digit code. Drive backups stay on the phone either way.
 - **2026-10-12 · F2.1:** the plan lives in the repo as `docs/plan.md` (it used to be only in `~/.claude/plans/`).
+- **2026-10-12 · F10.1:** store only facts; cycle position, rest-step use, midnight auto-finish and suggestions are recalculated from them (no `cycleState` / `suggestions` tables), so the phone and the PC view can't disagree.
