@@ -1,8 +1,9 @@
 """Phase 0 spike: tests risky parts of the plan on a real phone.
 Currently: startup time (check 8), version (check 12), Google sign-in via our own nativeGoogleSignIn
 extension (check 2), Supabase read/write (check 3), offline queue + staying signed in with our own
-secureStore extension (check 4), picking a plan file (check 9), scheduled notifications via our own
-weighInNotify extension (check 5). Built for the web, the same file is the PC view (check 6)."""
+secureStore extension (check 4), Google Drive upload with Google Play services' permission (check 7),
+picking a plan file (check 9), scheduled notifications via our own weighInNotify extension (check 5).
+Built for the web, the same file is the PC view (check 6)."""
 
 import time
 
@@ -17,6 +18,8 @@ import uuid  # noqa: E402
 from pathlib import Path  # noqa: E402
 
 import flet as ft  # noqa: E402
+from driveAccess import DriveAccessError, DriveKeeper, tokenFingerprint  # noqa: E402
+from googleDriveApi import DriveError, GoogleDriveApi, quoteDriveText  # noqa: E402
 from nativeGoogleSignIn import NativeGoogleSignIn  # noqa: E402
 from offlineQueue import OfflineQueue  # noqa: E402
 from secureStore import SecureStore  # noqa: E402
@@ -504,10 +507,13 @@ def main(page: ft.Page):
             showCheck4("App log file: none written (nothing was printed)")
             return
         tokenShaped = len(re.findall(r"eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+", logText))
-        currentTokens = [value for value in (keeper.session.get("access_token"), keeper.session.get("refresh_token"))
+        googleTokens = len(re.findall(r"ya29\.[A-Za-z0-9_-]{20,}", logText))  # Google access tokens (check 7)
+        currentTokens = [value for value in (keeper.session.get("access_token"), keeper.session.get("refresh_token"),
+                                             driveKeeper.accessToken, firstDriveToken["value"])
                          if value and value in logText]
+        clean = not tokenShaped and not googleTokens and not currentTokens
         showCheck4(f"App log file: {len(logText.splitlines())} lines, {tokenShaped} token-shaped strings, "
-                   f"current tokens found: {len(currentTokens)}" + (" ✅" if not tokenShaped and not currentTokens else " ❌"))
+                   f"{googleTokens} Google access tokens, current tokens found: {len(currentTokens)}" + (" ✅" if clean else " ❌"))
 
     async def startUp():
         """Restores the saved session (if any), shows where its key lives, then starts the sync loop."""
@@ -538,6 +544,211 @@ def main(page: ft.Page):
                 signInResultText.value = f"Restored: {describeSession(keeper.session)}"
         await refreshCheck4Status()
         page.run_task(syncLoop)
+
+    # Check 7: backups to Google Drive (plan F14.1, R2). The permission comes from Google Play services and covers
+    # only files this app creates; no secret in the app. Access tokens last about an hour, so the expiry test
+    # (step 3) proves a fresh one arrives without any screen once step 1's token has expired.
+    drive = GoogleDriveApi()
+    driveKeeper = DriveKeeper(googleSignIn)
+    driveStatusText = ft.Text("Drive: no access token yet")
+    check7ResultText = ft.Text("")
+    driveTestFolder = "usefulTrash Phase 0 test"
+    check7StatePath = Path(os.getenv("FLET_APP_STORAGE_DATA") or os.getcwd()) / "check7State.json"
+    firstDriveToken = {"value": ""}  # step 1's token, memory only: the expiry test checks Drive refuses it later
+    expiryWaitSec = 61 * 60  # access tokens last 60 minutes; one more for clock differences
+
+    def loadCheck7State() -> dict:
+        """Step 1's token fingerprint and time, kept on the phone so the expiry test survives an app restart.
+        Not secret: a fingerprint can't be turned back into the token."""
+        try:
+            state = json.loads(check7StatePath.read_text(encoding="utf-8"))
+            return state if isinstance(state, dict) and "firstFetchedAt" in state else {}
+        except (OSError, ValueError):
+            return {}
+
+    def driveAccount() -> str:
+        """The signed-in account's email, so the Drive permission is for the same Google account (empty = Google asks)."""
+        return str((keeper.session.get("user") or {}).get("email", "")) if keeper.isSignedIn() else ""
+
+    def refreshDriveStatus():
+        """Updates check 7's status line: current token (fingerprint only) and when the expiry test can run."""
+        lines = []
+        if driveKeeper.accessToken:
+            ageMin = round((time.time() - driveKeeper.fetchedAt) / 60)
+            lines.append(f"Drive: token {tokenFingerprint(driveKeeper.accessToken)}, first seen {ageMin} min ago; "
+                         f"{driveKeeper.tokenChanges} different tokens this run")
+        else:
+            lines.append("Drive: no access token yet")
+        state = loadCheck7State()
+        if state:
+            readyAt = time.strftime("%H:%M", time.localtime(state["firstFetchedAt"] + expiryWaitSec))
+            lines.append(f"Step 1 token {state.get('firstFingerprint', '?')} from "
+                         f"{time.strftime('%H:%M', time.localtime(state['firstFetchedAt']))}: expiry test from {readyAt}")
+        driveStatusText.value = "\n".join(lines)
+        page.update()
+
+    async def runDriveStep(button, job):
+        """Runs one check 7 button's job: one at a time, the outcome shown under the buttons, errors shown
+        instead of crashing (Google's and Drive's messages never contain tokens)."""
+        if page.platform != ft.PagePlatform.ANDROID:
+            check7ResultText.value = "Drive access only works on the phone"
+            page.update()
+            return
+        if button.disabled:
+            return  # already running (double tap)
+        button.disabled = True  # set before the first await, so a second tap sees it
+        check7ResultText.value = "⏳ Working…"
+        page.update()
+        try:
+            check7ResultText.value = await job()
+        except DriveAccessError as err:
+            check7ResultText.value = "Cancelled" if err.kind == "cancelled" else f"❌ Google Play services: {err}"
+        except DriveError as err:
+            check7ResultText.value = f"❌ Drive: {err}"  # e.g. 403 accessNotConfigured: the Drive API isn't enabled
+        except Exception as err:
+            check7ResultText.value = f"❌ {type(err).__name__}: {err}"
+        finally:
+            button.disabled = False
+            refreshDriveStatus()
+
+    async def testFolderId(token: str) -> str:
+        """The test folder in Drive, created on first use."""
+        folder = await drive.findFolder(driveTestFolder, token)
+        if folder is None:
+            folder = await drive.createFolder(driveTestFolder, token)
+        return folder["id"]
+
+    async def uploadTestFile(token: str) -> dict:
+        """Uploads one small text file into the test folder."""
+        content = f"usefulTrash check 7 test file\nUploaded {time.strftime('%Y-%m-%d %H:%M:%S')} (phone time)\n"
+        return await drive.uploadFile(f"check7 test {time.strftime('%H-%M-%S')}.txt", content.encode("utf-8"),
+                                      "text/plain", await testFolderId(token), token)
+
+    def describeUpload(uploaded: dict) -> str:
+        retried = f"\n↻ {driveKeeper.lastRetry}" if driveKeeper.lastRetry else ""
+        return (f"✅ Uploaded {uploaded.get('name', '?')} ({uploaded.get('size', '?')} bytes) to '{driveTestFolder}' "
+                f"with token {tokenFingerprint(driveKeeper.accessToken)}{retried}")
+
+    async def allowDriveJob() -> str:
+        """Step 1: Google's permission screen (only files this app creates), unless already allowed."""
+        account = driveAccount()
+        token = await driveKeeper.getToken(account, interactive=True)
+        firstDriveToken["value"] = token
+        firstFetchedAt = time.time()
+        check7StatePath.write_text(json.dumps({"firstFingerprint": tokenFingerprint(token), "firstFetchedAt": firstFetchedAt}),
+                                   encoding="utf-8")
+        readyAt = time.strftime("%H:%M", time.localtime(firstFetchedAt + expiryWaitSec))
+        return (f"✅ Drive access allowed for {maskEmail(account) if account else 'the account you picked'}: "
+                f"token {tokenFingerprint(token)}, kept in memory only\nStep 3 (expiry test) from {readyAt}")
+
+    async def uploadJob() -> str:
+        """Step 2: one upload with a token from Google Play services (no screen)."""
+        driveKeeper.lastRetry = ""
+        return describeUpload(await driveKeeper.run(uploadTestFile, driveAccount()))
+
+    async def expiryTestJob() -> str:
+        """Step 3, 61+ minutes after step 1: Drive must refuse step 1's token, Google Play services must hand
+        out a new one without any screen, and an upload with it must work (plan R2)."""
+        state = loadCheck7State()
+        if not state:
+            return "Do step 1 first"
+        minutesSince = (time.time() - state["firstFetchedAt"]) / 60
+        if minutesSince * 60 < expiryWaitSec:
+            readyAt = time.strftime("%H:%M", time.localtime(state["firstFetchedAt"] + expiryWaitSec))
+            return f"⏳ Only {minutesSince:.0f} min since step 1: try again from {readyAt}"
+        lines, outcomes = [], []
+
+        def report(passed: bool, text: str):
+            outcomes.append(passed)
+            lines.append(("✅ " if passed else "❌ ") + text)
+
+        # A. Drive refuses step 1's token (if it's still in memory: closing the app forgets it).
+        oldToken = firstDriveToken["value"]
+        if oldToken:
+            try:
+                await drive.listFiles("trashed = false", oldToken, pageSize=1)
+                report(False, f"step 1's token was still ACCEPTED after {minutesSince:.0f} min")
+            except DriveError as err:
+                report(err.statusCode == 401, f"step 1's token refused after {minutesSince:.0f} min ({err.statusCode} {err.reason})")
+        else:
+            lines.append("· step 1's token isn't in memory (the app was closed since), so its refusal isn't shown")
+
+        # B. A new token without any screen (interactive=False can't show one).
+        token = await driveKeeper.getToken(driveAccount())
+        report(tokenFingerprint(token) != state.get("firstFingerprint"),
+               f"new token {tokenFingerprint(token)} from Google Play services, no screen shown "
+               f"(step 1's was {state.get('firstFingerprint', '?')})")
+
+        # C. The new token works.
+        driveKeeper.lastRetry = ""
+        lines.append(describeUpload(await driveKeeper.run(uploadTestFile, driveAccount())))
+        outcomes.append(True)
+        lines.append("\n✅ Check 7 passed: upload works after the 1-hour expiry, with no secret and no screen"
+                     if all(outcomes) else "\n❌ Check 7 not passed")
+        return "\n".join(lines)
+
+    async def freshTokenJob() -> str:
+        """Removes the current token from Google Play services' cache and asks again without a screen: the same
+        path the app takes when Drive refuses a token. (The removed token stays valid at Google until it expires.)"""
+        oldToken = await driveKeeper.getToken(driveAccount())
+        cleared = await googleSignIn.clearDriveToken(oldToken)
+        if cleared.get("status") != "ok":
+            return f"❌ Clearing the cache: {cleared.get('errorType', '')} {cleared.get('message', '')}"
+        newToken = await driveKeeper.getToken(driveAccount())
+        return (f"{'✅' if newToken != oldToken else '❌'} Token {tokenFingerprint(oldToken)} → {tokenFingerprint(newToken)} "
+                "after clearing the cache, no screen shown")
+
+    async def testFiles(token: str) -> tuple[dict | None, list[dict]]:
+        """The test folder and the files in it (Drive only shows ones this app created)."""
+        folder = await drive.findFolder(driveTestFolder, token)
+        if folder is None:
+            return None, []
+        return folder, await drive.listFiles(f"{quoteDriveText(folder['id'])} in parents and trashed = false", token)
+
+    async def listJob() -> str:
+        folder, files = await driveKeeper.run(testFiles, driveAccount())
+        if folder is None:
+            return f"No '{driveTestFolder}' folder in Drive yet"
+        names = "\n".join(f"· {file.get('name', '?')} ({file.get('size', '?')} bytes)" for file in files[:6])
+        return f"In Drive folder '{driveTestFolder}': {len(files)} files\n{names}"
+
+    async def deleteJob() -> str:
+        """Clean-up: deletes the test files for good and moves the test folder to Drive's bin."""
+        async def deleteAll(token: str) -> int:
+            folder, files = await testFiles(token)
+            for file in files:
+                await drive.deleteFile(file["id"], token)
+            if folder is not None:
+                await drive.moveToBin(folder["id"], token)  # restorable for 30 days, in case you put something in it
+            return len(files)
+
+        deleted = await driveKeeper.run(deleteAll, driveAccount())
+        return f"✅ Deleted {deleted} test files; the test folder is in Drive's bin"
+
+    async def allowDrive(e):
+        await runDriveStep(allowDriveButton, allowDriveJob)
+
+    async def uploadTest(e):
+        await runDriveStep(uploadButton, uploadJob)
+
+    async def expiryTest(e):
+        await runDriveStep(expiryTestButton, expiryTestJob)
+
+    async def freshToken(e):
+        await runDriveStep(freshTokenButton, freshTokenJob)
+
+    async def listTestFiles(e):
+        await runDriveStep(listFilesButton, listJob)
+
+    async def deleteTestFiles(e):
+        await runDriveStep(deleteFilesButton, deleteJob)
+
+    allowDriveButton = ft.FilledButton("1. Allow Drive access", icon=ft.Icons.ADD_TO_DRIVE, on_click=allowDrive)
+    uploadButton = ft.FilledButton("2. Upload a test file", icon=ft.Icons.UPLOAD_FILE, on_click=uploadTest)
+    expiryTestButton = ft.FilledButton("3. Expiry test (61+ min after step 1)", icon=ft.Icons.TIMER, on_click=expiryTest)
+    freshTokenButton = ft.OutlinedButton("Get a fresh token now", on_click=freshToken)
+    listFilesButton = ft.OutlinedButton("List my test files", on_click=listTestFiles)
+    deleteFilesButton = ft.OutlinedButton("Delete my test files", on_click=deleteTestFiles)
 
     # Check 9: the phone's file picker. Services register themselves with the page in Flet 1.0.
     filePicker = ft.FilePicker()
@@ -628,6 +839,16 @@ def main(page: ft.Page):
                     ft.OutlinedButton("Scan the app's log for tokens", on_click=scanAppLog),
                     check4ResultText,
                     ft.Divider(),
+                    ft.Text("Check 7: Google Drive backup", weight=ft.FontWeight.BOLD),
+                    driveStatusText,
+                    allowDriveButton,
+                    uploadButton,
+                    expiryTestButton,
+                    freshTokenButton,
+                    listFilesButton,
+                    deleteFilesButton,
+                    check7ResultText,
+                    ft.Divider(),
                     ft.Text("Check 9: pick a plan file", weight=ft.FontWeight.BOLD),
                     ft.FilledButton("Pick plan file", icon=ft.Icons.FOLDER_OPEN, on_click=pickPlanFile),
                     pickResultText,
@@ -646,6 +867,7 @@ def main(page: ft.Page):
             expand=True,
         )
     )
+    refreshDriveStatus()  # shows when the check 7 expiry test can run, even after a restart
     page.run_task(startUp)  # restore the saved session and start syncing (check 4)
 
 
