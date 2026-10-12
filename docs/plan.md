@@ -110,7 +110,7 @@ Bench Press   4×9 @ 82.5 kg ↑new  [✓]   rest 2:00 · "pause at bottom"  ▾
 
 ## 11. Notifications & background
 - Sync and banners are in-app only (2).
-- The weekly weigh-in **phone notification** works (Phase 0 check 5): our own small Android plugin, `extensions/weighInNotify` (C5d), schedules it with Android's alarms. No third-party notification library.
+- The weekly weigh-in **phone notification** works (Phase 0 check 5): our own small Android plugin, `extensions/weighInNotify` (C5d), schedules it with Android's alarms. No third-party notification library. It uses **alarm-clock mode**, because OnePlus delayed normal exact alarms by up to an hour (F21.2), and the app's battery setting should be **"Unrestricted"** so the phone doesn't kill it in the background.
 
 ## 12. Backups & scheduled jobs (no stored secrets anywhere)
 - **If Phase 0 shows that automatic Drive renewal needs a secret inside the app:** the backup moves to a **local timer on your Linux PC** instead, with its secrets in a local file only (R2b).
@@ -198,3 +198,4 @@ Newest at the bottom. Every decision made after the plan was approved gets a lin
 - **2026-10-12 · F13.1:** backups get a restore script + guide, tested on a spare copy when built and after every data-structure change; each backup records its structure version.
 - **2026-10-12 · F14.1:** automatic backups come from the phone only; the PC view gets a "Back up now" button.
 - **2026-10-12 · F15.1:** keep the ping schedule alive through GitHub's "enable workflow" API instead of monthly bot commits (fallback: the commit).
+- **2026-10-12 · F21.1 → F21.2:** the weekly reminder uses alarm-clock mode. OnePlus gave normal exact alarms a 1-hour window even with battery "Unrestricted"; alarm-clock alarms fire on the dot. Battery stays on "Unrestricted".
