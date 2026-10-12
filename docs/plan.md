@@ -1,18 +1,20 @@
 # usefulTrash: Gym App Plan
 
+> **Status (2026-10-12):** Phase 0 in progress, 7 of 12 checks passed (see `docs/phase0.md`). This file is the single source of truth: every decision made after approval is applied in the sections below and listed in the **Decision log** at the end.
+
 ## Context
 This is a personal suite of Python apps in one public repo (`claudProjects/usefulTrash/`). The first app is an Android **gym tracker**; a **diet app** comes later and will share the same cloud database and login. Every decision below was made with you point by point, including the resolution of the "brutal review" flaws. **Approving this plan starts Phase 0 only (the feasibility check).** The staging after that is decided from Phase 0's results (14.1).
 
 ---
 
 ## 1. Platform & stack
-- Android only, single user (you). Python + **Flet 1.0.x** (pinned version).
+- Android only, single user (you). Python + **Flet 1.0.x** (pinned version; currently 1.0.3).
 - **Cloud:** Supabase free tier (Postgres + login).
 - **Phone:** local SQLite, offline-first. **Sync runs while the app is open** (2); gym dead-zones are covered by a sync queue.
 - **PC view:** the same Flet app built as a static site on **GitHub Pages** (1). The PC view is online-only (no local queue). **Koyeb is dropped** (R1a), because it would hold your sign-in on a server.
 - **If GitHub Pages fails Phase 0:** there's no PC view. The phone gets the PC-only features in a "More" menu (history editing for any day, CSV export, plan management, the backup warning). The 7-day edit limit lifts only in this fallback (R1d / R1d-1).
 - **Dev Python is pinned to the Python version Flet bundles for Android** (R3).
-- **One venv for the whole repo** (V2a), git-ignored. The PC runs **Bazzite** (immutable, so no system package installs). The tool is decided after Phase 0 (V1e): if Flet's Android Python is 3.14 → a plain `python3 -m venv`; otherwise → **uv** installed in your home folder, which provides the matching Python. Requirements are pinned in one file.
+- **One venv for the whole repo** (V2a), git-ignored. The PC runs **Bazzite** (immutable, so no system package installs). The tool was decided by Phase 0 check 11 (V1e): Flet's Android Python is 3.14.7, the same as the PC, so it's a plain `python3 -m venv` (no uv needed). Requirements are pinned in one file.
 
 ## 2. Security & privacy
 - **Key rule (absolute):** secrets are **never written into any text** (chat, docs, code, commits, logs) and **never uploaded to any server or cloud**, GitHub Secrets included. Only key *names* are ever mentioned (K4c).
@@ -21,9 +23,10 @@ This is a personal suite of Python apps in one public repo (`claudProjects/usefu
   - Sign-in tokens go to Google/Supabase as part of logging in and are stored only on your device (K3a).
   - GitHub's own temporary job token (created by GitHub, never seen or stored) is allowed for the keep-alive commit (3.3a).
 - **Leak protection:** a pre-commit secret scan blocks commits containing keys (K4a); GitHub push protection (K4b); `.env` and the signing key are in `.gitignore`.
-- **Google sign-in**, **only your Google email allowed** (5.1), **sign-ups disabled after setup** (5.2). The Google app is set to *published* so sign-in passes don't expire after 7 days.
+- **Sign-in (AU1c):** native **Google sign-in on Android** with no stored secret: the app gets a Google ID token and Supabase checks it using only the public client ID. **If it fails on the phone (check 2), the fallback is an emailed 6-digit code** (F1.1). The **PC view's** method is chosen at check 6: Google's browser sign-in (also secret-free) or the emailed code. Supabase's Email sign-in stays **off** until one of these actually needs it.
+- **Only your account allowed** (5.1), **sign-ups disabled after setup** (5.2). The Google app is set to *published* so sign-in passes don't expire after 7 days.
 - Row-level security on every table.
-- Commits use the **GitHub noreply email + your GitHub username** (6.1). Git currently has no identity set, and `gh` isn't installed.
+- Commits use the **GitHub noreply email + your GitHub username** (6.1). Git uploads to GitHub with an SSH key (GH1a); `gh` isn't installed.
 - No home server and no exposed IP; no name or personal details collected.
 
 ## 3. Repo, code style, docs
@@ -106,7 +109,7 @@ Bench Press   4×9 @ 82.5 kg ↑new  [✓]   rest 2:00 · "pause at bottom"  ▾
 
 ## 11. Notifications & background
 - Sync and banners are in-app only (2).
-- The weekly weigh-in **phone notification is tested in Phase 0**; if Flet can't schedule it, it's an in-app prompt instead.
+- The weekly weigh-in **phone notification** works (Phase 0 check 5): our own small Android plugin, `extensions/weighInNotify` (C5d), schedules it with Android's alarms. No third-party notification library.
 
 ## 12. Backups & scheduled jobs (no stored secrets anywhere)
 - **If Phase 0 shows that automatic Drive renewal needs a secret inside the app:** the backup moves to a **local timer on your Linux PC** instead, with its secrets in a local file only (R2b).
@@ -116,7 +119,7 @@ Bench Press   4×9 @ 82.5 kg ↑new  [✓]   rest 2:00 · "pause at bottom"  ▾
 - **Monthly keep-alive commit** using GitHub's temporary job token, so GitHub doesn't disable the ping schedule (3.3a).
 
 ## 12b. Releases, updates & data upgrades
-- **Versions:** `0.1-alpha` → `0.2-alpha` → … (the middle number bumps every release, with no third number) (V3a). If Android's tooling requires three numbers, it's stored internally as `0.1.0` while every visible name stays `0.1-alpha` (checked in Phase 0). The Phase 0 spike has no version. GitHub releases are **normal releases named alpha**, not pre-releases, so Obtainium picks them up (V4b).
+- **Versions:** `0.1-alpha` → `0.2-alpha` → … (the middle number bumps every release, with no third number) (V3a). If Android's tooling requires three numbers, it's stored internally as `0.1.0` while every visible name stays `0.1-alpha` (Phase 0 check 12: not needed; `0.1-alpha` is accepted as is, and the internal versionCode must go up by one each release). The Phase 0 spike used `0.1-alpha` only to run that check. GitHub releases are **normal releases named alpha**, not pre-releases, so Obtainium picks them up (V4b).
 - **Releases:** built and **signed on your PC**, then uploaded to GitHub Releases (G4c-1). The APK contains only the allowed public identifiers. The phone gets updates automatically through **Obtainium** (G4c).
 - **Signing key:** stays on your PC, with a copy on a **second drive** (G3a). If it's ever lost: uninstall, reinstall, sign in again; only unsynced data is lost.
 - **Data-structure changes:** numbered upgrade scripts run automatically on the phone and the cloud, tested first on a local copy of your data (G6a).
@@ -137,11 +140,11 @@ Dark mode that follows the phone setting, minimal screens and taps, medium-sized
 ## Phase 0: feasibility check (what approval starts)
 A throwaway Flet app in `usefulTrash/spikes/phase0/` that answers each question with pass/fail:
 1. Builds as an APK and installs on your phone.
-2. Google sign-in works on Android and is restricted to your email.
+2. Google sign-in works on Android and is restricted to your email (AU1c). Fail → emailed-code fallback (F1.1).
 3. Reads/writes a camelCase-column row in Supabase with RLS on.
 4. Works offline: writes are queued and synced once the connection is back.
 5. A scheduled local notification fires (weigh-in reminder, Friday 07:00).
-6. A `flet build web` version on GitHub Pages can sign in and read the same row.
+6. A `flet build web` version on GitHub Pages can sign in (Google in the browser or emailed code, chosen at this check) and read the same row.
 7. The phone uploads a small file to Google Drive using your sign-in, **with no secret in the app, and still works after the 1-hour token expiry** (R2). Fail → PC timer backup (R2b).
 8. **Cold start under 5 seconds** on your phone (G5b).
 9. A JSON file can be picked from phone storage (fallback import).
@@ -154,8 +157,20 @@ A throwaway Flet app in `usefulTrash/spikes/phase0/` that answers each question 
 
 Before Phase 0: check free disk space for Flutter + Android SDK + Java (several GB) (R11).
 
-Setup during Phase 0: create `usefulTrash/` with git (noreply email, username), the GitHub repo and the Supabase project (you'll do the account steps), and **delete the old `claudProjects/gymtracker/` demo**. Results are written up in `docs/phase0.md`, then we decide the staging together.
+Setup during Phase 0: create `usefulTrash/` with git (noreply email, username), the GitHub repo and the Supabase project (you'll do the account steps), and **delete the old `claudProjects/gymtracker/` demo** (done, P0.1a). Results are written up in `docs/phase0.md`, then we decide the staging together.
 
 ## Verification
-- Phase 0: each of the 12 checks recorded as pass/fail with notes. **If Google sign-in on Android fails (check 2), there's no decided fallback, so we replan.** Any fail → we revisit that decision before building.
+- Phase 0: each of the 12 checks recorded as pass/fail with notes. **If Google sign-in on Android fails (check 2), the fallback is an emailed code (F1.1).** Any other fail → we revisit that decision before building.
 - Later phases: automated tests for plan import/validation, cycle + rest rules, progression rules, PR/volume/streak math and sync (offline → online, conflicts). End to end: airplane mode → log → reconnect → shows in the PC view.
+
+---
+
+## Decision log
+Newest at the bottom. Every decision made after the plan was approved gets a line here, and the sections above are updated to match, so the plan can't drift again. Codes match the questions they answered.
+
+- **2026-10-06 · P0.1a:** delete the old `gymtracker` demo (done).
+- **2026-10-06 · GH1a:** git uploads to GitHub with an SSH key.
+- **2026-10-06 · AU1c:** native Android Google sign-in with no stored secret, tested in check 2. Made 23 minutes after the plan was last saved, so the plan didn't get it until the 2026-10-12 review.
+- **2026-10-07 · C5a / C5d:** scheduled notifications through our own Kotlin plugin (`extensions/weighInNotify`) instead of a third-party library or a fork of Flet's Android template.
+- **2026-10-12 · F1.1:** if Google sign-in fails on the phone, fall back to an emailed 6-digit code. Drive backups stay on the phone either way.
+- **2026-10-12 · F2.1:** the plan lives in the repo as `docs/plan.md` (it used to be only in `~/.claude/plans/`).
