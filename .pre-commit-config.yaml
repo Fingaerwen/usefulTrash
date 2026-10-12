@@ -8,3 +8,11 @@ repos:
         entry: .venv/bin/detect-secrets-hook --baseline .secrets.baseline
         language: system
         pass_filenames: true
+      # detect-secrets guesses (entropy, keywords). This hook blocks the exact secret formats this project
+      # can meet, every time: a Supabase secret key, a Google OAuth client secret, any private key block.
+      # Uses pre-commit's built-in "pygrep", so nothing is downloaded. The patterns can't match their own
+      # text below (the character after each prefix is "[", which isn't allowed). Review F5.
+      - id: block-known-secret-formats
+        name: block known secret formats (Supabase secret, Google client secret, private keys)
+        language: pygrep
+        entry: '(sb_secret_[A-Za-z0-9_-]{10,}|GOCSPX-[A-Za-z0-9_-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY-----)'
