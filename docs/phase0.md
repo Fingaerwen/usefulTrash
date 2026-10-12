@@ -20,6 +20,8 @@ Status legend: ✅ pass · ❌ fail · ⏳ not tested yet · 🟡 partly tested
 
 Also confirmed: dark mode follows the phone setting (G1).
 
+Fixed 2026-10-12: the test screen couldn't scroll once checks 2 and 3 made it taller than the phone screen. The scrolling column had no fixed height (its `SafeArea` wasn't `expand=True`), so Flutter laid it out at full length and cut off the bottom. Taps on visible buttons always worked; the app never froze (checked with Android's frame counter: a tap drew new frames, a swipe had nothing to move).
+
 ## Building the spike
 1. `.env` (repo root, git-ignored) holds `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` and `GOOGLE_WEB_CLIENT_ID` (see `.env.example`).
 2. `python3 spikes/phase0/makePublicConfig.py` copies exactly those three public values into `spikes/phase0/src/publicConfig.json` (git-ignored). It refuses missing or malformed values and anything that looks like a secret, and never prints values.

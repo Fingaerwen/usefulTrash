@@ -347,7 +347,10 @@ def main(page: ft.Page):
                     ft.OutlinedButton("Status", on_click=showStatus),
                     notifyResultText,
                 ]
-            )
+            ),
+            # expand: the safe area fills the screen, which gives the column a fixed height to scroll in.
+            # Without it the column is as tall as its content, gets cut off at the bottom and can't scroll.
+            expand=True,
         )
     )
 
