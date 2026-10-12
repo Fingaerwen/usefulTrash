@@ -125,7 +125,7 @@ Bench Press   4×9 @ 82.5 kg ↑new  [✓]   rest 2:00 · "pause at bottom"  ▾
 - **Signing key:** stays on your PC, with a copy on a **second drive** (G3a). If it's ever lost: uninstall, reinstall, sign in again; only unsynced data is lost.
 - **Data-structure changes:** numbered upgrade scripts run automatically on the phone and the cloud, tested first on a local copy of your data (G6a).
 - **Plan import:** the PC view is the normal path. **Phone file import is a fallback only** when the PC view is unavailable (G2b-2). If GitHub Pages fails, the PC features move to the phone (R1d); Koyeb is dropped (R1a).
-- **Invalid plans are rejected**, listing every error in plain words (G8a). Checks include missing fields, repsMin > repsMax, duplicate IDs, and weeklyTarget > training days in the cycle.
+- **Invalid plans are rejected**, listing every error in plain words (G8a). Checks include missing fields, repsMin > repsMax, duplicate IDs, and a weeklyTarget outside 1–7 (F12.1). A target faster than the cycle's own pace (training steps ÷ cycle length × 7) isn't rejected, just flagged with a warning, because a short cycle can run more than once a week.
 
 ## 12c. Look & feel (G1)
 Dark mode that follows the phone setting, minimal screens and taps, medium-sized tap targets.
@@ -193,3 +193,4 @@ Newest at the bottom. Every decision made after the plan was approved gets a lin
 - **2026-10-12 · F2.1:** the plan lives in the repo as `docs/plan.md` (it used to be only in `~/.claude/plans/`).
 - **2026-10-12 · F10.1:** store only facts; cycle position, rest-step use, midnight auto-finish and suggestions are recalculated from them (no `cycleState` / `suggestions` tables), so the phone and the PC view can't disagree.
 - **2026-10-12 · F11.1:** "newest edit wins" is enforced by a database trigger that ignores older incoming changes; edit times come only from the device.
+- **2026-10-12 · F12.1:** plan import rejects a weeklyTarget only outside 1–7; a target faster than the cycle's pace just gets a warning.
