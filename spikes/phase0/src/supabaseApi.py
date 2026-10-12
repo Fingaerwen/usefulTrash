@@ -71,7 +71,7 @@ class SupabaseApi:
         self.projectUrl = projectUrl.rstrip("/")
         self.publishableKey = publishableKey
 
-    def _call(self, method: str, path: str, body: dict | None = None, accessToken: str | None = None,
+    def _call(self, method: str, path: str, body: dict | list | None = None, accessToken: str | None = None,
               prefer: str | None = None):
         """Sends one request to projectUrl + path and returns the parsed JSON answer (None if empty).
         No accessToken = an anonymous call. Blocking: the app uses the async methods below,
@@ -106,6 +106,13 @@ class SupabaseApi:
             {"provider": "google", "id_token": idToken, "nonce": rawNonce},
         )
 
+    async def refreshSession(self, refreshToken: str) -> dict:
+        """Swaps the refresh token for a new session. Supabase retires the old refresh token right away
+        (rotation), so the caller must store the new one before doing anything else."""
+        return await asyncio.to_thread(
+            self._call, "POST", "/auth/v1/token?grant_type=refresh_token", {"refresh_token": refreshToken}
+        )
+
     async def getUser(self, accessToken: str) -> dict:
         """Asks Supabase who an access token belongs to (proves the session works)."""
         return await asyncio.to_thread(self._call, "GET", "/auth/v1/user", None, accessToken)
@@ -120,7 +127,7 @@ class SupabaseApi:
     def tablePath(table: str, filters: dict[str, str]) -> str:
         """Builds "/rest/v1/<table>?<filters>" with everything URL-encoded. camelCase table and
         column names work as they are: the Data API quotes them for Postgres (plan 11.4c)."""
-        query = urllib.parse.urlencode(filters)
+        query = urllib.parse.urlencode(filters, quote_via=urllib.parse.quote)  # spaces as %20, not "+"
         return f"/rest/v1/{urllib.parse.quote(table, safe='')}" + (f"?{query}" if query else "")
 
     @staticmethod
@@ -139,6 +146,14 @@ class SupabaseApi:
             self._call, "POST", self.tablePath(table, {}), row, accessToken, "return=representation"
         )
         return rows[0] if rows else {}
+
+    async def insertRowsSkippingExisting(self, table: str, rows: list[dict], accessToken: str | None) -> None:
+        """Saves several rows in one request. A row whose "id" already exists is skipped, so resending
+        after a lost answer can never create duplicates (the offline queue relies on this)."""
+        await asyncio.to_thread(
+            self._call, "POST", self.tablePath(table, {"on_conflict": "id"}), rows, accessToken,
+            "resolution=ignore-duplicates,return=minimal",
+        )
 
     async def updateRows(self, table: str, filters: dict[str, str], changes: dict, accessToken: str | None) -> list[dict]:
         """Changes the matching rows and returns them as stored. Rows hidden by row-level security

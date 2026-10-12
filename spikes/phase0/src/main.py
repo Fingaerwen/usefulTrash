@@ -1,19 +1,26 @@
 """Phase 0 spike: tests risky parts of the plan on a real phone.
 Currently: startup time (check 8), version (check 12), Google sign-in via our own nativeGoogleSignIn
-extension (check 2), picking a plan file (check 9), scheduled notifications via our own weighInNotify
-extension (check 5). More checks (Supabase data, offline queue) get added step by step."""
+extension (check 2), Supabase read/write (check 3), offline queue + staying signed in with our own
+secureStore extension (check 4), picking a plan file (check 9), scheduled notifications via our own
+weighInNotify extension (check 5)."""
 
 import time
 
 # Measured as early as possible: the moment Python starts running this file.
 pythonStartTime = time.monotonic()
 
-import json  # noqa: E402  (imported after the timer on purpose)
+import asyncio  # noqa: E402  (imported after the timer on purpose)
+import json  # noqa: E402
+import os  # noqa: E402
+import re  # noqa: E402
 import uuid  # noqa: E402
 from pathlib import Path  # noqa: E402
 
 import flet as ft  # noqa: E402
 from nativeGoogleSignIn import NativeGoogleSignIn  # noqa: E402
+from offlineQueue import OfflineQueue  # noqa: E402
+from secureStore import SecureStore  # noqa: E402
+from sessionKeeper import SessionKeeper  # noqa: E402
 from supabaseApi import SupabaseApi, SupabaseError, makeNoncePair  # noqa: E402
 from weighInNotify import WeighInNotify  # noqa: E402
 
@@ -58,15 +65,15 @@ def main(page: ft.Page):
     pythonToScreenSec = time.monotonic() - pythonStartTime
 
     # Check 2: native Google sign-in → Supabase session (plan AU1c, F8, F9).
-    # The session lives in memory only: nothing is saved on the phone yet, and closing the app signs you out.
-    # How tokens get stored is decided before check 4.
+    # Check 4 (T1.1): the session is saved encrypted with a phone-locked key and restored when the app starts.
     publicConfig = loadPublicConfig()
     googleSignIn = NativeGoogleSignIn()
+    secureStore = SecureStore()
     supabase = (
         SupabaseApi(publicConfig["supabaseUrl"], publicConfig["supabasePublishableKey"])
         if publicConfig.get("supabaseUrl") and publicConfig.get("supabasePublishableKey") else None
     )
-    session = {}  # current Supabase session (access_token, refresh_token, expires_at, user); memory only
+    keeper = SessionKeeper(supabase, secureStore)  # the session: in memory, plus an encrypted copy on the phone
     signInResultText = ft.Text("Not signed in")
 
     def showSignIn(message: str):
@@ -118,9 +125,10 @@ def main(page: ft.Page):
 
             showSignIn("⏳ Signing in to Supabase…")
             newSession = await supabase.signInWithGoogleIdToken(answer["idToken"], rawNonce)
-            session.clear()
-            session.update(newSession)
-            showSignIn(f"✅ Signed in: {describeSession(session)}\n✅ Replay protection: {nonceCheck}")
+            saved = await keeper.save(newSession)
+            savedLine = "✅ Saved encrypted on the phone (T1.1)" if saved else f"⚠️ Not saved: {keeper.lastProblem}"
+            showSignIn(f"✅ Signed in: {describeSession(keeper.session)}\n✅ Replay protection: {nonceCheck}\n{savedLine}")
+            await refreshCheck4Status()
         except SupabaseError as err:
             showSignIn(f"❌ Supabase: {err}")  # e.g. 422 signup_disabled for an account that isn't yours
         except Exception as err:  # anything else is shown instead of crashing; messages never contain tokens
@@ -131,25 +139,27 @@ def main(page: ft.Page):
 
     async def checkSession(e):
         """Asks Supabase who the current access token belongs to."""
-        if not session:
+        if not keeper.isSignedIn():
             showSignIn("Not signed in")
             return
         try:
-            user = await supabase.getUser(session["access_token"])
-            showSignIn(f"✅ Supabase accepts the session: user {str(user.get('id', '?'))[:8]}…\n{describeSession(session)}")
+            user = await supabase.getUser(await keeper.freshAccessToken())
+            showSignIn(f"✅ Supabase accepts the session: user {str(user.get('id', '?'))[:8]}…\n{describeSession(keeper.session)}")
         except SupabaseError as err:
             showSignIn(f"❌ Session refused: {err}")
 
     async def signOut(e):
-        """Ends the Supabase session, forgets it in memory and clears Google's account choice."""
+        """Ends the Supabase session, deletes the saved copy and clears Google's account choice."""
         messages = []
-        if session and supabase is not None:
+        if keeper.isSignedIn() and supabase is not None:
             try:
-                await supabase.signOut(session["access_token"])
+                await supabase.signOut(await keeper.freshAccessToken())
                 messages.append("Supabase session ended")
             except SupabaseError as err:
                 messages.append(f"Supabase sign-out failed: {err}")
-        session.clear()
+        await keeper.forget()  # also deletes the encrypted copy on the phone
+        messages.append("saved session deleted")
+        await refreshCheck4Status()
         if page.platform == ft.PagePlatform.ANDROID:
             try:
                 cleared = await googleSignIn.clearSignInState()
@@ -169,15 +179,15 @@ def main(page: ft.Page):
     async def runCheck3(e):
         """Saves, reads, edits and deletes one own row, and proves row-level security refuses rows
         for someone else. Every step shows ✅ or ❌; the test row is always deleted again."""
-        if not session:
+        if not keeper.isSignedIn():
             dataResultText.value = "Sign in first (check 2)"
             page.update()
             return
         if check3Button.disabled:
             return  # already running (double tap)
         check3Button.disabled = True
-        accessToken = session["access_token"]
-        myUserId = str((session.get("user") or {}).get("id", ""))
+        accessToken = ""  # fetched inside the try: renewing may fail
+        myUserId = keeper.userId()
         strangerId = str(uuid.uuid4())  # a user ID that isn't yours
         lines, outcomes = [], []
         rowId = None
@@ -201,6 +211,7 @@ def main(page: ft.Page):
         try:
             dataResultText.value = "⏳ Running…"
             page.update()
+            accessToken = await keeper.freshAccessToken()
 
             # 1. Save one own row; the database fills in id, userId (= whoever is signed in) and updatedAt.
             row = await supabase.insertRow(testTable, {"noteText": f"check 3 test {time.strftime('%H:%M:%S')}"}, accessToken)
@@ -256,6 +267,158 @@ def main(page: ft.Page):
             page.update()
 
     check3Button = ft.FilledButton("Run check 3", icon=ft.Icons.STORAGE, on_click=runCheck3)
+
+    # Check 4: offline queue + staying signed in (plan 1 and 2, T1.1). Notes go into a local SQLite queue first
+    # and are sent while the app is open and online. Each note's ID is made on the phone, so sending it again
+    # can't create a duplicate. The session survives closing the app: it's restored from the encrypted copy.
+    queue = OfflineQueue(os.getenv("FLET_APP_STORAGE_DATA") or os.getcwd())
+    sessionStatusText = ft.Text("Session: checking…")
+    queueStatusText = ft.Text("Queue: checking…")
+    check4ResultText = ft.Text("")
+    syncLock = asyncio.Lock()
+    syncState = {"tries": 0, "lastResult": "not tried yet", "sentTotal": 0}
+    testNotePattern = "like.check 4*"  # Data API filter: every note this check created
+
+    def showCheck4(message: str):
+        """Shows the outcome of a check 4 button under the buttons."""
+        check4ResultText.value = message
+        page.update()
+
+    async def refreshCheck4Status():
+        """Updates check 4's session and queue lines."""
+        if keeper.isSignedIn():
+            sessionStatusText.value = f"Session: {describeSession(keeper.session)}; renewed {keeper.renewCount}× this run"
+        else:
+            sessionStatusText.value = "Session: not signed in" + (f" ({keeper.lastProblem})" if keeper.lastProblem else "")
+        queueStatusText.value = (f"Queue: {queue.count()} waiting on the phone · sent {syncState['sentTotal']} this run · "
+                                 f"sync try #{syncState['tries']}: {syncState['lastResult']}")
+        page.update()
+
+    async def syncNow() -> str:
+        """Sends every waiting note in one request, then forgets them on the phone. Safe to repeat."""
+        async with syncLock:  # the loop and the button never send at the same time
+            notes = queue.pending()
+            if not notes:
+                return "nothing to send"
+            if supabase is None or not keeper.isSignedIn():
+                return f"{len(notes)} waiting for sign-in"
+            rows = [{"id": note["id"], "noteText": note["noteText"]} for note in notes]
+            try:
+                await supabase.insertRowsSkippingExisting(testTable, rows, await keeper.freshAccessToken())
+            except SupabaseError as err:
+                if err.statusCode == 0:
+                    return f"offline, {len(notes)} waiting"
+                if err.statusCode != 401:
+                    raise
+                # Access token refused early (e.g. the phone's clock is off): renew once and resend.
+                await keeper.renewNow()
+                await supabase.insertRowsSkippingExisting(testTable, rows, await keeper.freshAccessToken())
+            queue.remove([note["id"] for note in notes])  # only after Supabase confirmed them
+            syncState["sentTotal"] += len(notes)
+            return f"✅ sent {len(notes)}"
+
+    async def trySync():
+        """One sync attempt; the result goes on the queue line."""
+        syncState["tries"] += 1
+        try:
+            syncState["lastResult"] = await syncNow()
+        except SupabaseError as err:
+            syncState["lastResult"] = f"❌ {err}"
+        except Exception as err:  # shown instead of crashing; messages never contain tokens
+            syncState["lastResult"] = f"❌ {type(err).__name__}: {err}"
+        await refreshCheck4Status()
+
+    async def syncLoop():
+        """While the app is open: every 10 seconds, send whatever is waiting (plan: sync runs while the app is open)."""
+        while True:
+            try:
+                if queue.count():
+                    await trySync()
+            except Exception as err:  # never let one bad round stop syncing for good
+                syncState["lastResult"] = f"❌ {type(err).__name__}: {err}"
+            await asyncio.sleep(10)
+
+    async def addTestNote(e):
+        """Writes a note on the phone first, then tries to send it straight away."""
+        noteId = queue.add(f"check 4 note {time.strftime('%H:%M:%S')}")
+        showCheck4(f"Saved on the phone (id {noteId[:8]}…)")
+        await trySync()
+
+    async def syncButton(e):
+        await trySync()
+
+    async def renewSession(e):
+        """Renews the session now: new tokens from Supabase, saved encrypted before they're used."""
+        try:
+            await keeper.renewNow()
+            showCheck4(f"✅ Renewed: new tokens saved encrypted ({keeper.renewCount}× this run)"
+                       + (f"\n⚠️ {keeper.lastProblem}" if keeper.lastProblem else ""))
+        except SupabaseError as err:
+            showCheck4(f"❌ Renewal: {err}" + ("\nSign in again (the saved session was deleted)" if not keeper.isSignedIn() else ""))
+        await refreshCheck4Status()
+
+    async def showMyNotes(e):
+        """Reads this check's notes back from Supabase."""
+        try:
+            rows = await supabase.selectRows(
+                testTable, {"select": "noteText", "noteText": testNotePattern, "order": "updatedAt.desc"},
+                await keeper.freshAccessToken())
+            texts = "\n".join(f"· {row.get('noteText', '')}" for row in rows[:6])
+            showCheck4(f"In Supabase: {len(rows)} check 4 notes\n{texts}")
+        except SupabaseError as err:
+            showCheck4(f"❌ {err}")
+
+    async def deleteMyNotes(e):
+        """Deletes this check's notes from Supabase (clean-up)."""
+        try:
+            deleted = await supabase.deleteRows(testTable, {"noteText": testNotePattern}, await keeper.freshAccessToken())
+            showCheck4(f"✅ Deleted {len(deleted)} check 4 notes from Supabase")
+        except SupabaseError as err:
+            showCheck4(f"❌ {err}")
+
+    async def scanAppLog(e):
+        """Searches the app's own log file (Flet writes Python's output there) for tokens. Shows counts only."""
+        logPath = os.path.join(os.getenv("FLET_APP_STORAGE_CACHE", ""), "console.log")
+        try:
+            with open(logPath, encoding="utf-8", errors="replace") as logFile:
+                logText = logFile.read()
+        except OSError:
+            showCheck4("App log file: none written (nothing was printed)")
+            return
+        tokenShaped = len(re.findall(r"eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+", logText))
+        currentTokens = [value for value in (keeper.session.get("access_token"), keeper.session.get("refresh_token"))
+                         if value and value in logText]
+        showCheck4(f"App log file: {len(logText.splitlines())} lines, {tokenShaped} token-shaped strings, "
+                   f"current tokens found: {len(currentTokens)}" + (" ✅" if not tokenShaped and not currentTokens else " ❌"))
+
+    async def startUp():
+        """Restores the saved session (if any), shows where its key lives, then starts the sync loop."""
+        if supabase is None:
+            sessionStatusText.value = "Session: no public config in this build"
+            page.update()
+            return
+        try:
+            restoreResult = await keeper.restore()
+            keyInfo = await secureStore.info()
+        except Exception as err:  # e.g. the secure store isn't available: show it instead of failing silently
+            showCheck4(f"❌ Start-up: {type(err).__name__}: {err}")
+            return
+        keyLine = f"key in {keyInfo.get('keyLocation')}" if keyInfo.get("keyExists") else "no key yet"
+        restoreLines = {
+            "restored": "✅ Session restored from the encrypted copy",
+            "none": "No saved session: sign in (check 2)",
+            "unreadable": "⚠️ Saved session couldn't be decrypted, so it was deleted: sign in again",
+            "error": "⚠️ Couldn't read the saved session",
+        }
+        showCheck4(f"{restoreLines.get(restoreResult, restoreResult)} ({keyLine})")
+        if restoreResult == "restored":
+            signInResultText.value = f"Restored: {describeSession(keeper.session)}"
+            try:
+                await keeper.freshAccessToken()  # renews now if the access token is (nearly) expired; offline is fine
+            except SupabaseError:
+                pass  # offline or refused: the status line shows it
+        await refreshCheck4Status()
+        page.run_task(syncLoop)
 
     # Check 9: the phone's file picker. Services register themselves with the page in Flet 1.0.
     filePicker = ft.FilePicker()
@@ -335,6 +498,17 @@ def main(page: ft.Page):
                     check3Button,
                     dataResultText,
                     ft.Divider(),
+                    ft.Text("Check 4: offline queue + staying signed in", weight=ft.FontWeight.BOLD),
+                    sessionStatusText,
+                    queueStatusText,
+                    ft.FilledButton("Add test note", icon=ft.Icons.NOTE_ADD, on_click=addTestNote),
+                    ft.OutlinedButton("Sync now", on_click=syncButton),
+                    ft.OutlinedButton("Renew session now", on_click=renewSession),
+                    ft.OutlinedButton("Show my notes in Supabase", on_click=showMyNotes),
+                    ft.OutlinedButton("Delete my test notes", on_click=deleteMyNotes),
+                    ft.OutlinedButton("Scan the app's log for tokens", on_click=scanAppLog),
+                    check4ResultText,
+                    ft.Divider(),
                     ft.Text("Check 9: pick a plan file", weight=ft.FontWeight.BOLD),
                     ft.FilledButton("Pick plan file", icon=ft.Icons.FOLDER_OPEN, on_click=pickPlanFile),
                     pickResultText,
@@ -353,6 +527,7 @@ def main(page: ft.Page):
             expand=True,
         )
     )
+    page.run_task(startUp)  # restore the saved session and start syncing (check 4)
 
 
 if __name__ == "__main__":

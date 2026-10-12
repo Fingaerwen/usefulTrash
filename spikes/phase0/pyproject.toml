@@ -8,6 +8,7 @@ dependencies = [
     "flet==1.0.3",
     "weighInNotify",  # our own notification extension (check 5); where to find it is set in [tool.flet.dev_packages]
     "nativeGoogleSignIn",  # our own Google sign-in extension (check 2), same setup
+    "secureStore",  # our own encrypted storage with a phone-locked key (check 4, plan T1.1), same setup
 ]
 
 # Local packages for `flet build`: paths are relative to this folder (spikes/phase0), so the repo
@@ -16,6 +17,7 @@ dependencies = [
 [tool.flet.dev_packages]
 weighInNotify = "../../extensions/weighInNotify"
 nativeGoogleSignIn = "../../extensions/nativeGoogleSignIn"
+secureStore = "../../extensions/secureStore"
 
 [tool.flet]
 product = "usefulTrash Phase 0"
