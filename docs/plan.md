@@ -21,7 +21,7 @@ This is a personal suite of Python apps in one public repo (`claudProjects/usefu
   - **Secrets (local only):** the Supabase secret/admin key, database passwords, Google Drive passes, the APK signing key, `.env`.
   - **Allowed public identifiers (K2a):** the Supabase address, the Supabase *publishable* key and the Google sign-in client ID. They ship inside the app and website; they're public by design and unlock nothing on their own.
   - Sign-in tokens go to Google/Supabase as part of logging in and are stored only on your device (K3a).
-  - GitHub's own temporary job token (created by GitHub, never seen or stored) is allowed for the keep-alive commit (3.3a).
+  - GitHub's own temporary job token (created by GitHub, never seen or stored) is allowed for the keep-alive (3.3a / F15.1).
 - **Leak protection:** a pre-commit secret scan blocks commits containing keys (K4a); GitHub push protection (K4b); `.env` and the signing key are in `.gitignore`.
 - **Sign-in (AU1c):** native **Google sign-in on Android** with no stored secret: the app gets a Google ID token and Supabase checks it using only the public client ID. **If it fails on the phone (check 2), the fallback is an emailed 6-digit code** (F1.1). The **PC view's** method is chosen at check 6: Google's browser sign-in (also secret-free) or the emailed code. Supabase's Email sign-in stays **off** until one of these actually needs it.
 - **Only your account allowed** (5.1), **sign-ups disabled after setup** (5.2). The Google app is set to *published* so sign-in passes don't expire after 7 days.
@@ -118,7 +118,7 @@ Bench Press   4×9 @ 82.5 kg ↑new  [✓]   rest 2:00 · "pause at bottom"  ▾
 - The PC view **warns when the last backup is 60+ days old** (3.4).
 - **Restore (F13.1):** a small restore script plus a short guide. It's tested once when backups are built (into a spare copy, never the live data) and again after every data-structure change. Each backup records its data-structure version, so older backups still restore correctly.
 - **Daily database ping (GitHub Actions):** uses only the public address + publishable key, calling a harmless `ping` function (K1c / 7.4), so the Supabase free tier doesn't pause. The publishable key lives in one config file that everything references. Whether the ping counts as activity is **watched for the first 2 weeks** (R10).
-- **Monthly keep-alive commit** using GitHub's temporary job token, so GitHub doesn't disable the ping schedule (3.3a).
+- **Keep-alive (F15.1):** GitHub switches off scheduled jobs after 60 days without repo activity, so the ping job uses GitHub's temporary job token to call GitHub's "enable workflow" API, which resets that timer without any commits. Checked when the workflows are built; if it doesn't reset the timer, fall back to a monthly keep-alive commit (3.3a).
 
 ## 12b. Releases, updates & data upgrades
 - **Versions:** `0.1-alpha` → `0.2-alpha` → … (the middle number bumps every release, with no third number) (V3a). If Android's tooling requires three numbers, it's stored internally as `0.1.0` while every visible name stays `0.1-alpha` (Phase 0 check 12: not needed; `0.1-alpha` is accepted as is, and the internal versionCode must go up by one each release). The Phase 0 spike used `0.1-alpha` only to run that check. GitHub releases are **normal releases named alpha**, not pre-releases, so Obtainium picks them up (V4b).
@@ -197,3 +197,4 @@ Newest at the bottom. Every decision made after the plan was approved gets a lin
 - **2026-10-12 · F12.1:** plan import rejects a weeklyTarget only outside 1–7; a target faster than the cycle's pace just gets a warning.
 - **2026-10-12 · F13.1:** backups get a restore script + guide, tested on a spare copy when built and after every data-structure change; each backup records its structure version.
 - **2026-10-12 · F14.1:** automatic backups come from the phone only; the PC view gets a "Back up now" button.
+- **2026-10-12 · F15.1:** keep the ping schedule alive through GitHub's "enable workflow" API instead of monthly bot commits (fallback: the commit).
