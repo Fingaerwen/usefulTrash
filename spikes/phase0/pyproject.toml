@@ -7,6 +7,7 @@ requires-python = "==3.14.*"  # same Python as Flet's Android build (check 11)
 dependencies = [
     "flet==1.0.3",
     "weighInNotify",  # our own notification extension (check 5); where to find it is set in [tool.flet.dev_packages]
+    "nativeGoogleSignIn",  # our own Google sign-in extension (check 2), same setup
 ]
 
 # Local packages for `flet build`: paths are relative to this folder (spikes/phase0), so the repo
@@ -14,6 +15,7 @@ dependencies = [
 # looks the name up on PyPI. Review F16.
 [tool.flet.dev_packages]
 weighInNotify = "../../extensions/weighInNotify"
+nativeGoogleSignIn = "../../extensions/nativeGoogleSignIn"
 
 [tool.flet]
 product = "usefulTrash Phase 0"
