@@ -5,13 +5,14 @@ version: 0.1.0
 publish_to: none
 
 environment:
-  sdk: '>=3.2.3 <4.0.0'
+  sdk: '>=3.5.0 <4.0.0'  # 3.3+ needed for extension types (browser interop in google_web_sign_in.dart)
   flutter: ">=3.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
   flet: 1.0.3  # same version the app uses
+  web: ^1.1.0  # official Dart package for browser APIs (only used by the website sign-in)
 
 # Declares the Kotlin code in android/ as a Flutter plugin, so Android loads it.
 flutter:
