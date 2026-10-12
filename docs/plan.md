@@ -145,13 +145,15 @@ A throwaway Flet app in `usefulTrash/spikes/phase0/` that answers each question 
 4. Works offline: writes are queued and synced once the connection is back.
 5. A scheduled local notification fires (weigh-in reminder, Friday 07:00).
 6. A `flet build web` version on GitHub Pages can sign in (Google in the browser or emailed code, chosen at this check) and read the same row.
-7. The phone uploads a small file to Google Drive using your sign-in, **with no secret in the app, and still works after the 1-hour token expiry** (R2). Fail → PC timer backup (R2b).
+7. The phone uploads a small file to Google Drive using your sign-in, **with no secret in the app, and still works after the 1-hour token expiry** (R2). Fail → PC timer backup (R2b). This doesn't depend on check 2: on Android the Drive permission comes from Google Play services, separate from how you sign into Supabase (F3).
 8. **Cold start under 5 seconds** on your phone (G5b).
 9. A JSON file can be picked from phone storage (fallback import).
 10. A pre-commit secret scan blocks a commit containing a fake key.
 11. Records the Python version Flet bundles for Android, which decides the venv tool (V1e / R3). This runs first, in a temporary venv.
 
 12. Builds with the version name `0.1-alpha` and confirms whether Android needs a three-number internal version.
+
+**How the checks depend on each other (F3):** checks 3 and 4 need *a* Supabase sign-in (Google, or the emailed-code fallback). Check 6 needs a sign-in in the browser. Check 7 needs only Google's Drive permission on the phone, so it can be tested even if check 2 fails.
 
 **Your account steps** (guided, done by you): a GitHub account/repo, a Supabase project, Google sign-in setup in Google Cloud (published app, Drive "files this app created" permission), and Obtainium on your phone.
 
