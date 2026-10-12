@@ -1,7 +1,9 @@
 package io.github.fingaerwen.nativegooglesignin
 
+import android.accounts.Account
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.os.CancellationSignal
 import androidx.core.content.ContextCompat
 import androidx.credentials.ClearCredentialStateRequest
@@ -14,6 +16,13 @@ import androidx.credentials.exceptions.ClearCredentialException
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.credentials.exceptions.NoCredentialException
+import com.google.android.gms.auth.api.identity.AuthorizationRequest
+import com.google.android.gms.auth.api.identity.AuthorizationResult
+import com.google.android.gms.auth.api.identity.ClearTokenRequest
+import com.google.android.gms.auth.api.identity.Identity
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.CommonStatusCodes
+import com.google.android.gms.common.api.Scope
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
@@ -22,23 +31,28 @@ import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import io.flutter.plugin.common.PluginRegistry
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Bridge between the Dart side (native_google_sign_in_service.dart) and Android's Credential Manager.
+ * Bridge between the Dart side (native_google_sign_in_service.dart) and Android's Credential Manager
+ * (sign-in, check 2) and Google Play services' authorization API (Drive permission, check 7).
  *
  * Rules (plan AU1c + F9):
  * - Every request gets exactly one reply, including "cancelled" and every error. Flet method calls
  *   have no default timeout, so a missing reply would leave the sign-in button waiting forever.
- * - The Google ID token is only handed back to Python. It is never logged or saved here.
+ * - The Google ID token and Drive access tokens are only handed back to Python. They are never logged or saved here.
  * - No client secret: Google issues the token for the public Web client ID, and the Android
  *   client (package name + signing fingerprint, set up in Google Cloud) proves it's really this app.
  */
-class NativeGoogleSignInPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware {
+class NativeGoogleSignInPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, ActivityAware,
+    PluginRegistry.ActivityResultListener {
 
     private lateinit var channel: MethodChannel
     private lateinit var appContext: Context
     private var activity: Activity? = null  // the current screen; Google's account picker needs one
+    private var activityBinding: ActivityPluginBinding? = null  // delivers the Drive consent screen's result
+    private var pendingDriveConsent: OneReply? = null  // the request waiting for Google's Drive consent screen
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         appContext = binding.applicationContext
@@ -60,6 +74,12 @@ class NativeGoogleSignInPlugin : FlutterPlugin, MethodChannel.MethodCallHandler,
                     reply,
                 )
                 "clearSignInState" -> clearSignInState(reply)
+                "getDriveAccess" -> getDriveAccess(
+                    call.argument<Boolean>("interactive") ?: false,
+                    call.argument<String>("accountEmail").orEmpty(),
+                    reply,
+                )
+                "clearDriveToken" -> clearDriveToken(call.argument<String>("accessToken").orEmpty(), reply)
                 else -> reply.send(failure("unknownMethod", "No method called ${call.method}"))
             }
         } catch (e: Exception) {
@@ -138,24 +158,144 @@ class NativeGoogleSignInPlugin : FlutterPlugin, MethodChannel.MethodCallHandler,
         )
     }
 
+    /**
+     * Asks Google Play services for a Drive access token (check 7, plan F14.1), limited to files this app creates.
+     * No client secret and no refresh token in the app: Play services keeps the long-lived permission itself
+     * and hands out access tokens that last about an hour. Asking again later returns a fresh one without
+     * showing anything, as long as the permission wasn't removed.
+     *
+     * interactive = false: never shows a screen; replies "needsConsent" if Google wants to ask first.
+     * interactive = true: shows Google's consent screen when needed and replies once it closes.
+     * accountEmail: the Google account the permission is for (the signed-in account); empty = Google asks.
+     */
+    private fun getDriveAccess(interactive: Boolean, accountEmail: String, reply: OneReply) {
+        val currentActivity = activity
+        if (interactive && currentActivity == null) {
+            reply.send(failure("noScreen", "No app screen to show Google's permission screen on"))
+            return
+        }
+        val requestBuilder = AuthorizationRequest.builder().setRequestedScopes(listOf(Scope(driveFileScope)))
+        if (accountEmail.isNotBlank()) requestBuilder.setAccount(Account(accountEmail, "com.google"))
+        val client = if (currentActivity != null) {
+            Identity.getAuthorizationClient(currentActivity)
+        } else {
+            Identity.getAuthorizationClient(appContext)
+        }
+
+        client.authorize(requestBuilder.build())  // listeners run on the main thread
+            .addOnSuccessListener { result ->
+                if (!result.hasResolution()) {
+                    reply.send(readDriveAccess(result))  // already allowed: the token came back without any screen
+                } else if (!interactive) {
+                    reply.send(mapOf("status" to "needsConsent"))
+                } else {
+                    showDriveConsent(result, reply)
+                }
+            }
+            .addOnFailureListener { e -> reply.send(describeAuthorizationError(e)) }
+    }
+
+    /** Opens Google's consent screen; its result arrives in onActivityResult. */
+    private fun showDriveConsent(result: AuthorizationResult, reply: OneReply) {
+        val screen = activity
+        val consentScreen = result.pendingIntent
+        if (screen == null || consentScreen == null) {
+            reply.send(failure("noScreen", "No app screen to show Google's permission screen on"))
+            return
+        }
+        if (pendingDriveConsent != null) {
+            reply.send(failure("busy", "Google's permission screen is already open"))
+            return
+        }
+        pendingDriveConsent = reply
+        try {
+            screen.startIntentSenderForResult(consentScreen.intentSender, driveConsentRequestCode, null, 0, 0, 0)
+        } catch (e: Exception) {  // e.g. the screen couldn't be started
+            pendingDriveConsent = null
+            reply.send(failure(e.javaClass.simpleName, e.message))
+        }
+    }
+
+    /** Receives the closed consent screen's answer (registered through the activity binding). */
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
+        if (requestCode != driveConsentRequestCode) return false  // someone else's result
+        val reply = pendingDriveConsent ?: return true  // nobody waiting any more (already answered)
+        pendingDriveConsent = null
+        if (data == null) {
+            reply.send(
+                if (resultCode == Activity.RESULT_CANCELED) mapOf("status" to "cancelled")
+                else failure("noResult", "Google's permission screen closed without an answer")
+            )
+            return true
+        }
+        try {
+            reply.send(readDriveAccess(Identity.getAuthorizationClient(appContext).getAuthorizationResultFromIntent(data)))
+        } catch (e: Exception) {
+            reply.send(describeAuthorizationError(e))
+        }
+        return true
+    }
+
+    /** Pulls the access token out of Google's answer and checks the Drive permission is really in it. */
+    private fun readDriveAccess(result: AuthorizationResult): Map<String, Any?> {
+        val accessToken = result.accessToken
+        val grantedScopes: List<String> = result.grantedScopes ?: emptyList()
+        if (accessToken.isNullOrEmpty()) return failure("noToken", "Google returned no access token")
+        if (grantedScopes.isNotEmpty() && driveFileScope !in grantedScopes) {
+            return failure("notGranted", "The Drive permission wasn't granted")
+        }
+        return mapOf("status" to "ok", "accessToken" to accessToken, "grantedScopes" to grantedScopes)
+    }
+
+    /**
+     * Removes an access token Google refused from Play services' cache, so the next getDriveAccess gets a new
+     * one instead of the same refused token. The permission itself stays.
+     */
+    private fun clearDriveToken(accessToken: String, reply: OneReply) {
+        if (accessToken.isBlank()) {
+            reply.send(failure("missingToken", "No token was given"))
+            return
+        }
+        Identity.getAuthorizationClient(appContext)
+            .clearToken(ClearTokenRequest.builder().setToken(accessToken).build())
+            .addOnSuccessListener { reply.send(mapOf("status" to "ok")) }
+            .addOnFailureListener { e -> reply.send(describeAuthorizationError(e)) }
+    }
+
+    /** Turns a Play services error into a reply. "Cancelled" = closed by the user. Messages never contain tokens. */
+    private fun describeAuthorizationError(e: Exception): Map<String, Any?> = when {
+        e is ApiException && e.statusCode == CommonStatusCodes.CANCELED -> mapOf("status" to "cancelled")
+        e is ApiException -> failure(CommonStatusCodes.getStatusCodeString(e.statusCode), e.message)
+        else -> failure(e.javaClass.simpleName, e.message)
+    }
+
     /** A failure reply in the shape Python expects. */
     private fun failure(errorType: String, message: String?): Map<String, Any?> =
         mapOf("status" to "error", "errorType" to errorType, "message" to (message ?: ""))
 
-    // Keep track of the current screen (needed to show Google's account picker).
-    override fun onAttachedToActivity(binding: ActivityPluginBinding) {
-        activity = binding.activity
-    }
+    // Keep track of the current screen (needed to show Google's account picker and permission screen).
+    override fun onAttachedToActivity(binding: ActivityPluginBinding) = attachTo(binding)
 
-    override fun onDetachedFromActivityForConfigChanges() {
-        activity = null
-    }
+    override fun onDetachedFromActivityForConfigChanges() = detachFromActivity()
 
-    override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
-        activity = binding.activity
-    }
+    override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) = attachTo(binding)
 
     override fun onDetachedFromActivity() {
+        detachFromActivity()
+        // The screen is gone for good, so the consent screen's result can't reach us: answer instead of hanging.
+        pendingDriveConsent?.send(failure("screenClosed", "The app screen closed before Google's answer arrived"))
+        pendingDriveConsent = null
+    }
+
+    private fun attachTo(binding: ActivityPluginBinding) {
+        activityBinding = binding
+        activity = binding.activity
+        binding.addActivityResultListener(this)
+    }
+
+    private fun detachFromActivity() {
+        activityBinding?.removeActivityResultListener(this)
+        activityBinding = null
         activity = null
     }
 
@@ -166,5 +306,13 @@ class NativeGoogleSignInPlugin : FlutterPlugin, MethodChannel.MethodCallHandler,
         fun send(value: Any?) {
             if (answered.compareAndSet(false, true)) result.success(value)
         }
+    }
+
+    private companion object {
+        /** Drive permission limited to files this app creates (plan F14.1). Google rates it non-sensitive. */
+        const val driveFileScope = "https://www.googleapis.com/auth/drive.file"
+
+        /** Marks the consent screen's result among the screen's results. Must fit in 16 bits (FlutterFragmentActivity). */
+        const val driveConsentRequestCode = 0x7D01
     }
 }

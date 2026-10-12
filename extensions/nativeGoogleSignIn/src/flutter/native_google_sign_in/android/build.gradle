@@ -50,5 +50,9 @@ android {
         // "Sign in with Google" option + ID token parsing. 1.2.0, not 1.2.1: 1.2.1 is compiled with Kotlin 2.4,
         // which Flet 1.0.3's Android build (Kotlin 2.2.20) can't read. Same API, nonce support included.
         implementation 'com.google.android.libraries.identity.googleid:googleid:1.2.0'
+        // Drive permission (check 7): Google Play services' authorization API. 21.6.0 is the newest 21.x
+        // (21.4.0+ has clearToken). Not 22.x: it removed older Google sign-in APIs, and the Credential Manager
+        // backend above was built against 21.x.
+        implementation 'com.google.android.gms:play-services-auth:21.6.0'
     }
 }
