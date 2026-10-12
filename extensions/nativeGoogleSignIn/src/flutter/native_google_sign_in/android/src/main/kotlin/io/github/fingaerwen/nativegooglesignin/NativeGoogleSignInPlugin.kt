@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.CancellationSignal
+import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
@@ -53,6 +54,7 @@ class NativeGoogleSignInPlugin : FlutterPlugin, MethodChannel.MethodCallHandler,
     private var activity: Activity? = null  // the current screen; Google's account picker needs one
     private var activityBinding: ActivityPluginBinding? = null  // delivers the Drive consent screen's result
     private var pendingDriveConsent: OneReply? = null  // the request waiting for Google's Drive consent screen
+    private var pendingDriveConsentSince = 0L  // when that screen was opened (SystemClock.elapsedRealtime)
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         appContext = binding.applicationContext
@@ -203,11 +205,18 @@ class NativeGoogleSignInPlugin : FlutterPlugin, MethodChannel.MethodCallHandler,
             reply.send(failure("noScreen", "No app screen to show Google's permission screen on"))
             return
         }
-        if (pendingDriveConsent != null) {
-            reply.send(failure("busy", "Google's permission screen is already open"))
-            return
+        val earlierRequest = pendingDriveConsent
+        if (earlierRequest != null) {
+            if (SystemClock.elapsedRealtime() - pendingDriveConsentSince < staleConsentMs) {
+                reply.send(failure("busy", "Google's permission screen is already open"))
+                return
+            }
+            // The earlier screen never answered and Python stopped waiting for it: this request takes its place,
+            // so a lost answer can't block the button until the app restarts.
+            earlierRequest.send(failure("superseded", "A newer permission request replaced this one"))
         }
         pendingDriveConsent = reply
+        pendingDriveConsentSince = SystemClock.elapsedRealtime()
         try {
             screen.startIntentSenderForResult(consentScreen.intentSender, driveConsentRequestCode, null, 0, 0, 0)
         } catch (e: Exception) {  // e.g. the screen couldn't be started
@@ -314,5 +323,8 @@ class NativeGoogleSignInPlugin : FlutterPlugin, MethodChannel.MethodCallHandler,
 
         /** Marks the consent screen's result among the screen's results. Must fit in 16 bits (FlutterFragmentActivity). */
         const val driveConsentRequestCode = 0x7D01
+
+        /** After this long an unanswered consent screen counts as lost: a bit more than Python's 300-second wait. */
+        const val staleConsentMs = 310_000L
     }
 }
