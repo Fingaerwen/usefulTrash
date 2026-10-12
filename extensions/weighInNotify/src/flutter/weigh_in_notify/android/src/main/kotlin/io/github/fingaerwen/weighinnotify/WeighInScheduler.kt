@@ -72,11 +72,28 @@ object WeighInScheduler {
         )
     }
 
-    /** Sets an alarm that still fires in Doze mode; exact if allowed, otherwise Android may delay it a little. */
+    /** Opens the app (used when a notification or the clock's "next alarm" entry is tapped). */
+    private fun openAppIntent(context: Context): PendingIntent {
+        val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+        return PendingIntent.getActivity(
+            context, 0, launchIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    /**
+     * Sets an alarm that still fires in Doze mode.
+     * Weekly reminder: alarm-clock mode (review F21.2). OnePlus stretched normal exact alarms into a 1-hour
+     * window even with battery "Unrestricted", while alarm-clock alarms (like the Clock app's) stay on the dot.
+     * Side effect: Android shows an alarm icon and lists it as the next alarm.
+     * Other alarms: exact if allowed, otherwise Android may delay them a little.
+     */
     fun setAlarm(context: Context, triggerAtMillis: Long, requestCode: Int, title: String, body: String, weekly: Boolean) {
         val alarmManager = context.getSystemService(AlarmManager::class.java)
         val pending = alarmIntent(context, requestCode, title, body, weekly)
-        if (canUseExactAlarms(context)) {
+        if (weekly && canUseExactAlarms(context)) {
+            alarmManager.setAlarmClock(AlarmManager.AlarmClockInfo(triggerAtMillis, openAppIntent(context)), pending)
+        } else if (canUseExactAlarms(context)) {
             alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pending)
         } else {
             alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pending)
@@ -141,11 +158,7 @@ object WeighInScheduler {
             val channel = NotificationChannel(channelId, "Weigh-in reminder", NotificationManager.IMPORTANCE_DEFAULT)
             context.getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
-        val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
-        val contentIntent = PendingIntent.getActivity(
-            context, 0, launchIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
+        val contentIntent = openAppIntent(context)
         val notification = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.weigh_in_notify_ic_stat) // single-colour shape; the full-colour app icon showed as a grey blob
             .setContentTitle(title)
