@@ -106,7 +106,7 @@ Bench Press   4×9 @ 82.5 kg ↑new  [✓]   rest 2:00 · "pause at bottom"  ▾
 ## 10. Screens
 - **Phone tabs:** Today · Progress · Week · Weight (18.1 + 18.3c). The app opens on the **last tab used** (18.2c).
 - **Banners at the top of any tab** (18.4a): weekly summary ready, not synced, weigh-in due.
-- **PC:** the same tabs + Plans (import/switch/archive) + History (edit any day) + Export CSV + backup status.
+- **PC:** the same tabs + Plans (import/switch/archive) + History (edit any day) + Export CSV + backup status with a "Back up now" button (F14.1).
 
 ## 11. Notifications & background
 - Sync and banners are in-app only (2).
@@ -114,7 +114,7 @@ Bench Press   4×9 @ 82.5 kg ↑new  [✓]   rest 2:00 · "pause at bottom"  ▾
 
 ## 12. Backups & scheduled jobs (no stored secrets anywhere)
 - **If Phase 0 shows that automatic Drive renewal needs a secret inside the app:** the backup moves to a **local timer on your Linux PC** instead, with its secrets in a local file only (R2b).
-- **Automatic backup, triggered on the phone (main) and in the PC view (second):** when the app opens and the last backup is 30+ days old, it creates **zipped CSV files** (one per table, G9.3b) and uploads them to Google Drive with *your own sign-in*. The permission is limited to files the app created. **Keep the last 3.** A backup record prevents duplicate backups.
+- **Automatic backup from the phone (F14.1):** when the app opens and the last backup is 30+ days old, it creates **zipped CSV files** (one per table, G9.3b) and uploads them to Google Drive with *your own sign-in*. The permission is limited to files the app created. **Keep the last 3.** A backup record prevents duplicate backups. The **PC view** has a **"Back up now"** button instead of automatic backups, because a browser needs a click and a Google popup every time it asks for Drive access.
 - The PC view **warns when the last backup is 60+ days old** (3.4).
 - **Restore (F13.1):** a small restore script plus a short guide. It's tested once when backups are built (into a spare copy, never the live data) and again after every data-structure change. Each backup records its data-structure version, so older backups still restore correctly.
 - **Daily database ping (GitHub Actions):** uses only the public address + publishable key, calling a harmless `ping` function (K1c / 7.4), so the Supabase free tier doesn't pause. The publishable key lives in one config file that everything references. Whether the ping counts as activity is **watched for the first 2 weeks** (R10).
@@ -196,3 +196,4 @@ Newest at the bottom. Every decision made after the plan was approved gets a lin
 - **2026-10-12 · F11.1:** "newest edit wins" is enforced by a database trigger that ignores older incoming changes; edit times come only from the device.
 - **2026-10-12 · F12.1:** plan import rejects a weeklyTarget only outside 1–7; a target faster than the cycle's pace just gets a warning.
 - **2026-10-12 · F13.1:** backups get a restore script + guide, tested on a spare copy when built and after every data-structure change; each backup records its structure version.
+- **2026-10-12 · F14.1:** automatic backups come from the phone only; the PC view gets a "Back up now" button.
