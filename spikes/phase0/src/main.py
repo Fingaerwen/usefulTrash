@@ -2,7 +2,7 @@
 Currently: startup time (check 8), version (check 12), Google sign-in via our own nativeGoogleSignIn
 extension (check 2), Supabase read/write (check 3), offline queue + staying signed in with our own
 secureStore extension (check 4), picking a plan file (check 9), scheduled notifications via our own
-weighInNotify extension (check 5)."""
+weighInNotify extension (check 5). Built for the web, the same file is the PC view (check 6)."""
 
 import time
 
@@ -20,7 +20,7 @@ import flet as ft  # noqa: E402
 from nativeGoogleSignIn import NativeGoogleSignIn  # noqa: E402
 from offlineQueue import OfflineQueue  # noqa: E402
 from secureStore import SecureStore  # noqa: E402
-from sessionKeeper import SessionKeeper  # noqa: E402
+from sessionKeeper import MemoryStore, SessionKeeper  # noqa: E402
 from supabaseApi import SupabaseApi, SupabaseError, makeNoncePair  # noqa: E402
 from weighInNotify import WeighInNotify  # noqa: E402
 
@@ -56,8 +56,148 @@ def describeSession(session: dict) -> str:
     return f"{maskEmail(user.get('email', ''))}, user {str(user.get('id', '?'))[:8]}…, access token valid {minutesLeft} more min"
 
 
+async def googleSignInToSupabase(googleSignIn, supabase, clientId: str, progress) -> dict:
+    """Google ID token → Supabase session, used by the phone (check 2) and the PC view (check 6).
+    Also proves the replay protection works: the same ID token with a wrong nonce must be refused
+    before the right nonce is accepted. Returns {"outcome": "ok", "session": ..., "nonceCheck": ...},
+    {"outcome": "cancelled"} or {"outcome": "failed", "detail": ...}. Supabase errors are raised (SupabaseError)."""
+    rawNonce, hashedNonce = makeNoncePair()
+    answer = await googleSignIn.getIdToken(clientId, hashedNonce)
+    status = answer.get("status")
+    if status == "cancelled":
+        return {"outcome": "cancelled"}
+    if status != "ok":
+        return {"outcome": "failed", "detail": f"Google: {answer.get('errorType', status)}: {answer.get('message', '')}"}
+
+    # Replay protection check: Supabase must refuse this token with a nonce it wasn't made for.
+    progress("⏳ Google OK. Checking that Supabase refuses a wrong nonce…")
+    wrongNonce, _ = makeNoncePair()
+    try:
+        accidentalSession = await supabase.signInWithGoogleIdToken(answer["idToken"], wrongNonce)
+    except SupabaseError as err:
+        if err.statusCode == 0:
+            raise  # a network problem proves nothing about the nonce check
+        # Proven below: if the right nonce then works, the nonce was the only difference.
+        nonceCheck = f"wrong nonce refused ({err})"
+    else:
+        try:  # end the session this check should never have produced
+            await supabase.signOut(accidentalSession["access_token"])
+        except SupabaseError:
+            pass  # the warning matters more than this clean-up
+        return {"outcome": "failed",
+                "detail": "Supabase ACCEPTED a wrong nonce: replay protection is off (check 'Skip nonce checks')"}
+
+    progress("⏳ Signing in to Supabase…")
+    session = await supabase.signInWithGoogleIdToken(answer["idToken"], rawNonce)
+    return {"outcome": "ok", "session": session, "nonceCheck": nonceCheck}
+
+
+def buildPcView(page: ft.Page):
+    """Check 6: the PC view as a website on GitHub Pages. Signs in with Google's website sign-in (plan 6.1)
+    and reads the notes the phone wrote. Online only, and the session lives in this browser tab's memory:
+    nothing is stored in the browser, and closing the tab signs you out."""
+    page.title = "usefulTrash PC view (Phase 0)"
+    page.theme_mode = ft.ThemeMode.SYSTEM
+    publicConfig = loadPublicConfig()
+    googleSignIn = NativeGoogleSignIn()  # its web half shows Google's button (extension's google_web_sign_in.dart)
+    supabase = (
+        SupabaseApi(publicConfig["supabaseUrl"], publicConfig["supabasePublishableKey"])
+        if publicConfig.get("supabaseUrl") and publicConfig.get("supabasePublishableKey") else None
+    )
+    keeper = SessionKeeper(supabase, MemoryStore())
+    signInText = ft.Text("Not signed in")
+    notesText = ft.Text("")
+
+    def show(message: str):
+        """Shows the outcome of a sign-in step."""
+        signInText.value = message
+        page.update()
+
+    async def signIn(e):
+        """Google's button → ID token → Supabase session (same steps and replay test as the phone)."""
+        if supabase is None or not publicConfig.get("googleWebClientId"):
+            show("❌ No public config in this build: run makePublicConfig.py, then rebuild")
+            return
+        if signInButton.disabled:
+            return  # already running (double click)
+        signInButton.disabled = True
+        show("⏳ Waiting for Google…")
+        try:
+            result = await googleSignInToSupabase(googleSignIn, supabase, publicConfig["googleWebClientId"], show)
+            if result["outcome"] == "cancelled":
+                show("Sign-in cancelled")
+            elif result["outcome"] != "ok":
+                show(f"❌ {result['detail']}")
+            else:
+                await keeper.save(result["session"])  # MemoryStore: this tab only
+                show(f"✅ Signed in: {describeSession(keeper.session)}\n✅ Replay protection: {result['nonceCheck']}\n"
+                     "Session kept in this tab's memory only")
+        except SupabaseError as err:
+            show(f"❌ Supabase: {err}")  # e.g. 422 signup_disabled for an account that isn't yours
+        except Exception as err:  # shown instead of crashing; messages never contain tokens
+            show(f"❌ {type(err).__name__}: {err}")
+        finally:
+            signInButton.disabled = False
+            page.update()
+
+    async def readNotes(e):
+        """Check 6: reads the same rows the phone wrote (row-level security shows only yours)."""
+        if not keeper.isSignedIn():
+            notesText.value = "Sign in first"
+            page.update()
+            return
+        try:
+            rows = await supabase.selectRows(
+                "phase0Notes", {"select": "noteText", "order": "updatedAt.desc", "limit": "10"},
+                await keeper.freshAccessToken())
+            notesText.value = f"Your notes in Supabase ({len(rows)}):\n" + "\n".join(f"· {row.get('noteText', '')}" for row in rows)
+        except SupabaseError as err:
+            notesText.value = f"❌ {err}"
+        page.update()
+
+    async def signOut(e):
+        """Ends the Supabase session, forgets it and stops Google's automatic account choice."""
+        messages = []
+        if keeper.isSignedIn():
+            try:
+                await supabase.signOut(await keeper.freshAccessToken())
+                messages.append("Supabase session ended")
+            except SupabaseError as err:
+                messages.append(f"Supabase sign-out failed: {err}")
+        await keeper.forget()
+        try:
+            await googleSignIn.clearSignInState()
+        except Exception:
+            pass  # nothing to undo if Google's library never loaded
+        notesText.value = ""
+        show("Signed out. " + "; ".join(messages))
+
+    signInButton = ft.FilledButton("Sign in with Google", icon=ft.Icons.LOGIN, on_click=signIn)
+    page.add(
+        ft.SafeArea(
+            ft.Column(
+                scroll=ft.ScrollMode.AUTO,
+                controls=[
+                    ft.Text("usefulTrash PC view", size=22, weight=ft.FontWeight.BOLD),
+                    ft.Text(f"Phase 0, check 6 · version {appVersion}"),
+                    ft.Divider(),
+                    signInButton,
+                    ft.OutlinedButton("Show my notes", on_click=readNotes),
+                    ft.OutlinedButton("Sign out", on_click=signOut),
+                    signInText,
+                    notesText,
+                ],
+            ),
+            expand=True,  # gives the column a fixed height, so it can scroll
+        )
+    )
+
+
 def main(page: ft.Page):
-    """Builds the single test screen."""
+    """Builds the single test screen (the phone), or the PC view when running as a website."""
+    if page.web:
+        buildPcView(page)
+        return
     page.title = "usefulTrash Phase 0"
     page.theme_mode = ft.ThemeMode.SYSTEM  # dark mode follows the phone (plan G1)
 
@@ -95,37 +235,15 @@ def main(page: ft.Page):
         signInButton.disabled = True  # set before the first await, so a second tap sees it
         showSignIn("⏳ Waiting for Google…")
         try:
-            rawNonce, hashedNonce = makeNoncePair()
-            answer = await googleSignIn.getIdToken(publicConfig["googleWebClientId"], hashedNonce)
-            status = answer.get("status")
-            if status == "cancelled":
+            result = await googleSignInToSupabase(googleSignIn, supabase, publicConfig["googleWebClientId"], showSignIn)
+            if result["outcome"] == "cancelled":
                 showSignIn("Sign-in cancelled")
                 return
-            if status != "ok":
-                showSignIn(f"❌ Google: {answer.get('errorType', status)}: {answer.get('message', '')}")
+            if result["outcome"] != "ok":
+                showSignIn(f"❌ {result['detail']}")
                 return
-
-            # Replay protection check: Supabase must refuse this token with a nonce it wasn't made for.
-            showSignIn("⏳ Google OK. Checking that Supabase refuses a wrong nonce…")
-            wrongNonce, _ = makeNoncePair()
-            try:
-                accidentalSession = await supabase.signInWithGoogleIdToken(answer["idToken"], wrongNonce)
-            except SupabaseError as err:
-                if err.statusCode == 0:
-                    raise  # a network problem proves nothing about the nonce check
-                # Proven below: if the right nonce then works, the nonce was the only difference.
-                nonceCheck = f"wrong nonce refused ({err})"
-            else:
-                try:  # end the session this check should never have produced
-                    await supabase.signOut(accidentalSession["access_token"])
-                except SupabaseError:
-                    pass  # the warning below matters more than this clean-up
-                showSignIn("❌ Supabase ACCEPTED a wrong nonce: replay protection is off (check 'Skip nonce checks')")
-                return
-
-            showSignIn("⏳ Signing in to Supabase…")
-            newSession = await supabase.signInWithGoogleIdToken(answer["idToken"], rawNonce)
-            saved = await keeper.save(newSession)
+            nonceCheck = result["nonceCheck"]
+            saved = await keeper.save(result["session"])
             savedLine = "✅ Saved encrypted on the phone (T1.1)" if saved else f"⚠️ Not saved: {keeper.lastProblem}"
             showSignIn(f"✅ Signed in: {describeSession(keeper.session)}\n✅ Replay protection: {nonceCheck}\n{savedLine}")
             await refreshCheck4Status()

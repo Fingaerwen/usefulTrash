@@ -29,6 +29,28 @@ def isDeadSession(err: SupabaseError) -> bool:
     return err.errorCode in deadSessionCodes or (err.statusCode == 400 and "refresh token" in err.message.lower())
 
 
+class MemoryStore:
+    """Stand-in for the secureStore extension in the PC view (check 6): the session lives in the browser
+    tab's memory only. Nothing goes into the browser's storage, and closing the tab signs you out."""
+
+    def __init__(self):
+        self._items: dict[str, str] = {}
+
+    async def save(self, name: str, value: str) -> dict:
+        self._items[name] = value
+        return {"status": "ok"}
+
+    async def load(self, name: str) -> dict:
+        return {"status": "ok", "value": self._items[name]} if name in self._items else {"status": "missing"}
+
+    async def delete(self, name: str) -> dict:
+        self._items.pop(name, None)
+        return {"status": "ok"}
+
+    async def info(self) -> dict:
+        return {"status": "ok", "keyExists": False, "storedItems": len(self._items)}
+
+
 class SessionKeeper:
     """The current Supabase session, saved encrypted under one secure store item."""
 

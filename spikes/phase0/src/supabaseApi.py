@@ -5,17 +5,21 @@ Rules for this module:
 - HTTPS only, with certificate checks. On Android, Flet's build supplies the certificate list.
 - Redirects are refused, so keys and tokens can never be forwarded to another address.
 - Tokens only travel to Supabase and back to the caller: never printed, logged or put in error messages.
-- Every request has a timeout, so a dead connection can't hang the app."""
+- Every request has a timeout, so a dead connection can't hang the app.
+- On the phone requests go through urllib in a worker thread; in the browser (PC view, Python runs in
+  Pyodide: no sockets, no threads) through the browser's own fetch, with the same rules."""
 
 import asyncio
 import hashlib
 import json
 import secrets
+import sys
 import urllib.error
 import urllib.parse
 import urllib.request
 
 requestTimeoutSec = 20
+runsInBrowser = sys.platform == "emscripten"  # Pyodide (the PC view website)
 
 
 class SupabaseError(Exception):
@@ -97,29 +101,66 @@ class SupabaseApi:
             raise SupabaseError(0, "network", f"{type(reason).__name__}: {reason}") from None
         return json.loads(rawAnswer) if rawAnswer else None
 
+    async def _send(self, method: str, path: str, body: dict | list | None = None, accessToken: str | None = None,
+                    prefer: str | None = None):
+        """Sends one request without blocking the app: the browser's fetch in the PC view, otherwise
+        urllib in a worker thread."""
+        if runsInBrowser:
+            return await self._fetch(method, path, body, accessToken, prefer)
+        return await asyncio.to_thread(self._call, method, path, body, accessToken, prefer)
+
+    async def _fetch(self, method: str, path: str, body: dict | list | None = None, accessToken: str | None = None,
+                     prefer: str | None = None):
+        """Browser version of _call. The browser checks HTTPS certificates itself; redirects are refused
+        ("error"), cookies are never sent and nothing is cached, matching the phone's rules."""
+        from pyodide.http import pyfetch  # only exists in the browser build
+
+        headers = {"apikey": self.publishableKey, "Accept": "application/json"}
+        options = {"method": method, "redirect": "error", "credentials": "omit", "cache": "no-store"}
+        if body is not None:
+            headers["Content-Type"] = "application/json"
+            options["body"] = json.dumps(body)
+        if accessToken:
+            headers["Authorization"] = f"Bearer {accessToken}"
+        if prefer:
+            headers["Prefer"] = prefer
+        options["headers"] = headers
+        try:
+            response = await asyncio.wait_for(pyfetch(self.projectUrl + path, **options), requestTimeoutSec)
+            rawAnswer = await asyncio.wait_for(response.bytes(), requestTimeoutSec)
+        except asyncio.CancelledError:
+            raise
+        except (TimeoutError, asyncio.TimeoutError):
+            raise SupabaseError(0, "network", "no answer within the time limit") from None
+        except Exception as err:  # the browser reports "failed to fetch" for offline, blocked or redirected requests
+            raise SupabaseError(0, "network", f"{type(err).__name__}: {err}") from None
+        if response.status >= 400:
+            raise readSupabaseError(response.status, rawAnswer)
+        return json.loads(rawAnswer) if rawAnswer else None
+
     async def signInWithGoogleIdToken(self, idToken: str, rawNonce: str) -> dict:
         """Swaps a Google ID token for a Supabase session (access_token, refresh_token, expires_at, user).
         Supabase checks the token's Google signature, that it was issued for our Web client ID,
         and that SHA-256(rawNonce) matches the nonce inside it."""
-        return await asyncio.to_thread(
-            self._call, "POST", "/auth/v1/token?grant_type=id_token",
+        return await self._send(
+            "POST", "/auth/v1/token?grant_type=id_token",
             {"provider": "google", "id_token": idToken, "nonce": rawNonce},
         )
 
     async def refreshSession(self, refreshToken: str) -> dict:
         """Swaps the refresh token for a new session. Supabase retires the old refresh token right away
         (rotation), so the caller must store the new one before doing anything else."""
-        return await asyncio.to_thread(
-            self._call, "POST", "/auth/v1/token?grant_type=refresh_token", {"refresh_token": refreshToken}
+        return await self._send(
+            "POST", "/auth/v1/token?grant_type=refresh_token", {"refresh_token": refreshToken}
         )
 
     async def getUser(self, accessToken: str) -> dict:
         """Asks Supabase who an access token belongs to (proves the session works)."""
-        return await asyncio.to_thread(self._call, "GET", "/auth/v1/user", None, accessToken)
+        return await self._send("GET", "/auth/v1/user", None, accessToken)
 
     async def signOut(self, accessToken: str) -> None:
         """Ends this session on Supabase's side: its refresh token stops working."""
-        await asyncio.to_thread(self._call, "POST", "/auth/v1/logout?scope=local", None, accessToken)
+        await self._send("POST", "/auth/v1/logout?scope=local", None, accessToken)
 
     # --- Table rows (Supabase Data API). Filters use its syntax, e.g. {"id": "eq.<uuid>"}. ---
 
@@ -138,20 +179,20 @@ class SupabaseApi:
 
     async def selectRows(self, table: str, filters: dict[str, str], accessToken: str | None) -> list[dict]:
         """Reads rows. Row-level security returns only the signed-in user's rows; no token = anonymous."""
-        return await asyncio.to_thread(self._call, "GET", self.tablePath(table, filters), None, accessToken)
+        return await self._send("GET", self.tablePath(table, filters), None, accessToken)
 
     async def insertRow(self, table: str, row: dict, accessToken: str | None) -> dict:
         """Saves one row and returns it as stored (with the columns the database filled in)."""
-        rows = await asyncio.to_thread(
-            self._call, "POST", self.tablePath(table, {}), row, accessToken, "return=representation"
+        rows = await self._send(
+            "POST", self.tablePath(table, {}), row, accessToken, "return=representation"
         )
         return rows[0] if rows else {}
 
     async def insertRowsSkippingExisting(self, table: str, rows: list[dict], accessToken: str | None) -> None:
         """Saves several rows in one request. A row whose "id" already exists is skipped, so resending
         after a lost answer can never create duplicates (the offline queue relies on this)."""
-        await asyncio.to_thread(
-            self._call, "POST", self.tablePath(table, {"on_conflict": "id"}), rows, accessToken,
+        await self._send(
+            "POST", self.tablePath(table, {"on_conflict": "id"}), rows, accessToken,
             "resolution=ignore-duplicates,return=minimal",
         )
 
@@ -159,13 +200,13 @@ class SupabaseApi:
         """Changes the matching rows and returns them as stored. Rows hidden by row-level security
         are simply not matched, so the result can be an empty list."""
         self._requireFilters(filters)
-        return await asyncio.to_thread(
-            self._call, "PATCH", self.tablePath(table, filters), changes, accessToken, "return=representation"
+        return await self._send(
+            "PATCH", self.tablePath(table, filters), changes, accessToken, "return=representation"
         )
 
     async def deleteRows(self, table: str, filters: dict[str, str], accessToken: str | None) -> list[dict]:
         """Deletes the matching rows and returns what was deleted."""
         self._requireFilters(filters)
-        return await asyncio.to_thread(
-            self._call, "DELETE", self.tablePath(table, filters), None, accessToken, "return=representation"
+        return await self._send(
+            "DELETE", self.tablePath(table, filters), None, accessToken, "return=representation"
         )
