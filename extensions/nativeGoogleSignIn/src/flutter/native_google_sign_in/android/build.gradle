@@ -1,0 +1,54 @@
+// Android build settings for the nativeGoogleSignIn plugin (same toolchain as weighInNotify).
+group 'io.github.fingaerwen.nativegooglesignin'
+version '0.1.0'
+
+buildscript {
+    ext.kotlin_version = '2.2.0'
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.12.1'
+    }
+}
+
+rootProject.allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+android {
+    namespace 'io.github.fingaerwen.nativegooglesignin'
+    compileSdk = flutter.compileSdkVersion  // Credential Manager 1.6.0 needs 35 or higher
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+    defaultConfig {
+        minSdkVersion flutter.minSdkVersion  // the Google ID library needs 24, which the app already uses
+    }
+    dependencies {
+        implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+        implementation 'androidx.core:core:1.13.1'  // ContextCompat.getMainExecutor
+        // Google's official sign-in libraries, stable releases from Google's own Maven repository.
+        // They ship their own code-shrinking (R8) rules, so release builds keep what they load by reflection.
+        implementation 'androidx.credentials:credentials:1.6.0'
+        implementation 'androidx.credentials:credentials-play-services-auth:1.6.0'  // Google Play services backend
+        // "Sign in with Google" option + ID token parsing. 1.2.0, not 1.2.1: 1.2.1 is compiled with Kotlin 2.4,
+        // which Flet 1.0.3's Android build (Kotlin 2.2.20) can't read. Same API, nonce support included.
+        implementation 'com.google.android.libraries.identity.googleid:googleid:1.2.0'
+    }
+}

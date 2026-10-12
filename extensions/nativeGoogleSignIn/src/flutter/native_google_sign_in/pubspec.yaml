@@ -1,0 +1,22 @@
+# Dart/Flutter side of the nativeGoogleSignIn extension. Dart package names must be lower_snake_case.
+name: native_google_sign_in
+description: usefulTrash native Google sign-in (Flet extension + Android plugin)
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: '>=3.2.3 <4.0.0'
+  flutter: ">=3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flet: 1.0.3  # same version the app uses
+
+# Declares the Kotlin code in android/ as a Flutter plugin, so Android loads it.
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: io.github.fingaerwen.nativegooglesignin
+        pluginClass: NativeGoogleSignInPlugin

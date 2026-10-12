@@ -1,0 +1,9 @@
+<!-- Merged into the app's manifest automatically. Sign-in needs no extra permissions:
+     Google's libraries bring their own entries, and the app already has internet access. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- allowBackup="false": app-wide setting, merged into the app because the app's own manifest doesn't set it.
+         Stops Android Auto Backup from copying the app's private data (sign-in tokens, local database) to
+         Google's cloud (plan K3a: sign-in tokens are stored only on your device). Review F4.
+         Moved here from weighInNotify: this extension is the one that brings sign-in tokens into the app. -->
+    <application android:allowBackup="false" />
+</manifest>

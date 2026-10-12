@@ -8,11 +8,8 @@
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
 
-    <!-- allowBackup="false": app-wide setting, merged into the app because the app's own manifest doesn't set it.
-         Stops Android Auto Backup from copying the app's private data (sign-in tokens, local database) to
-         Google's cloud (plan K3a: sign-in tokens are stored only on your device). Review F4.
-         It lives here for now; it moves to the sign-in extension once that exists. -->
-    <application android:allowBackup="false">
+    <!-- android:allowBackup="false" moved to the nativeGoogleSignIn extension (review F4). -->
+    <application>
         <!-- Fires when an alarm goes off and shows the notification. -->
         <receiver android:name="io.github.fingaerwen.weighinnotify.AlarmReceiver" android:exported="false" />
         <!-- Re-schedules the weekly alarm after reboot, app update or clock/time-zone change. -->
