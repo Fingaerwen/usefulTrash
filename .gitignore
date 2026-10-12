@@ -13,11 +13,16 @@ __pycache__/
 *.p12
 *.pem
 signing/
+# Android signing settings file (holds keystore passwords)
+key.properties
 
 # Local data and build output
 *.db
 .flet/
 build/
+# Built apps (releases go to GitHub Releases, never into git; a 140 MB APK would also be rejected)
+*.apk
+*.aab
 .pytest_cache/
 .ruff_cache/
 
