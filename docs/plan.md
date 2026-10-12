@@ -24,7 +24,7 @@ This is a personal suite of Python apps in one public repo (`claudProjects/usefu
   - GitHub's own temporary job token (created by GitHub, never seen or stored) is allowed for the keep-alive (3.3a / F15.1).
 - **Leak protection:** a pre-commit secret scan blocks commits containing keys (K4a); GitHub push protection (K4b); `.env` and the signing key are in `.gitignore`.
 - **Sign-in (AU1c):** native **Google sign-in on Android** with no stored secret: the app gets a Google ID token and Supabase checks it using only the public client ID. **If it fails on the phone (check 2), the fallback is an emailed 6-digit code** (F1.1). The **PC view's** method is chosen at check 6: Google's browser sign-in (also secret-free) or the emailed code. Supabase's Email sign-in stays **off** until one of these actually needs it.
-- **Only your account allowed** (5.1), **sign-ups disabled after setup** (5.2). The Google app is set to *published* so sign-in passes don't expire after 7 days.
+- **Only your account allowed** (5.1), **sign-ups disabled after setup** (5.2). **The Google app stays in Testing, with your account as the only test user, until check 7 (P1.1).** Google won't publish without a homepage and a privacy policy page. Testing is fine for sign-in: Google blocks every other account (an extra lock on top of Supabase), shows a "not verified" warning you tap through, and asks again for approval once 7 days have passed since the last one, which only matters when signing in with Google again; the Supabase session doesn't depend on it. **Publishing happens at check 7**, because Drive access in Testing would expire every 7 days; the homepage and privacy page can live on the PC view's GitHub Pages site.
 - Row-level security on every table.
 - Commits use the **GitHub noreply email + your GitHub username** (6.1). Git uploads to GitHub with an SSH key (GH1a); `gh` isn't installed.
 - No home server and no exposed IP; no name or personal details collected.
@@ -147,7 +147,7 @@ A throwaway Flet app in `usefulTrash/spikes/phase0/` that answers each question 
 4. Works offline: writes are queued and synced once the connection is back.
 5. A scheduled local notification fires (weigh-in reminder, Friday 07:00).
 6. A `flet build web` version on GitHub Pages can sign in (Google in the browser or emailed code, chosen at this check) and read the same row.
-7. The phone uploads a small file to Google Drive using your sign-in, **with no secret in the app, and still works after the 1-hour token expiry** (R2). Fail → PC timer backup (R2b). This doesn't depend on check 2: on Android the Drive permission comes from Google Play services, separate from how you sign into Supabase (F3).
+7. The phone uploads a small file to Google Drive using your sign-in, **with no secret in the app, and still works after the 1-hour token expiry** (R2). Needs the Google app published first (homepage + privacy policy page, P1.1). Fail → PC timer backup (R2b). This doesn't depend on check 2: on Android the Drive permission comes from Google Play services, separate from how you sign into Supabase (F3).
 8. **Cold start under 5 seconds** on your phone (G5b).
 9. A JSON file can be picked from phone storage (fallback import).
 10. A pre-commit secret scan blocks a commit containing a fake key.
@@ -159,7 +159,7 @@ A throwaway Flet app in `usefulTrash/spikes/phase0/` that answers each question 
 
 **Check 2 requirements: "only your account", without your email in the public repo (F8):**
 - Your email address never goes into code, SQL or docs in this repo; it's a personal detail and the repo is public.
-- Enforcement instead: sign in once with your Google account → in Supabase, turn off "Allow new users to sign up" (5.2) → check that a second Google account is refused. Row-level security then keeps every row to your user ID.
+- Enforcement instead: sign in once with your Google account → in Supabase, turn off "Allow new users to sign up" (5.2) → check that a second Google account is refused. Row-level security then keeps every row to your user ID. While the Google app is in Testing (P1.1), Google blocks other accounts before Supabase sees them, so to test Supabase's own lock: add the second account as a test user for a moment, check Supabase refuses it, then remove it again.
 - Turn off every Supabase sign-in method that isn't used. Email sign-in stays off until the F1.1 fallback or the PC view needs it; if it's turned on, test that sign-in *before* turning sign-ups off, or confirm it still works after.
 
 **Check 2 requirements: things that can fail silently (F9):**
@@ -172,7 +172,7 @@ A throwaway Flet app in `usefulTrash/spikes/phase0/` that answers each question 
 - **Before any token is stored:** Android cloud backup is off (F4, verify in the built manifest) and the Supabase project isn't paused (F7).
 - **Check 2 keeps the session in memory only** (closing the app signs you out). **Before check 4, decide how tokens are stored on the phone:** where, whether they're encrypted with a key locked inside the phone (Android Keystore), and backups. `allowBackup="false"` (F4) stops cloud backups, but on Android 12+ some phone makers still copy app files during a phone-to-phone transfer (Android's own docs), so only encryption with a key that never leaves the phone fully keeps tokens on one device.
 
-**Your account steps** (guided, done by you): a GitHub account/repo, a Supabase project, Google sign-in setup in Google Cloud (published app, Drive "files this app created" permission), and Obtainium on your phone.
+**Your account steps** (guided, done by you): a GitHub account/repo, a Supabase project, Google sign-in setup in Google Cloud (Testing with you as the only test user until check 7, then published; Drive "files this app created" permission), and Obtainium on your phone.
 
 Before Phase 0: check free disk space for Flutter + Android SDK + Java (several GB) (R11).
 
@@ -201,3 +201,4 @@ Newest at the bottom. Every decision made after the plan was approved gets a lin
 - **2026-10-12 · F15.1:** keep the ping schedule alive through GitHub's "enable workflow" API instead of monthly bot commits (fallback: the commit).
 - **2026-10-12 · F21.1 → F21.2:** the weekly reminder uses alarm-clock mode. OnePlus gave normal exact alarms a 1-hour window even with battery "Unrestricted"; alarm-clock alarms fire on the dot. Battery stays on "Unrestricted".
 - **2026-10-12 · C2a:** check 2 keeps the Supabase session in the app's memory only; how tokens are stored on the phone is decided before check 4. The app gets the public identifiers (K2a) from a git-ignored config file generated from `.env` (`spikes/phase0/makePublicConfig.py`), so nothing new goes into the public repo.
+- **2026-10-12 · P1.1:** the Google app stays in Testing with only your account as a test user until check 7, then gets published (Google requires a homepage + privacy policy page to publish). Sign-in works in Testing; Drive backups need publishing.
