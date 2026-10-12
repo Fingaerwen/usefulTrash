@@ -155,6 +155,11 @@ A throwaway Flet app in `usefulTrash/spikes/phase0/` that answers each question 
 
 **How the checks depend on each other (F3):** checks 3 and 4 need *a* Supabase sign-in (Google, or the emailed-code fallback). Check 6 needs a sign-in in the browser. Check 7 needs only Google's Drive permission on the phone, so it can be tested even if check 2 fails.
 
+**Check 2 requirements: "only your account", without your email in the public repo (F8):**
+- Your email address never goes into code, SQL or docs in this repo; it's a personal detail and the repo is public.
+- Enforcement instead: sign in once with your Google account → in Supabase, turn off "Allow new users to sign up" (5.2) → check that a second Google account is refused. Row-level security then keeps every row to your user ID.
+- Turn off every Supabase sign-in method that isn't used. Email sign-in stays off until the F1.1 fallback or the PC view needs it; if it's turned on, test that sign-in *before* turning sign-ups off, or confirm it still works after.
+
 **Your account steps** (guided, done by you): a GitHub account/repo, a Supabase project, Google sign-in setup in Google Cloud (published app, Drive "files this app created" permission), and Obtainium on your phone.
 
 Before Phase 0: check free disk space for Flutter + Android SDK + Java (several GB) (R11).
