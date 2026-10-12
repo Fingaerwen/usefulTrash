@@ -28,20 +28,26 @@ object WeighInScheduler {
     const val extraBody = "body"
     const val extraWeekly = "weekly"
 
-    /** Next moment that matches the weekday/hour/minute, strictly in the future (with a 1-minute margin). */
-    fun nextWeeklyTrigger(isoWeekday: Int, hour: Int, minute: Int): Calendar {
-        val now = Calendar.getInstance().apply { add(Calendar.MINUTE, 1) } // margin: never re-fire the alarm that just went off
-        val target = (now.clone() as Calendar).apply {
+    /** First moment matching the weekday/hour/minute that is strictly after [afterMillis] (local time, DST-safe). */
+    fun nextWeeklyTrigger(isoWeekday: Int, hour: Int, minute: Int, afterMillis: Long): Calendar {
+        val after = Calendar.getInstance().apply { timeInMillis = afterMillis }
+        val target = (after.clone() as Calendar).apply {
             set(Calendar.HOUR_OF_DAY, hour)
             set(Calendar.MINUTE, minute)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
         }
         val calendarDay = isoWeekday % 7 + 1 // ISO 1=Monday..7=Sunday -> Calendar.MONDAY(2)..Calendar.SUNDAY(1)
-        val daysAhead = (calendarDay - now.get(Calendar.DAY_OF_WEEK) + 7) % 7
+        val daysAhead = (calendarDay - after.get(Calendar.DAY_OF_WEEK) + 7) % 7
         target.add(Calendar.DAY_OF_YEAR, daysAhead)
-        if (!target.after(now)) target.add(Calendar.DAY_OF_YEAR, 7)
+        if (!target.after(after)) target.add(Calendar.DAY_OF_YEAR, 7)
         return target
+    }
+
+    /** Records that the weekly alarm planned for [nextMillis] has just gone off (it must never fire twice). */
+    fun markWeeklyFired(context: Context) {
+        val prefs = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+        prefs.edit().putLong("lastFiredMillis", prefs.getLong("nextMillis", 0L)).apply()
     }
 
     /** Human-readable local time, e.g. "2026-10-09 07:00". */
@@ -89,11 +95,16 @@ object WeighInScheduler {
             .apply()
     }
 
-    /** Schedules the next weekly alarm from the saved settings. Returns its time, or null if none is saved. */
+    /**
+     * Schedules the next weekly alarm from the saved settings. Returns its time, or null if none is saved.
+     * "Next" means after now AND after the alarm that last fired, so a reminder is never skipped
+     * (e.g. set or rebooted at 06:59) and never repeated (e.g. the clock is set back after it fired). Review F17.
+     */
     fun rescheduleWeeklyFromPrefs(context: Context): Long? {
         val prefs = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
         if (!prefs.getBoolean("enabled", false)) return null
-        val next = nextWeeklyTrigger(prefs.getInt("isoWeekday", 5), prefs.getInt("hour", 7), prefs.getInt("minute", 0))
+        val afterMillis = maxOf(System.currentTimeMillis(), prefs.getLong("lastFiredMillis", 0L))
+        val next = nextWeeklyTrigger(prefs.getInt("isoWeekday", 5), prefs.getInt("hour", 7), prefs.getInt("minute", 0), afterMillis)
         setAlarm(
             context, next.timeInMillis, weeklyRequestCode,
             prefs.getString("title", "") ?: "", prefs.getString("body", "") ?: "", weekly = true,

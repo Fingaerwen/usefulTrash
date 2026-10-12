@@ -12,6 +12,9 @@ class AlarmReceiver : BroadcastReceiver() {
         val weekly = intent.getBooleanExtra(WeighInScheduler.extraWeekly, false)
         val notificationId = if (weekly) WeighInScheduler.weeklyRequestCode else WeighInScheduler.oneOffRequestCode
         WeighInScheduler.showNotification(context, title, body, notificationId)
-        if (weekly) WeighInScheduler.rescheduleWeeklyFromPrefs(context)
+        if (weekly) {
+            WeighInScheduler.markWeeklyFired(context) // remember this slot so it can never fire twice
+            WeighInScheduler.rescheduleWeeklyFromPrefs(context)
+        }
     }
 }
