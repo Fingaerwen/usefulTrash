@@ -160,6 +160,15 @@ A throwaway Flet app in `usefulTrash/spikes/phase0/` that answers each question 
 - Enforcement instead: sign in once with your Google account → in Supabase, turn off "Allow new users to sign up" (5.2) → check that a second Google account is refused. Row-level security then keeps every row to your user ID.
 - Turn off every Supabase sign-in method that isn't used. Email sign-in stays off until the F1.1 fallback or the PC view needs it; if it's turned on, test that sign-in *before* turning sign-ups off, or confirm it still works after.
 
+**Check 2 requirements: things that can fail silently (F9):**
+- **Google Cloud needs two clients:** a **Web** client (its public ID goes into the app, and Google issues the sign-in token for it) and an **Android** client (package `io.github.fingaerwen.phase0` + the public SHA-1 fingerprint of the signing certificate). Phase 0 uses the debug key's fingerprint; the release key's fingerprint is added at the first release.
+- **Google creates a client secret for the Web client automatically.** Never copy, download or paste it anywhere; it isn't needed. (The pre-commit hook blocks it as a backstop, F5.)
+- **Supabase's Google provider gets the client ID only.** If Supabase refuses to save without the secret → **stop**: that's the AU1 conflict with the key rule, and we decide again.
+- **Nonce:** the app makes a random one-time value, sends its SHA-256 hash to Google and the raw value to Supabase, so a stolen sign-in token can't be replayed.
+- **One small module for all Supabase calls**, plain HTTP rather than the `supabase-py` library (heavy, has compiled parts that may not have Android builds, slows start-up). One module also means the network layer can be swapped if the browser build (check 6) needs it.
+- **Every path in the Kotlin sign-in plugin must reply** to Python, including "cancelled" and errors: Flet method calls have no default timeout, so a missing reply would leave the button waiting forever.
+- **Before any token is stored:** Android cloud backup is off (F4, verify in the built manifest) and the Supabase project isn't paused (F7).
+
 **Your account steps** (guided, done by you): a GitHub account/repo, a Supabase project, Google sign-in setup in Google Cloud (published app, Drive "files this app created" permission), and Obtainium on your phone.
 
 Before Phase 0: check free disk space for Flutter + Android SDK + Java (several GB) (R11).
