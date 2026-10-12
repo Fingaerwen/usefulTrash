@@ -9,11 +9,12 @@ import time
 pythonStartTime = time.monotonic()
 
 import json  # noqa: E402  (imported after the timer on purpose)
+import uuid  # noqa: E402
 from pathlib import Path  # noqa: E402
 
 import flet as ft  # noqa: E402
 from nativeGoogleSignIn import NativeGoogleSignIn  # noqa: E402
-from supabaseApi import SupabaseAuth, SupabaseError, makeNoncePair  # noqa: E402
+from supabaseApi import SupabaseApi, SupabaseError, makeNoncePair  # noqa: E402
 from weighInNotify import WeighInNotify  # noqa: E402
 
 appVersion = "0.1-alpha"
@@ -61,8 +62,8 @@ def main(page: ft.Page):
     # How tokens get stored is decided before check 4.
     publicConfig = loadPublicConfig()
     googleSignIn = NativeGoogleSignIn()
-    supabaseAuth = (
-        SupabaseAuth(publicConfig["supabaseUrl"], publicConfig["supabasePublishableKey"])
+    supabase = (
+        SupabaseApi(publicConfig["supabaseUrl"], publicConfig["supabasePublishableKey"])
         if publicConfig.get("supabaseUrl") and publicConfig.get("supabasePublishableKey") else None
     )
     session = {}  # current Supabase session (access_token, refresh_token, expires_at, user); memory only
@@ -76,7 +77,7 @@ def main(page: ft.Page):
     async def signInWithGoogle(e):
         """Google account picker → ID token → Supabase session. Also proves the replay protection works:
         the same ID token with a wrong nonce must be refused before the right nonce is accepted."""
-        if supabaseAuth is None or not publicConfig.get("googleWebClientId"):
+        if supabase is None or not publicConfig.get("googleWebClientId"):
             showSignIn("❌ No public config in this build: run makePublicConfig.py, then rebuild")
             return
         if page.platform != ft.PagePlatform.ANDROID:
@@ -101,7 +102,7 @@ def main(page: ft.Page):
             showSignIn("⏳ Google OK. Checking that Supabase refuses a wrong nonce…")
             wrongNonce, _ = makeNoncePair()
             try:
-                accidentalSession = await supabaseAuth.signInWithGoogleIdToken(answer["idToken"], wrongNonce)
+                accidentalSession = await supabase.signInWithGoogleIdToken(answer["idToken"], wrongNonce)
             except SupabaseError as err:
                 if err.statusCode == 0:
                     raise  # a network problem proves nothing about the nonce check
@@ -109,14 +110,14 @@ def main(page: ft.Page):
                 nonceCheck = f"wrong nonce refused ({err})"
             else:
                 try:  # end the session this check should never have produced
-                    await supabaseAuth.signOut(accidentalSession["access_token"])
+                    await supabase.signOut(accidentalSession["access_token"])
                 except SupabaseError:
                     pass  # the warning below matters more than this clean-up
                 showSignIn("❌ Supabase ACCEPTED a wrong nonce: replay protection is off (check 'Skip nonce checks')")
                 return
 
             showSignIn("⏳ Signing in to Supabase…")
-            newSession = await supabaseAuth.signInWithGoogleIdToken(answer["idToken"], rawNonce)
+            newSession = await supabase.signInWithGoogleIdToken(answer["idToken"], rawNonce)
             session.clear()
             session.update(newSession)
             showSignIn(f"✅ Signed in: {describeSession(session)}\n✅ Replay protection: {nonceCheck}")
@@ -134,7 +135,7 @@ def main(page: ft.Page):
             showSignIn("Not signed in")
             return
         try:
-            user = await supabaseAuth.getUser(session["access_token"])
+            user = await supabase.getUser(session["access_token"])
             showSignIn(f"✅ Supabase accepts the session: user {str(user.get('id', '?'))[:8]}…\n{describeSession(session)}")
         except SupabaseError as err:
             showSignIn(f"❌ Session refused: {err}")
@@ -142,9 +143,9 @@ def main(page: ft.Page):
     async def signOut(e):
         """Ends the Supabase session, forgets it in memory and clears Google's account choice."""
         messages = []
-        if session and supabaseAuth is not None:
+        if session and supabase is not None:
             try:
-                await supabaseAuth.signOut(session["access_token"])
+                await supabase.signOut(session["access_token"])
                 messages.append("Supabase session ended")
             except SupabaseError as err:
                 messages.append(f"Supabase sign-out failed: {err}")
@@ -159,6 +160,102 @@ def main(page: ft.Page):
         showSignIn("Signed out. " + "; ".join(messages))
 
     signInButton = ft.FilledButton("Sign in with Google", icon=ft.Icons.LOGIN, on_click=signInWithGoogle)
+
+    # Check 3: signed-in read/write of a camelCase-column row, with row-level security (plan 11.4c, F6).
+    # Table phase0Notes ("id", "userId", "noteText", "updatedAt") comes from spikes/phase0/sql/001_phase0Notes.sql.
+    testTable = "phase0Notes"
+    dataResultText = ft.Text("Sign in first (check 2), then run this")
+
+    async def runCheck3(e):
+        """Saves, reads, edits and deletes one own row, and proves row-level security refuses rows
+        for someone else. Every step shows ✅ or ❌; the test row is always deleted again."""
+        if not session:
+            dataResultText.value = "Sign in first (check 2)"
+            page.update()
+            return
+        if check3Button.disabled:
+            return  # already running (double tap)
+        check3Button.disabled = True
+        accessToken = session["access_token"]
+        myUserId = str((session.get("user") or {}).get("id", ""))
+        strangerId = str(uuid.uuid4())  # a user ID that isn't yours
+        lines, outcomes = [], []
+        rowId = None
+
+        def report(passed: bool, text: str):
+            """Adds one ✅/❌ line and shows the list so far."""
+            outcomes.append(passed)
+            lines.append(("✅ " if passed else "❌ ") + text)
+            dataResultText.value = "\n".join(lines)
+            page.update()
+
+        async def expectRefusal(action, label: str):
+            """Runs a write that row-level security must refuse. Only code 42501 counts: a different refusal
+            (e.g. 23503, the userId foreign key) would mean row-level security let it through."""
+            try:
+                await action
+                report(False, f"{label}: was ACCEPTED")
+            except SupabaseError as err:
+                report(err.errorCode == "42501", f"{label}: refused ({err.statusCode} {err.errorCode})")
+
+        try:
+            dataResultText.value = "⏳ Running…"
+            page.update()
+
+            # 1. Save one own row; the database fills in id, userId (= whoever is signed in) and updatedAt.
+            row = await supabase.insertRow(testTable, {"noteText": f"check 3 test {time.strftime('%H:%M:%S')}"}, accessToken)
+            rowId = row.get("id")
+            columns = sorted(row)
+            report(columns == ["id", "noteText", "updatedAt", "userId"] and row.get("userId") == myUserId,
+                   f"save: own row stored, columns {', '.join(columns)} (camelCase kept), owner = you")
+
+            # 2. Read it back.
+            rows = await supabase.selectRows(testTable, {"id": f"eq.{rowId}"}, accessToken)
+            report(len(rows) == 1 and rows[0].get("noteText") == row.get("noteText"), "read: the row comes back unchanged")
+
+            # 3. Edit it.
+            updated = await supabase.updateRows(testTable, {"id": f"eq.{rowId}"}, {"noteText": "edited"}, accessToken)
+            report(len(updated) == 1 and updated[0].get("noteText") == "edited", "edit: own row changed")
+
+            # 4. + 5. Row-level security: no rows for someone else, and no giving your row away.
+            await expectRefusal(
+                supabase.insertRow(testTable, {"noteText": "must be refused", "userId": strangerId}, accessToken),
+                "row-level security, save a row for someone else")
+            await expectRefusal(
+                supabase.updateRows(testTable, {"id": f"eq.{rowId}"}, {"userId": strangerId}, accessToken),
+                "row-level security, give your row to someone else")
+
+            # 6. Delete it and check it's gone.
+            deleted = await supabase.deleteRows(testTable, {"id": f"eq.{rowId}"}, accessToken)
+            remaining = await supabase.selectRows(testTable, {"id": f"eq.{rowId}"}, accessToken)
+            report(len(deleted) == 1 and not remaining, "delete: own row removed")
+            if not remaining:
+                rowId = None  # nothing left to clean up
+
+            # 7. Without a sign-in, the table can't be read at all (table permission, review F6).
+            try:
+                await supabase.selectRows(testTable, {"limit": "1"}, None)
+                report(False, "anonymous read: was ALLOWED")
+            except SupabaseError as err:
+                report(err.statusCode == 401 and err.errorCode == "42501", f"anonymous read: refused ({err.statusCode} {err.errorCode})")
+
+            lines.append("\n✅ Check 3 passed" if all(outcomes) and len(outcomes) == 7 else "\n❌ Check 3 not passed")
+            dataResultText.value = "\n".join(lines)
+        except Exception as err:  # shown instead of crashing; messages never contain tokens
+            lines.append(f"❌ stopped: {type(err).__name__}: {err}")
+            dataResultText.value = "\n".join(lines)
+        finally:
+            if rowId is not None:  # a step failed half-way: don't leave the test row behind
+                try:
+                    await supabase.deleteRows(testTable, {"id": f"eq.{rowId}"}, accessToken)
+                    lines.append("(test row deleted)")
+                except Exception:
+                    lines.append("⚠️ the test row may still exist")
+                dataResultText.value = "\n".join(lines)
+            check3Button.disabled = False
+            page.update()
+
+    check3Button = ft.FilledButton("Run check 3", icon=ft.Icons.STORAGE, on_click=runCheck3)
 
     # Check 9: the phone's file picker. Services register themselves with the page in Flet 1.0.
     filePicker = ft.FilePicker()
@@ -233,6 +330,10 @@ def main(page: ft.Page):
                     ft.OutlinedButton("Check session", on_click=checkSession),
                     ft.OutlinedButton("Sign out", on_click=signOut),
                     signInResultText,
+                    ft.Divider(),
+                    ft.Text("Check 3: Supabase read/write", weight=ft.FontWeight.BOLD),
+                    check3Button,
+                    dataResultText,
                     ft.Divider(),
                     ft.Text("Check 9: pick a plan file", weight=ft.FontWeight.BOLD),
                     ft.FilledButton("Pick plan file", icon=ft.Icons.FOLDER_OPEN, on_click=pickPlanFile),
