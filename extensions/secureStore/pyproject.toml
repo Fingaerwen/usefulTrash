@@ -1,0 +1,17 @@
+# secureStore: our own Flet extension for small secrets on Android (plan T1.1: the sign-in session).
+# Python side (src/secureStore) talks to a Dart/Kotlin plugin (src/flutter/secure_store) that encrypts
+# with a key kept inside Android Keystore (the phone's security chip). No third-party code.
+[project]
+name = "secureStore"
+version = "0.1.0"
+description = "Encrypted storage with a phone-locked key for usefulTrash (Android)"
+requires-python = "==3.14.*"
+dependencies = ["flet==1.0.3"]
+
+[tool.setuptools.package-data]
+# Ship the Flutter/Android plugin files inside the Python package so `flet build` finds them.
+"flutter.secure_store" = ["pubspec.yaml", "lib/**", "android/**"]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"

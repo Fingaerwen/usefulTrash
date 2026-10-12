@@ -1,0 +1,47 @@
+// Android build settings for the secureStore plugin (same toolchain as the other usefulTrash extensions).
+group 'io.github.fingaerwen.securestore'
+version '0.1.0'
+
+buildscript {
+    ext.kotlin_version = '2.2.0'
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.12.1'
+    }
+}
+
+rootProject.allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+android {
+    namespace 'io.github.fingaerwen.securestore'
+    compileSdk = flutter.compileSdkVersion
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+    defaultConfig {
+        minSdkVersion flutter.minSdkVersion
+    }
+    dependencies {
+        // Only Android's own Keystore and crypto classes are used: no extra libraries.
+        implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    }
+}

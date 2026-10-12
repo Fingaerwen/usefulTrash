@@ -1,0 +1,2 @@
+<!-- secureStore needs no permissions or components: Android Keystore and the app's own folders are always available. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" />
