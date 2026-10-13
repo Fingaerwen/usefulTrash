@@ -1,6 +1,6 @@
 # usefulTrash: Gym App Plan
 
-> **Status (2026-10-13):** Phase 0's 12 checks all passed (see `docs/phase0.md`), and the Google app is published (P1.1). Now: finishing the design, in this order: code structure, sync + data tables, data upgrades, releases, diagnostics, screens/flows/look. Then deciding the staging together. This file is the single source of truth: every decision made after approval is applied in the sections below and listed in the **Decision log** at the end.
+> **Status (2026-10-13):** Phase 0's 12 checks all passed (see `docs/phase0.md`), and the Google app is published (P1.1). Now: finishing the design. Done: code structure (3b), data tables and sync (14, 14b). Next: data upgrades, releases, diagnostics, screens/flows/look; then deciding the staging together. This file is the single source of truth: every decision made after approval is applied in the sections below and listed in the **Decision log** at the end.
 
 ## Context
 This is a personal suite of Python apps in one public repo (`claudProjects/usefulTrash/`). The first app is an Android **gym tracker**; a **diet app** comes later and will share the same cloud database and login. Every decision below was made with you point by point, including the resolution of the "brutal review" flaws. **Approving this plan starts Phase 0 only (the feasibility check).** The staging after that is decided from Phase 0's results (14.1).
@@ -91,7 +91,7 @@ This is a personal suite of Python apps in one public repo (`claudProjects/usefu
 - **Strict about extra rest:** an unplanned rest day does not use up a planned Rest step (13.3).
 - **Train anyway** on a planned Rest step: the next workout is done and the rest step is kept for later (19.1c-2 / 13.1a).
 - **A planned Rest step is used up when the day ends** with it as the current step and no workout logged, even if the app was never opened (R4a).
-- **Nothing here is stored; it's all recalculated (F10.1).** Cycle position, rest-step use and midnight auto-finish are worked out each time from the facts: logged sessions, and plan imports with the date and starting step you chose. So the phone and the PC view always agree, and nothing has to run at midnight. These rules get written as automated tests first, including edge cases such as "train anyway" twice in a row on a Rest step.
+- **Nothing here is stored; it's all recalculated (F10.1).** Cycle position, rest-step use and midnight auto-finish are worked out each time from the facts: logged sessions (each records which plan step it was, 14), and plan imports with the date and starting step you chose. So the phone and the PC view always agree, and nothing has to run at midnight. These rules get written as automated tests first, including edge cases such as "train anyway" twice in a row on a Rest step.
 
 ## 6. Today screen (19.1)
 ```
@@ -100,6 +100,7 @@ Bench Press   4×9 @ 82.5 kg ↑new  [✓]   rest 2:00 · "pause at bottom"  ▾
 ```
 - **[✓]** logs it as targeted. **▾ sets** opens per-set rows pre-filled with the target (19.1a-1). **skip** = today only.
 - **Finish workout:** anything untouched is **auto-skipped** (19.1b-1) and the cycle advances. **Forgot to finish → it auto-finishes at midnight** the same way (R5a).
+- **One workout per day (DT1.1):** logging again later the same day adds to that day's workout.
 - Past days can be edited on the **phone for the last 7 days** (19.1f-1) and on the **PC for any day**. Edits recalculate suggestions, streaks and summaries.
 
 ## 7. Progression
@@ -120,7 +121,7 @@ Bench Press   4×9 @ 82.5 kg ↑new  [✓]   rest 2:00 · "pause at bottom"  ▾
 ## 9. Weekly summary & weight
 - **Summary:** completion, volume vs last week, PRs hit, weight change. Nutrition is added when the diet app exists (15.1).
 - **Summary also shows** total cardio minutes for the week (G9.4a). Cardio counts toward completion %.
-- **Weight:** a weekly weigh-in in the gym app plus a trend chart. The reminder is **Friday 07:00** (G9.1), with the text "same day, morning, after toilet, before food" (16.1a).
+- **Weight:** a weekly weigh-in in the gym app plus a trend chart. The reminder is **Friday 07:00** (G9.1), with the text "same day, morning, after toilet, before food" (16.1a). **One weight per day (DT2.1):** entering it again replaces it.
 - **Past exercises** (not in the current plan) appear in Progress under "Past exercises", with full history (G10a).
 - **"Not synced" banner** appears after 3 days of unsynced changes (G9.2b).
 
@@ -155,9 +156,35 @@ Dark mode that follows the phone setting, minimal screens and taps, medium-sized
 ## 13. Diet app (later)
 - Same Supabase project, login and naming. For now the gym app only **shares weight + training days**. Nutrition tables and goals are designed when the diet app is planned (15.1).
 
-## 14. Data model (draft, camelCase)
-`exercises` (stable `exerciseId`, current name, past names, equipment; feeds 11.3 matching and "Past exercises") (R8), `plans` (each import: the plan, the date it takes effect and the starting step you chose), `sessions`, `exerciseLogs` (planned vs actual, per-set rows, skipped, a declined suggestion), `cardioLogs`, `bodyWeight`, `backups`. **Only facts are stored (F10.1):** cycle position, rest-step use, auto-finish and suggestions are recalculated from these tables, so there are no `cycleState` or `suggestions` tables. Every row has `id` (UUID), `userId`, `updatedAt` (the time the edit was made on the device), `deleted` and `cloudUpdatedAt` (stamped by the cloud when it stores a change; used only to fetch what's new, never to decide which edit wins) (SY1.1). Conflicting edits: **the newest edit time wins** (G7a), so a late-arriving offline edit can't overwrite a newer one. **Enforced in the database (F11.1):** a trigger on every table ignores an incoming change whose `updatedAt` is older than the stored one, and `updatedAt` always comes from the device that made the edit; the server never stamps it (unlike the Phase 0 test table); the server stamps only `cloudUpdatedAt`.
+## 14. Data tables (camelCase)
+Every synced row has `id` (UUID), `userId`, `updatedAt` (when the edit was made, from the device's clock, to the microsecond), `deleted` (rows are never really removed: deleting is an edit like any other, so it syncs and can be undone) and `cloudUpdatedAt` (stamped by the cloud when it stores a change; used only to fetch what's new, never to decide which edit wins) (SY1.1). Conflicting edits: **the newest edit time wins** (G7a), so a late-arriving offline edit can't overwrite a newer one.
 
+| Table | One row per | Columns besides the common ones |
+|---|---|---|
+| `plans` (gym) | plan import | `effectiveDate`, `startStep`, `planJson` (the plan as imported, with matched exercise IDs), `archived` |
+| `sessions` (gym) | workout day (DT1.1) | `date`, `planImportId` + `stepIndex` (which plan step this workout was), `finishedAt` (empty until you tap Finish) |
+| `exerciseLogs` (gym) | exercise per workout day | `date`, `exerciseId`, `targetReps` + `targetWeightKg` (what Today suggested), `sets` (a list of reps + kg), `minutes` (cardio), `skipped`, `declinedSuggestion` (an Undo) |
+| `bodyWeight` (shared) | day (DT2.1) | `date`, `weightKg` |
+| `backups` (shared) | backup | `fileName`, `driveFileId`, `sizeBytes`, `schemaVersion`, `madeBy` (phone or PC view) |
+| `cloudInfo` (cloud only) | one row in total | `schemaVersion`, `minAppSchema` (UP1.1); the apps only read it |
+
+- **IDs that can't duplicate (DT1.1 / DT2.1):** a day's workout, an exercise on a day and a day's weight get IDs calculated from your user ID and the date (plus the exercise), so the phone and the PC view logging the same thing produce the same row, never two. Plan imports and backups get random IDs.
+- **Only facts are stored (F10.1).** Recalculated instead: cycle position, rest-step use, auto-finish (a past day's workout counts as finished), auto-skips (an exercise with no entry in a finished workout), suggestions, PRs, streaks, and the exercise list itself: current and past names come from the plan imports, which replaces the planned `exercises` table (R8) with the same uses (11.3 matching, "Past exercises"). Cardio entries live in `exerciseLogs`, which replaces `cardioLogs`. No `cycleState` or `suggestions` tables.
+- **Each workout records its plan step**, so editing or deleting an old day never rewrites the steps of later ones.
+- **Dates** are the device's local calendar date when you log (16.4c); edit times are exact moments (UTC).
+- **In the cloud (F11.1 + SY1.1):** one trigger on every table ignores a change that isn't newer than the stored one, refuses a change stamped more than 5 minutes in the future (a phone with a wrong clock would otherwise win every conflict; the app then says "check your phone's clock"), and stamps `cloudUpdatedAt`. `updatedAt` always comes from the device that made the edit; the server never stamps it (unlike the Phase 0 test table). Row-level security: only your own rows, which you can read, add and change but not remove. The database enforces no links between tables, because offline changes can arrive in any order; the rules ignore leftovers.
+- **On the phone:** the same tables in SQLite, plus two local-only ones: `outbox` (changes waiting to be sent) and `syncState` (how far fetching has got).
+
+## 14b. Sync (SY2.1)
+- **Sending (phone):** each change goes into the phone's database and the `outbox` in one transaction. Sync sends the outbox in batches as upserts; the cloud's trigger keeps the newest. An entry leaves the outbox only once the cloud has it and the row hasn't been edited again in the meantime.
+- **Fetching (phone and PC view):** each table is asked for rows whose `cloudUpdatedAt` is at or after the last one seen minus 5 minutes (so a change stamped a moment before it finished saving isn't missed), in pages ordered by `cloudUpdatedAt` and `id`. A fetched row replaces the local one only if it's newer, so getting the same change twice is harmless.
+- **When:** at start, a few seconds after every change, every minute while the app is open, and when it comes back on screen. Network errors retry with growing pauses, up to 5 minutes. No live connection: simpler, and it works the same in the browser.
+- **First download** (new install or reinstall): everything is fetched before the Today screen shows, with a progress count. Signing in needs the internet anyway.
+- **PC view:** loads everything at sign-in, writes straight to the cloud (CS1.1), and fetches every minute, so changes from the phone show up without reloading.
+- **Version check (UP1.1):** before each sync the app reads `cloudInfo` and syncs only if `minAppSchema` ≤ its own schema number ≤ `schemaVersion`. Otherwise it stops, keeps the outbox and says what to update.
+- **Signed out:** sync pauses and the outbox is kept. The phone's database remembers whose data it holds and is cleared if a different account ever signs in (impossible today: sign-ups are off).
+- **"Not synced" banner** (G9.2b): when the oldest outbox entry is 3+ days old. Changes the cloud refused show the reason.
+- **Backups** sync first, then write from the device's copy (phone) or the loaded copy (PC view). Deleted rows are included, so a restore is exact.
 ---
 
 ## Phase 0: feasibility check (what approval starts)
@@ -201,7 +228,7 @@ Setup during Phase 0: create `usefulTrash/` with git (noreply email, username), 
 
 ## Verification
 - Phase 0: each of the 12 checks recorded as pass/fail with notes. **If Google sign-in on Android fails (check 2), the fallback is an emailed code (F1.1).** Any other fail → we revisit that decision before building.
-- Later phases: automated tests for plan import/validation, cycle + rest rules, progression rules, PR/volume/streak math and sync (offline → online, conflicts). End to end: airplane mode → log → reconnect → shows in the PC view.
+- Later phases: automated tests for plan import/validation, cycle + rest rules, progression rules, PR/volume/streak math and sync against a fake cloud (offline → online, conflicts both ways, the 5-minute fetch overlap, refused changes, first download, the version check; 14b). End to end: airplane mode → log → reconnect → shows in the PC view.
 
 ---
 
@@ -230,3 +257,6 @@ Newest at the bottom. Every decision made after the plan was approved gets a lin
 - **2026-10-13 · SY1.1:** every synced row also gets `cloudUpdatedAt`, stamped by the cloud when it stores a change and used only to fetch what's new; the device's `updatedAt` still decides which edit wins. Without it, an edit that reaches the cloud late (made offline, e.g. by the diet app later) looks old, and another device would never fetch it. The exact fetch rules come with the sync design.
 - **2026-10-13 · UP1.1:** cloud upgrades only add things; the cloud records the oldest app version allowed to sync, and an app stops syncing (changes stay queued) with a clear message when either side is too old; the cloud is upgraded before an app is released. This covers the time when the PC view already runs a new release and the phone still runs the old one. Also corrects G6a: cloud upgrades are run by you, not automatically, because they need admin access that no app or server may hold.
 - **2026-10-13 · CS1.1:** code structure (section 3b): pure rules, all facts in memory, one write path, two stores behind one interface (sync on the phone only), declarative screens (checked on the phone in the first build stage), phone/PC chosen once in `main.py`, shared code as the local package `usefulShared`, plus the package guard (section 2) after finding that PyPI already has packages named `securestore` and `shared`.
+- **2026-10-13 · DT1.1:** one workout per day; logging again the same day adds to it. Its ID is calculated from your user ID and the date, so the phone and the PC view can't create two.
+- **2026-10-13 · DT2.1:** one body weight per day; entering it again replaces it (same ID method).
+- **2026-10-13 · SY2.1:** data tables and sync as in sections 14 and 14b (technical design; you left the details to me). Six tables: the exercise list is now worked out from the plan imports (R8's `exercises` table dropped, same uses) and cardio sits in `exerciseLogs`. Each workout records its plan step. Fetching overlaps by 5 minutes; the cloud refuses changes stamped more than 5 minutes in the future. Sync runs at start, after changes, every minute and on return to the screen; a first download finishes before Today shows; backups sync first and include deleted rows.
