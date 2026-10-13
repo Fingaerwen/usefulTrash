@@ -23,6 +23,7 @@ This is a personal suite of Python apps in one public repo (`claudProjects/usefu
   - Sign-in tokens go to Google/Supabase as part of logging in and are stored only on your device (K3a). **On the phone they're encrypted with a key locked inside the phone's security chip (Android Keystore, T1.1)**: only the encrypted copy is saved, in a folder Android leaves out of backups and transfers, so a copied file is useless anywhere else. If the key is ever lost, you sign in again.
   - GitHub's own temporary job token (created by GitHub, never seen or stored) is allowed for the keep-alive (3.3a / F15.1).
 - **Leak protection:** a pre-commit secret scan blocks commits containing keys (K4a); GitHub push protection (K4b); `.env` and the signing key are in `.gitignore`.
+- **Package guard (CS1.1):** our own packages are found through one local-path line each in the build settings; if a line were missing or mistyped, the build would download a stranger's package of the same name instead (PyPI already has a `securestore` and a `shared`). So the build script refuses to build if one of our packages lacks its local path, checks afterwards that every one was installed from our folders, and our package names get a unique prefix. The Phase 0 builds were checked: all three extensions came from our folders.
 - **Sign-in (AU1c):** native **Google sign-in on Android** with no stored secret: the app gets a Google ID token and Supabase checks it using only the public client ID. **If it fails on the phone (check 2), the fallback is an emailed 6-digit code** (F1.1). The **PC view** signs in with Google's official website sign-in, Google Identity Services (6.1): Google gives the page an ID token, Supabase checks it with a nonce, no secret anywhere. Emailed codes were ruled out: Supabase's built-in email only reaches your Supabase team (2 per hour), and your own email server's password would have to sit on Supabase. Supabase's Email sign-in stays **off** until one of these actually needs it.
 - **Only your account allowed** (5.1), **sign-ups disabled after setup** (5.2). **The Google app stays in Testing, with your account as the only test user, until check 7 (P1.1).** Google won't publish without a homepage and a privacy policy page. Testing is fine for sign-in: Google blocks every other account (an extra lock on top of Supabase), shows a "not verified" warning you tap through, and asks again for approval once 7 days have passed since the last one, which only matters when signing in with Google again; the Supabase session doesn't depend on it. **Published 2026-10-13**, after check 7's 1-hour Drive test (which ran in Testing, D7.1), because Drive access in Testing would expire every 7 days. The homepage and privacy page live on the PC view's GitHub Pages site: `https://fingaerwen.github.io/usefulTrash/about.html` and `.../privacy.html` (source in `site/`). Since publishing, Google lets any account through its screen; Supabase's sign-up lock refuses them (tested in check 2: `422 signup_disabled`).
 - Row-level security on every table.
@@ -31,15 +32,35 @@ This is a personal suite of Python apps in one public repo (`claudProjects/usefu
 
 ## 3. Repo, code style, docs
 - **Public GitHub repo, no license** (view-only). Secrets live in an untracked `.env`, never committed (the docs included).
-- Layout:
+- Layout (CS1.1, details in 3b):
   ```
   usefulTrash/
-    apps/gym/   apps/diet/ (later)   shared/ (auth, sync, schema)
-    plans/ (JSON spec + examples)    docs/   tests/   .github/workflows/
+    apps/gym/      the gym app: one codebase → phone APK + PC view website
+      src/main.py  starts the app and picks phone or PC mode once
+      src/gym/     tables.py · rules/ · actions.py · state.py · screens/
+    apps/diet/     later, same pattern
+    shared/        package usefulShared: cloud/ · signIn/ · store/ · sync/ · backup/ · tables.py · platform/
+    cloud/         numbered cloud upgrade scripts, one list for the whole database
+    extensions/    our Kotlin plugins: nativeGoogleSignIn, secureStore, weighInNotify
+    tools/         PC-only scripts, never shipped: config, build, restore, leak scans
+    tests/  plans/ (JSON spec + examples)  docs/  site/  .github/workflows/
+    spikes/phase0/ the Phase 0 spike, kept as the record and never imported
   ```
 - **camelCase literally everywhere** (11.4c): Python names, JSON, exercise IDs, database columns. Hand-written Postgres SQL quotes identifiers (`"weightKg"`). Flet's own snake_case APIs stay as they are.
 - **Comments in all code:** a short description of what each part does.
 - **Full documentation write-up** in `docs/` when the project is done, updated whenever anything relevant changes or is added.
+
+## 3b. Code structure (CS1.1)
+- **Rules are pure** (`gym/rules/`): cycle, progression, PRs/volume/streaks, weekly summary and plan-file checks never touch a screen, the database, the network or the clock; "today" is passed in. Most tests live here, and the phone and the PC view compute identical results from identical facts (F10.1).
+- **All your facts are held in memory.** On start the app loads every row (phone: its own database; PC view: the cloud) and `state.py` calculates everything from them. Start-up has about 2 s of room under the 5 s limit (check 8: 2.8–3.3 s); the load time is measured at every release.
+- **One write path:** screens call `actions.py`, which builds the row (new `id`, your `userId`, `updatedAt` from the device), checks it and hands it to the store. Screens never write rows themselves.
+- **Two stores, one interface** (`usefulShared.store`): the phone saves to SQLite and the outbox in one transaction, and sync (phone only) sends the outbox and fetches changes made elsewhere. The PC view writes straight to the cloud; if that fails, nothing changes on screen and you see why.
+- **Declarative screens** (Flet 1.0 components): a screen is drawn from the state and redraws itself when facts change. Not yet tried on the phone, so the first build stage checks the cold start stays under 5 s and the extensions work inside components; fallback: the spike's style.
+- **Phone vs PC is decided once,** in `main.py` (phone: database + sync + phone sign-in + notifications + automatic backups; PC view: cloud store + browser sign-in + Plans/History/Backup tabs). No scattered "if website" checks.
+- **Network calls never block the screen** (phone: a worker thread; browser: fetch). The phone's database stays on the app's main loop, so it needs no locks.
+- **Shared code is its own local package** (`usefulShared`), built into the APK and the website the same way as the extensions (Flet's `dev_packages`), so the diet app reuses it unchanged.
+- **Package guard:** see section 2.
+- **The spike stays frozen:** its proven modules (Supabase calls, session keeper, offline queue, Drive access) move into `shared/`, cleaned up and with tests; `makePublicConfig.py` moves to `tools/`.
 
 ## 4. Plan JSON (written in your Claude project)
 ```json
@@ -114,10 +135,10 @@ Bench Press   4×9 @ 82.5 kg ↑new  [✓]   rest 2:00 · "pause at bottom"  ▾
 
 ## 12. Backups & scheduled jobs (no stored secrets anywhere)
 - **If Phase 0 shows that automatic Drive renewal needs a secret inside the app:** the backup moves to a **local timer on your Linux PC** instead, with its secrets in a local file only (R2b).
-- **Automatic backup from the phone (F14.1):** when the app opens and the last backup is 30+ days old, it creates **zipped CSV files** (one per table, G9.3b) and uploads them to Google Drive with *your own sign-in*. The permission is limited to files the app created. **Keep the last 3.** A backup record prevents duplicate backups. The **PC view** has a **"Back up now"** button instead of automatic backups, because a browser needs a click and a Google popup every time it asks for Drive access.
+- **Automatic backup from the phone (F14.1):** when the app opens and the last backup is 30+ days old, it creates **zipped CSV files** (one per table, G9.3b) and uploads them to Google Drive with *your own sign-in*. The permission is limited to files the app created. **Keep the last 3.** A backup record prevents duplicate backups. The **PC view** has a **"Back up now"** button instead of automatic backups, because a browser needs a click and a Google popup every time it asks for Drive access. Not tested yet: the browser's Drive permission (Google Identity Services' token client) gets a small test before the button relies on it.
 - The PC view **warns when the last backup is 60+ days old** (3.4).
 - **Restore (F13.1):** a small restore script plus a short guide. It's tested once when backups are built (into a spare copy, never the live data) and again after every data-structure change. Each backup records its data-structure version, so older backups still restore correctly.
-- **Daily database ping (GitHub Actions):** uses only the public address + publishable key, calling a harmless `ping` function (K1c / 7.4), so the Supabase free tier doesn't pause. The publishable key lives in one config file that everything references. Whether the ping counts as activity is **watched for the first 2 weeks** (R10).
+- **Daily database ping (GitHub Actions):** uses only the public address + publishable key, calling a harmless `ping` function (K1c / 7.4), so the Supabase free tier doesn't pause. The publishable key lives in one config file that everything references. Whether the ping counts as activity is **watched for the first 2 weeks** (R10). Open (releases step): the ping runs on GitHub, so it needs the public address and publishable key there, while C2a keeps them out of the repo.
 - **Keep-alive (F15.1):** GitHub switches off scheduled jobs after 60 days without repo activity, so the ping job uses GitHub's temporary job token to call GitHub's "enable workflow" API, which resets that timer without any commits. Checked when the workflows are built; if it doesn't reset the timer, fall back to a monthly keep-alive commit (3.3a).
 
 ## 12b. Releases, updates & data upgrades
@@ -208,3 +229,4 @@ Newest at the bottom. Every decision made after the plan was approved gets a lin
 - **2026-10-12 · D7.1:** check 7's Drive test runs while the Google app is still in Testing, because its 1-hour token expiry test doesn't depend on publishing. Publishing follows once you've approved the homepage and privacy page; it's still needed, because Drive access in Testing expires every 7 days. Replaces "publish before check 7" from P1.1.
 - **2026-10-13 · SY1.1:** every synced row also gets `cloudUpdatedAt`, stamped by the cloud when it stores a change and used only to fetch what's new; the device's `updatedAt` still decides which edit wins. Without it, an edit that reaches the cloud late (made offline, e.g. by the diet app later) looks old, and another device would never fetch it. The exact fetch rules come with the sync design.
 - **2026-10-13 · UP1.1:** cloud upgrades only add things; the cloud records the oldest app version allowed to sync, and an app stops syncing (changes stay queued) with a clear message when either side is too old; the cloud is upgraded before an app is released. This covers the time when the PC view already runs a new release and the phone still runs the old one. Also corrects G6a: cloud upgrades are run by you, not automatically, because they need admin access that no app or server may hold.
+- **2026-10-13 · CS1.1:** code structure (section 3b): pure rules, all facts in memory, one write path, two stores behind one interface (sync on the phone only), declarative screens (checked on the phone in the first build stage), phone/PC chosen once in `main.py`, shared code as the local package `usefulShared`, plus the package guard (section 2) after finding that PyPI already has packages named `securestore` and `shared`.
