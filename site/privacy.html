@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>usefulTrash privacy policy</title>
+  <!-- Privacy policy for Google's sign-in setup (plan P1.1). Plain HTML: no scripts, cookies or outside files. -->
+  <style>
+    body { font: 16px/1.6 system-ui, sans-serif; max-width: 42rem; margin: 2rem auto; padding: 0 1rem; color: #202124; background: #fff; }
+    a { color: #1a73e8; }
+    @media (prefers-color-scheme: dark) { body { color: #e8eaed; background: #121212; } a { color: #8ab4f8; } }
+  </style>
+</head>
+<body>
+  <h1>usefulTrash privacy policy</h1>
+  <p>Effective 13 October 2026.</p>
+  <p>usefulTrash is a personal gym tracker (an Android app and a companion web page, the "PC view") made by
+    Fingaerwen for their own use. Sign-ups are closed: only the owner's account can sign in. This page explains
+    what data the app handles, including data it receives from Google.</p>
+
+  <h2>Data the app handles</h2>
+  <ul>
+    <li>What you enter: your training plan, workouts, body weight and notes.</li>
+    <li>From Google when you sign in: your email address, name, profile picture and Google account ID.</li>
+    <li>Sign-in tokens that keep you signed in.</li>
+  </ul>
+
+  <h2>How Google user data is used</h2>
+  <ul>
+    <li><strong>Sign in with Google</strong> (your email, name and profile picture): Google's sign-in token is passed to
+      Supabase, the app's sign-in and database service, to sign you in to your own account. It's used for nothing else.</li>
+    <li><strong>Google Drive</strong> (only "files this app created"): the app saves backup copies of your own app data
+      to your Google Drive and deletes its own older backups (it keeps the last 3). It can't see, open or change any
+      other file in your Drive. On the phone, Google Play services keeps this permission; the app only receives
+      access tokens that expire after about an hour, keeps them in memory, and sends them only to Google. The PC view
+      asks Google for Drive access each time you press its backup button.</li>
+  </ul>
+
+  <h2>Where data is stored</h2>
+  <ul>
+    <li><strong>On your phone:</strong> your data, in the app's private storage. Sign-in tokens are encrypted with a key
+      kept in the phone's security hardware (Android Keystore) and are left out of Android's backups.</li>
+    <li><strong>In Supabase</strong> (database hosting): your data and your account record (the Google details above).
+      Row-level security lets only your own signed-in account read or change your data.</li>
+    <li><strong>In your Google Drive:</strong> the backup files the app created.</li>
+    <li><strong>The PC view</strong> keeps its sign-in in the browser tab's memory only: closing the tab signs you out.
+      It stores nothing in your browser.</li>
+  </ul>
+
+  <h2>Sharing</h2>
+  <p>No data is sold, rented or shared with anyone. There are no ads, analytics or trackers. The only services
+    involved are Supabase (sign-in and database) and Google (sign-in and Drive), and only to provide the features above.</p>
+
+  <h2>Limited Use</h2>
+  <p>usefulTrash's use and transfer to any other app of information received from Google APIs will adhere to the
+    <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>,
+    including the Limited Use requirements.</p>
+
+  <h2>Your choices and deletion</h2>
+  <ul>
+    <li>Remove usefulTrash's access to your Google account at any time in your Google Account:
+      <a href="https://myaccount.google.com/connections">Your connections to third-party apps &amp; services</a>.</li>
+    <li>Backups are ordinary files in your Google Drive: delete them there whenever you like.</li>
+    <li>Uninstalling the app deletes the data stored on your phone.</li>
+    <li>To have your account and data in Supabase deleted, open an issue on the project's GitHub page (below).</li>
+  </ul>
+
+  <h2>Contact</h2>
+  <p>Questions or requests: open an issue at
+    <a href="https://github.com/Fingaerwen/usefulTrash/issues">github.com/Fingaerwen/usefulTrash/issues</a>.</p>
+
+  <h2>Changes</h2>
+  <p>Changes to this policy are published on this page with a new effective date.</p>
+
+  <p><a href="about.html">usefulTrash home page</a></p>
+</body>
+</html>
