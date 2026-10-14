@@ -106,6 +106,7 @@ Incline Walk  15 min                     [✓]
   Today     Progress     Week     Weight
 ```
 - **Approved layout (SC2.1).** The top line is the plan step's title (from your plan), its place in the cycle, and workouts done this week vs the weekly target. A rest day shows "Rest day · next: Pull" with a **[ Train anyway ]** button. The **⋮** menu holds Problems (12d) and Sign out.
+- **Steps today (SC4.1):** one line under Finish, on rest days too: `Steps today: 14,000 ✎` (CA1.1).
 - **[✓]** logs it as targeted. **▾ sets** opens per-set rows pre-filled with the target (19.1a-1). **skip** = today only.
 - **Finish workout:** anything untouched is **auto-skipped** (19.1b-1) and the cycle advances. **Forgot to finish → it auto-finishes at midnight** the same way (R5a).
 - **One workout per day (DT1.1):** logging again later the same day adds to that day's workout.
@@ -154,6 +155,21 @@ Incline Walk  15 min                     [✓]
   14 Oct  4×9 @ 82.5   ·   10 Oct  4×8 @ 82.5   · …
   ```
   The app says "PR" (personal record).
+- **Week (SC4.1)**, as approved (◂ ▸ steps through earlier weeks; tapping a day in the calendar row enters or fixes that day's steps: on the phone for the last 7 days, on the PC for any day):
+  ```
+  Week 14–20 Oct                      ◂ ▸   ⋮
+  ─────────────────────────────────────────────
+  Workouts    3 of 4          Streak   5 weeks
+  Completion  92%             Cardio   185 min
+                              (45 gym + 140 from steps)
+  Volume      18,400 kg   ↑ 6% vs last week
+  PRs         Bench 85 kg · Squat 120 kg
+  Weight      81.2 kg   ↓ 0.4 kg
+  ─────────────────────────────────────────────
+  Mo ✓   Tu ·   We ·   Th ✗   Fr ✓   Sa     Su
+  ✓ trained   · rest   ✗ missed
+  ```
+  All numbers in these sketches are examples. A part that's zero is left out, e.g. `Cardio 140 min (from steps)` when no gym cardio was logged.
 - **Banners at the top of any tab** (18.4a): weekly summary ready, not synced, weigh-in due.
 - **PC:** the same tabs + Plans (import/switch/archive) + History (edit any day) + Export CSV + backup status with a "Back up now" button (F14.1).
 
@@ -317,3 +333,4 @@ Newest at the bottom. Every decision made after the plan was approved gets a lin
 - **2026-10-14 · SC2.1:** the Today layout as drawn in section 6 (header with step, cycle place and week count; ⋮ menu with Problems and Sign out; Finish button; tabs at the bottom).
 - **2026-10-14 · SC3.1:** tab split (Progress = exercises, PRs and charts; Week = summary, calendar, streak; Weight = weigh-in and chart) and the Progress layout as drawn in section 10; the app says "PR".
 - **2026-10-14 · CA1.1:** daily step totals can be entered (one per day, any day), converted at 100 steps = 1 minute and added to the week's cardio; they never count as a workout. New shared table `dailySteps`. Rejected: steps only for gym cardio exercises.
+- **2026-10-14 · SC4.1:** Week layout as drawn in section 10; steps are entered on Today ("Steps today" line) or by tapping a day in Week's calendar row; zero parts of the cardio line are left out.
