@@ -84,7 +84,10 @@ This is a personal suite of Python apps in one public repo (`claudProjects/usefu
 - `weeklyTarget` lives in the plan (17.1a). Mid-week imports: **Monday's plan decides** that week's target (17.4a).
 - `notes` = form cues shown on the Today screen (17.3a). Rest time is display only, no timer.
 - **Import:** PC view normally; phone file import only as a fallback (G2b-2). Exercises are matched by `exerciseId`, else by name with a prompt (11.3). **You choose the starting cycle day** on import (17.2c). **New plan weights win** (8.12). History stays continuous, so a reset shows as a dip (8.16d).
-- A short format spec goes in `plans/` for you to paste into your Claude project.
+- **The format spec is `plans/planFormat.md`**, for you to paste into your Claude project; the checks live in `gym/rules/planFile.py` (PF1). A file being imported is checked strictly: an unknown field is refused with the closest real one as a hint, so typos can't slip through. A plan already stored is read leniently, so an older app can still read a plan with fields a newer one added. An exercise in several steps needs the same settings in each (notes and rest time may differ), because progress is tracked per exercise.
+- **Likely matches (11.3, PF1):** an exercise with a new ID is asked about if a known exercise of the same kind and equipment has a similar name (ignoring case and punctuation, or one name inside the other) and isn't in the new plan itself. Each is asked about once, best match first. "Yes" stores the known ID in the plan, so the history carries on.
+- **A new plan takes effect today, or tomorrow if a workout is already logged today** (PF1), so one day's workout never mixes two plans.
+- A week whose Monday had no plan yet (your first import) takes the first plan's weekly target.
 
 ## 5. Cycle & rest
 - A **rotating cycle**; a missed day never shifts dates, the next step just waits.
@@ -370,3 +373,4 @@ Newest at the bottom. Every decision made after the plan was approved gets a lin
 - **2026-10-14 · LK1.1:** accent colour white in dark mode and black in light mode (a black-and-white look). Rejected: always dark mode with white (would change G1).
 - **2026-10-14 · ST1.1:** staging: 0.1-alpha logs a workout, 0.2-alpha shows progress, 0.3-alpha adds the PC history editing and backups (section "Staging"). Building starts with 0.1-alpha.
 - **2026-10-14 · KR1.2:** "Train anyway" keeps at most one rest owed: training through two Rest steps in a row owes one rest day, then the plan carries on. Rejected: every skipped rest stays owed (KR1.1), because rest days would pile up after a busy week.
+- **2026-10-14 · PF1:** plan file checks and exercise matching as in section 4 and `plans/planFormat.md` (technical design; you left the details to me). A new plan takes effect today, or tomorrow if a workout is already logged today.
