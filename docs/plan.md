@@ -132,7 +132,7 @@ Incline Walk  15 min                     [✓]
 - **Summary:** completion, volume vs last week, PRs hit, weight change. Nutrition is added when the diet app exists (15.1).
 - **Summary also shows** total cardio minutes for the week (G9.4a). Cardio counts toward completion %.
 - **Daily steps (CA1.1):** you can enter your day's step total (what your phone's step counter shows) once a day, any day, rest days included; entering it again replaces it. It's converted at **100 steps = 1 minute** (a brisk walking pace) and added to the week's cardio, shown as e.g. `Cardio 185 min (45 gym + 140 from steps)`. Steps aren't a workout: they don't move the cycle, don't count toward completion %, the weekly workout count or streaks, and a day with only steps is still a rest day.
-- **Weight:** a weekly weigh-in in the gym app plus a trend chart. The reminder is **Friday 07:00** (G9.1), with the text "same day, morning, after toilet, before food" (16.1a). **One weight per day (DT2.1):** entering it again replaces it.
+- **Weight:** a weekly weigh-in in the gym app plus a trend chart. The reminder is **Friday 07:00** (G9.1), with the text **"Time to weigh in"** (NT1.2, replaces 16.1a's "same day, morning, after toilet, before food"). **One weight per day (DT2.1):** entering it again replaces it.
 - **Past exercises** (not in the current plan) appear in Progress under "Past exercises", with full history (G10a).
 - **"Not synced" banner** appears after 3 days of unsynced changes (G9.2b).
 
@@ -344,3 +344,4 @@ Newest at the bottom. Every decision made after the plan was approved gets a lin
 - **2026-10-14 · CA1.1:** daily step totals can be entered (one per day, any day), converted at 100 steps = 1 minute and added to the week's cardio; they never count as a workout. New shared table `dailySteps`. Rejected: steps only for gym cardio exercises.
 - **2026-10-14 · SC4.1:** Week layout as drawn in section 10; steps are entered on Today ("Steps today" line) or by tapping a day in Week's calendar row; zero parts of the cardio line are left out.
 - **2026-10-14 · SC5.1:** Weight layout as drawn in section 10, without the "same day, morning…" hint on the screen.
+- **2026-10-14 · NT1.2:** the Friday notification says "Time to weigh in" (replaces 16.1a's text).
