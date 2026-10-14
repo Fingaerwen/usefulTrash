@@ -54,12 +54,13 @@ def scanBytes(where: str, content: bytes, secrets: dict[str, bytes], depth: int 
 
 def _findings(where: str, content: bytes, secrets: dict[str, bytes]) -> list[str]:
     findings = [f"{where}: {kind}" for kind, pattern in secretFormats.items() if pattern.search(content)]
-    return findings + [f"{where}: the value of {name} from .env" for name, value in secrets.items() if value in content]
+    return findings + [f"{where}: the value of {name}" for name, value in secrets.items() if value in content]
 
 
-def scan(paths: list[Path], envPath: Path = repoRoot / ".env") -> list[str]:
-    """Findings in APKs, zips or folders of files."""
-    secrets = envSecrets(envPath)
+def scan(paths: list[Path], envPath: Path = repoRoot / ".env", extra: dict[str, bytes] | None = None) -> list[str]:
+    """Findings in APKs, zips or folders of files. extra: more values that must not be there, by name
+    (the release script adds the signing password)."""
+    secrets = {**envSecrets(envPath), **(extra or {})}
     findings = []
     for path in paths:
         files = sorted(item for item in path.rglob("*") if item.is_file()) if path.is_dir() else [path]

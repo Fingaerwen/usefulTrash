@@ -27,3 +27,7 @@ def testTheAppIsCalledGymTracker():
     assert settings["tool"]["flet"]["product"] == "Gym Tracker"
     assert settings["tool"]["flet"]["android"]["bundle_id"] == "io.github.fingaerwen.gymtracker"
     assert settings["tool"]["flet"]["android"]["target_arch"] == ["arm64-v8a"]
+
+
+def testThePcViewIsBuiltForItsAddressWithoutCdns():
+    assert settings["tool"]["flet"]["web"] == {"base_url": "/usefulTrash/", "cdn": False}

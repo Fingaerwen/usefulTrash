@@ -33,7 +33,14 @@ def testPrivateEnvValuesAreFoundButPublicOnesAllowed(tmp_path):
     site = tmp_path / "web"
     site.mkdir()
     (site / "index.html").write_text(f"https://example.supabase.co and {fakePrivateValue}")
-    assert leakScan.scan([site], envPath=env) == [f"{site / 'index.html'}: the value of OTHER_VALUE from .env"]
+    assert leakScan.scan([site], envPath=env) == [f"{site / 'index.html'}: the value of OTHER_VALUE"]
+
+
+def testExtraValuesLikeTheSigningPasswordAreFound(tmp_path):
+    apk = tmp_path / "app.apk"
+    apk.write_bytes(zipped(**{"config.json": b'{"x": "' + fakePrivateValue.encode() + b'"}'}))
+    assert leakScan.scan([apk], envPath=tmp_path / "missing.env", extra={"SIGNING_PASSWORD": fakePrivateValue.encode()}) == [
+        f"{apk}!config.json: the value of SIGNING_PASSWORD"]
 
 
 def testACleanBuildHasNoFindings(tmp_path):

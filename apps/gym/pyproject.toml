@@ -30,6 +30,10 @@ build_number = 1  # Android's versionCode: the middle version number, one up eac
 bundle_id = "io.github.fingaerwen.gymtracker"  # set explicitly, separate from the Phase 0 spike (RL1.3)
 target_arch = ["arm64-v8a"]  # your phone's CPU type only: one small APK (RL3)
 
+[tool.flet.web]
+base_url = "/usefulTrash/"  # the PC view lives at https://fingaerwen.github.io/usefulTrash/ (P6.1)
+cdn = false  # Python and Flutter come from our own site, never from other sites' servers (plan 1)
+
 [tool.flet.app]
 path = "src"
 
