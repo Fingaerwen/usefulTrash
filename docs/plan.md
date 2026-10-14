@@ -1,6 +1,6 @@
 # usefulTrash: Gym App Plan
 
-> **Status (2026-10-14):** Phase 0's 12 checks all passed (see `docs/phase0.md`), and the Google app is published (P1.1). Now: finishing the design. Done: code structure (3b), data tables, sync and data upgrades (14, 14b, 14c), releases (12b), diagnostics (12d). Next: screens/flows/look; then deciding the staging together. This file is the single source of truth: every decision made after approval is applied in the sections below and listed in the **Decision log** at the end.
+> **Status (2026-10-14):** Phase 0's 12 checks all passed (see `docs/phase0.md`), and the Google app is published (P1.1). The design round is done: code structure (3b), data tables, sync and data upgrades (14, 14b, 14c), releases (12b), diagnostics (12d), screens and look (6, 10, 12c). Next: deciding the staging together. This file is the single source of truth: every decision made after approval is applied in the sections below and listed in the **Decision log** at the end.
 
 ## Context
 This is a personal suite of Python apps in one public repo (`claudProjects/usefulTrash/`). The first app is an Android **gym tracker**; a **diet app** comes later and will share the same cloud database and login. Every decision below was made with you point by point, including the resolution of the "brutal review" flaws. **Approving this plan starts Phase 0 only (the feasibility check).** The staging after that is decided from Phase 0's results (14.1).
@@ -221,7 +221,7 @@ Incline Walk  15 min                     [✓]
 - **Invalid plans are rejected**, listing every error in plain words (G8a). Checks include missing fields, repsMin > repsMax, duplicate IDs, and a weeklyTarget outside 1–7 (F12.1). A target faster than the cycle's own pace (training steps ÷ cycle length × 7) isn't rejected, just flagged with a warning, because a short cycle can run more than once a week.
 
 ## 12c. Look & feel (G1)
-Dark mode that follows the phone setting, minimal screens and taps, medium-sized tap targets.
+Dark mode that follows the phone setting, minimal screens and taps, medium-sized tap targets. **Accent (LK1.1):** white in dark mode, black in light mode, so the app is black and white either way (buttons, ✓ marks and charts included).
 
 ## 12d. Diagnostics (DG1.1)
 - **"Problems" page** in the app, phone and PC view (DG1.1), reached from a small menu (exact place set with the screens): app version and schema number, sync status (changes waiting, the oldest one, the last successful sync, changes the cloud refused and why), the last backup, and recent errors in plain words with a technical line underneath. A **Copy** button puts the whole report on the clipboard for you to paste to me; **Clear** empties it. An error that needs you (a refused change, a wrong clock, an update needed) also shows a banner on any tab (18.4a). Nothing is ever sent anywhere automatically: no crash reports, no analytics.
@@ -361,3 +361,4 @@ Newest at the bottom. Every decision made after the plan was approved gets a lin
 - **2026-10-14 · SC5.1:** Weight layout as drawn in section 10, without the "same day, morning…" hint on the screen.
 - **2026-10-14 · NT1.2:** the Friday notification says "Time to weigh in" (replaces 16.1a's text).
 - **2026-10-14 · SC6.1:** PC screens (Plans, History, Backup) as drawn in section 10; first-launch flow on the phone written down there too.
+- **2026-10-14 · LK1.1:** accent colour white in dark mode and black in light mode (a black-and-white look). Rejected: always dark mode with white (would change G1).
