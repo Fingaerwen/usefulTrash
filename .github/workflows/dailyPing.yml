@@ -1,0 +1,49 @@
+# Daily database ping (plan 12: K1c, RL2.1, F15.1): keeps the free Supabase project from pausing.
+# It calls the harmless ping function (cloud/001) with only the public address and the publishable key,
+# from the GitHub Actions variables SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY (Settings > Secrets and
+# variables > Actions > Variables; public by design, so variables, not secrets). No third-party actions,
+# just curl, and it prints only the results. GitHub shows a step's variables in its log; both are
+# already public in the PC view's website files.
+name: dailyPing
+
+on:
+  schedule:
+    - cron: "17 6 * * *"  # every day at 06:17 UTC (off the hour, when GitHub is less busy)
+  workflow_dispatch:  # "Run workflow" on the Actions page, to test it
+
+permissions:
+  actions: write  # only to switch this schedule back on each day (the keep-alive below)
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping the database
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          answer=$(curl --silent --max-time 30 --proto '=https' --request POST "$SUPABASE_URL/rest/v1/rpc/ping" \
+            --header "apikey: $SUPABASE_PUBLISHABLE_KEY" --header "Content-Type: application/json" --data '{}' \
+            || true)
+          if [ "$answer" != '"ok"' ]; then
+            echo "ping: failed"
+            exit 1
+          fi
+          echo "ping: ok"
+
+      # GitHub switches scheduled jobs off after 60 days without repo activity. Switching this one back
+      # on with the job's own temporary token resets that, without any commits (F15.1).
+      - name: Keep this schedule switched on
+        if: always()  # even on a day the ping fails, so a failing ping can't also switch the schedule off
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          status=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 30 --proto '=https' \
+            --request PUT --header "Authorization: Bearer $GITHUB_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$REPOSITORY/actions/workflows/dailyPing.yml/enable" || true)
+          echo "keep-alive: $status"
+          [ "$status" = "204" ]
