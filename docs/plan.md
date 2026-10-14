@@ -181,6 +181,21 @@ Incline Walk  15 min                     [✓]
   ```
 - **Banners at the top of any tab** (18.4a): weekly summary ready, not synced, weigh-in due.
 - **PC:** the same tabs + Plans (import/switch/archive) + History (edit any day) + Export CSV + backup status with a "Back up now" button (F14.1).
+- **PC screens (SC6.1)**, as approved:
+  ```
+  Plans      Active:  Push Pull Legs (v2) · since 6 Oct · 4/week
+             [ Import a plan file… ]
+             Earlier: Full Body (v1) · 1 Sep – 5 Oct   [Switch] [Archive]
+
+  History    ◂ October 2026 ▸
+             Mo 13  Push · 5 exercises · finished      [Edit]
+             Su 12  Rest · 9,500 steps                 [Edit]
+
+  Backup     Last backup: 12 Sep (phone) · 32 days ago
+             [ Back up now ]   [ Export CSV ]
+  ```
+  Import: pick the file → problems listed in plain words (G8a) → "is this the same exercise?" for likely matches (11.3) → choose the starting day (17.2c) → it takes effect. Edit opens the day laid out like Today (sets, steps, weight, or delete the workout). Backup warns at 60+ days (3.4).
+- **First launch (phone):** Sign in with Google → "Downloading your data… N rows" (14b) → if no plan exists yet: "Import your plan in the PC view", with "Import a file" as the fallback (G2b-2) → Today.
 
 ## 11. Notifications & background
 - Sync and banners are in-app only (2).
@@ -345,3 +360,4 @@ Newest at the bottom. Every decision made after the plan was approved gets a lin
 - **2026-10-14 · SC4.1:** Week layout as drawn in section 10; steps are entered on Today ("Steps today" line) or by tapping a day in Week's calendar row; zero parts of the cardio line are left out.
 - **2026-10-14 · SC5.1:** Weight layout as drawn in section 10, without the "same day, morning…" hint on the screen.
 - **2026-10-14 · NT1.2:** the Friday notification says "Time to weigh in" (replaces 16.1a's text).
+- **2026-10-14 · SC6.1:** PC screens (Plans, History, Backup) as drawn in section 10; first-launch flow on the phone written down there too.
