@@ -1,6 +1,6 @@
 # usefulTrash: Gym App Plan
 
-> **Status (2026-10-13):** Phase 0's 12 checks all passed (see `docs/phase0.md`), and the Google app is published (P1.1). Now: finishing the design. Done: code structure (3b), data tables, sync and data upgrades (14, 14b, 14c), releases (12b). Next: diagnostics, screens/flows/look; then deciding the staging together. This file is the single source of truth: every decision made after approval is applied in the sections below and listed in the **Decision log** at the end.
+> **Status (2026-10-14):** Phase 0's 12 checks all passed (see `docs/phase0.md`), and the Google app is published (P1.1). Now: finishing the design. Done: code structure (3b), data tables, sync and data upgrades (14, 14b, 14c), releases (12b), diagnostics (12d). Next: screens/flows/look; then deciding the staging together. This file is the single source of truth: every decision made after approval is applied in the sections below and listed in the **Decision log** at the end.
 
 ## Context
 This is a personal suite of Python apps in one public repo (`claudProjects/usefulTrash/`). The first app is an Android **gym tracker**; a **diet app** comes later and will share the same cloud database and login. Every decision below was made with you point by point, including the resolution of the "brutal review" flaws. **Approving this plan starts Phase 0 only (the feasibility check).** The staging after that is decided from Phase 0's results (14.1).
@@ -156,6 +156,13 @@ Bench Press   4×9 @ 82.5 kg ↑new  [✓]   rest 2:00 · "pause at bottom"  ▾
 ## 12c. Look & feel (G1)
 Dark mode that follows the phone setting, minimal screens and taps, medium-sized tap targets.
 
+## 12d. Diagnostics (DG1.1)
+- **"Problems" page** in the app, phone and PC view (DG1.1), reached from a small menu (exact place set with the screens): app version and schema number, sync status (changes waiting, the oldest one, the last successful sync, changes the cloud refused and why), the last backup, and recent errors in plain words with a technical line underneath. A **Copy** button puts the whole report on the clipboard for you to paste to me; **Clear** empties it. An error that needs you (a refused change, a wrong clock, an update needed) also shows a banner on any tab (18.4a). Nothing is ever sent anywhere automatically: no crash reports, no analytics.
+- **One shared log** (`usefulShared.platform`): on the phone a small file in the app's private storage (two files of 256 KB, oldest dropped first); in the PC view memory only, so nothing is stored in your browser. Release builds don't write to Android's system log.
+- **No secrets or personal details in the log:** code logs events and kinds, never values: HTTP errors as status, error code and a short message (capped, as in Phase 0); tokens only as fingerprints (the first 8 characters of their SHA-256, as in Phase 0). Every line also passes a scrubber that removes anything token-, key- or email-shaped, as a safety net. The Problems page runs the Phase 0 log check and shows its result ("0 token-shaped strings").
+- **Crashes:** an unexpected error is written to the log before anything else, so after a crash the next start shows what happened. If the app can't start at all, the fallback is reading the log over USB.
+- **Tested:** fake tokens, keys and emails go through the scrubber and must come out removed; a full fake sign-in, renewal and sync run must leave no token value in the log.
+
 ## 13. Diet app (later)
 - Same Supabase project, login and naming. For now the gym app only **shares weight + training days**. Nutrition tables and goals are designed when the diet app is planned (15.1).
 
@@ -181,7 +188,7 @@ Every synced row has `id` (UUID), `userId`, `updatedAt` (when the edit was made,
 ## 14b. Sync (SY2.1)
 - **Sending (phone):** each change goes into the phone's database and the `outbox` in one transaction. Sync sends the outbox in batches as upserts; the cloud's trigger keeps the newest. An entry leaves the outbox only once the cloud has it and the row hasn't been edited again in the meantime.
 - **Fetching (phone and PC view):** each table is asked for rows whose `cloudUpdatedAt` is at or after the last one seen minus 5 minutes (so a change stamped a moment before it finished saving isn't missed), in pages ordered by `cloudUpdatedAt` and `id`. A fetched row replaces the local one only if it's newer, so getting the same change twice is harmless.
-- **When:** at start, a few seconds after every change, every minute while the app is open, and when it comes back on screen. Network errors retry with growing pauses, up to 5 minutes. No live connection: simpler, and it works the same in the browser.
+- **When:** at start, a few seconds after every change, every minute while the app is open, and when it comes back on screen. **No internet** (your gym: up to ~30 minutes at a time) changes nothing while you train: everything is saved on the phone first, and the app keeps trying every minute, so changes go out within about a minute of the connection coming back (SY2.2). Each request gives up after 15 seconds, so a weak connection can't stall sync, and a send cut off halfway is simply repeated (getting the same change twice is harmless). Changes still waiting when you close the app go out the next time it's open. No live connection: simpler, and it works the same in the browser.
 - **First download** (new install or reinstall): everything is fetched before the Today screen shows, with a progress count. Signing in needs the internet anyway.
 - **PC view:** loads everything at sign-in, writes straight to the cloud (CS1.1), and fetches every minute, so changes from the phone show up without reloading.
 - **Version check (UP1.1):** before each sync the app reads `cloudInfo` and syncs only if `minAppSchema` ≤ its own schema number ≤ `schemaVersion`. Otherwise it stops, keeps the outbox and says what to update.
@@ -276,3 +283,5 @@ Newest at the bottom. Every decision made after the plan was approved gets a lin
 - **2026-10-14 · RL1.3:** the app is called "Gym Tracker"; Android package `io.github.fingaerwen.gymtracker`, separate from the Phase 0 spike.
 - **2026-10-14 · RL2.1:** the daily ping gets the Supabase address and publishable key from GitHub Actions variables (not secrets, and not in the repo, so C2a holds). Rejected: a config file committed to the repo.
 - **2026-10-14 · RL3:** release details (technical design; you left the details to me): arm64-only APK, versionCode = the middle version number, signing key made with `keytool` into a private folder with a random password that is never shown and a certificate name without personal details, the release script's checks before and after building, and the GitHub release created by you on the website (no GitHub token anywhere).
+- **2026-10-14 · DG1.1:** a "Problems" page in the app with recent errors in plain words and a Copy button; nothing is sent anywhere automatically. Rejected: reading the phone's log over USB only. The log design in section 12d is technical (you left the details to me).
+- **2026-10-14 · SY2.2:** your gym's internet drops for up to ~30 minutes, so offline sync tries every minute instead of backing off to 5 minutes, and each request gives up after 15 seconds; changes still waiting when you close the app go out the next time it's open.
