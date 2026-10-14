@@ -238,12 +238,12 @@ Every synced row has `id` (UUID), `userId`, `updatedAt` (when the edit was made,
 
 | Table | One row per | Columns besides the common ones |
 |---|---|---|
-| `plans` (gym) | plan import | `effectiveDate`, `startStep`, `planJson` (the plan as imported, with matched exercise IDs), `archived` |
+| `plans` (gym) | plan import | `importedAt` (orders imports taking effect the same day), `effectiveDate`, `startStep`, `planJson` (the plan as imported, with matched exercise IDs), `archived` |
 | `sessions` (gym) | workout day (DT1.1) | `date`, `planImportId` + `stepIndex` (which plan step this workout was), `finishedAt` (empty until you tap Finish) |
 | `exerciseLogs` (gym) | exercise per workout day | `date`, `exerciseId`, `targetReps` + `targetWeightKg` (what Today suggested), `sets` (a list of reps + kg), `minutes` (cardio), `skipped`, `declinedSuggestion` (an Undo) |
 | `bodyWeight` (shared) | day (DT2.1) | `date`, `weightKg` |
 | `dailySteps` (shared) | day (CA1.1) | `date`, `steps` |
-| `backups` (shared) | backup | `fileName`, `driveFileId`, `sizeBytes`, `schemaVersion`, `madeBy` (phone or PC view) |
+| `backups` (shared) | backup | `madeAt`, `fileName`, `driveFileId`, `sizeBytes`, `schemaVersion`, `madeBy` (phone or PC view) |
 | `cloudInfo` (cloud only) | one row in total | `schemaVersion`, `minAppSchema` (UP1.1); the apps only read it |
 
 - **IDs that can't duplicate (DT1.1 / DT2.1):** a day's workout, an exercise on a day, a day's weight and a day's steps get IDs calculated from your user ID and the date (plus the exercise), so the phone and the PC view logging the same thing produce the same row, never two. Plan imports and backups get random IDs.
