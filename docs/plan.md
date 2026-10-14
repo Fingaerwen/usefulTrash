@@ -203,7 +203,7 @@ Incline Walk  15 min                     [✓]
 
 ## 11. Notifications & background
 - Sync and banners are in-app only (2).
-- The weekly weigh-in **phone notification** works (Phase 0 check 5): our own small Android plugin, `extensions/weighInNotify` (C5d), schedules it with Android's alarms. No third-party notification library. It uses **alarm-clock mode**, because OnePlus delayed normal exact alarms by up to an hour (F21.2), and the app's battery setting should be **"Unrestricted"** so the phone doesn't kill it in the background.
+- The weekly weigh-in **phone notification** works (Phase 0 check 5): our own small Android plugin, `extensions/weighInNotify` (C5d), schedules it with Android's alarms. No third-party notification library. It uses **alarm-clock mode**, because OnePlus delayed normal exact alarms by up to an hour (F21.2), and the app's battery setting goes to **"Unrestricted"** only if 0.2-alpha's Friday notification turns out late without it (BT1.1). The Friday 2026-10-16 arrival-time reading was dropped (PH1.1): it's confirmed in real use instead, and fixed afterwards if needed.
 
 ## 12. Backups & scheduled jobs (no stored secrets anywhere)
 - **If Phase 0 shows that automatic Drive renewal needs a secret inside the app:** the backup moves to a **local timer on your Linux PC** instead, with its secrets in a local file only (R2b).
@@ -379,3 +379,5 @@ Newest at the bottom. Every decision made after the plan was approved gets a lin
 - **2026-10-14 · PF1:** plan file checks and exercise matching as in section 4 and `plans/planFormat.md` (technical design; you left the details to me). A new plan takes effect today, or tomorrow if a workout is already logged today.
 - **2026-10-14 · BLD1:** details settled while building 0.1-alpha (technical; you left them to me): Today's taps as in section 6, 0.1-alpha's PC view (Today and Plans), our package names with the `usefulTrash` prefix, release tags `gym-v<version>`, and the release key made with `tools/makeSigningKey.py` (password never shown).
 - **2026-10-14 · KB1.1:** the release key's backup goes on the 500 GB NVMe drive. Rejected: the 1 TB drive (it holds the project, so one failure loses both), the NTFS partitions (they lose the owner-only permissions).
+- **2026-10-14 · PH1.1:** the Phase 0 app is uninstalled now, without waiting for the Friday 2026-10-16 reminder's arrival time. The reminder is assumed to work; you confirm it once you use Gym Tracker's own Friday notification (0.2-alpha), and it gets fixed then if needed.
+- **2026-10-14 · BT1.1:** no battery setting step for 0.1-alpha (nothing runs in the background). "Unrestricted" comes back only if 0.2-alpha's Friday notification arrives late.

@@ -57,6 +57,6 @@ to uninstall, reinstall and sign in again (only changes not yet synced would be 
 1. **Obtainium** → **+** (Add App) → source URL `https://github.com/Fingaerwen/usefulTrash` → **Add**,
    then install Gym Tracker.
 2. Open it → **Sign in with Google** → it downloads your data → Today.
-3. Battery setting **Unrestricted** (Settings → Apps → Gym Tracker → Battery), for the Friday
-   notification that comes with 0.2-alpha.
-4. Once Gym Tracker works, uninstall the Phase 0 app.
+3. No battery setting for 0.1-alpha: it does nothing in the background (BT1.1). Only if 0.2-alpha's
+   Friday notification arrives late: Settings → Apps → Gym Tracker → Battery → **Unrestricted**.
+4. The Phase 0 app was uninstalled on 2026-10-14 (PH1.1).
