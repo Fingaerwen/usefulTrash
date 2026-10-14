@@ -1,6 +1,6 @@
 # usefulTrash: Gym App Plan
 
-> **Status (2026-10-14):** Phase 0's 12 checks all passed (see `docs/phase0.md`), and the Google app is published (P1.1). The design round is done: code structure (3b), data tables, sync and data upgrades (14, 14b, 14c), releases (12b), diagnostics (12d), screens and look (6, 10, 12c). Next: deciding the staging together. This file is the single source of truth: every decision made after approval is applied in the sections below and listed in the **Decision log** at the end.
+> **Status (2026-10-14):** Phase 0's 12 checks all passed (see `docs/phase0.md`), and the Google app is published (P1.1). The design round is done: code structure (3b), data tables, sync and data upgrades (14, 14b, 14c), releases (12b), diagnostics (12d), screens and look (6, 10, 12c). Staging decided (ST1.1, see "Staging"). Next: building 0.1-alpha. This file is the single source of truth: every decision made after approval is applied in the sections below and listed in the **Decision log** at the end.
 
 ## Context
 This is a personal suite of Python apps in one public repo (`claudProjects/usefulTrash/`). The first app is an Android **gym tracker**; a **diet app** comes later and will share the same cloud database and login. Every decision below was made with you point by point, including the resolution of the "brutal review" flaws. **Approving this plan starts Phase 0 only (the feasibility check).** The staging after that is decided from Phase 0's results (14.1).
@@ -313,6 +313,12 @@ Before Phase 0: check free disk space for Flutter + Android SDK + Java (several 
 
 Setup during Phase 0: create `usefulTrash/` with git (noreply email, username), the GitHub repo and the Supabase project (you'll do the account steps), and **delete the old `claudProjects/gymtracker/` demo** (done, P0.1a). Results are written up in `docs/phase0.md`, then we decide the staging together.
 
+## Staging (ST1.1)
+Decided 2026-10-14, after Phase 0 and the design round. Each release gets its tests written first and is checked on your phone before the next one starts.
+- **0.1-alpha · Log a workout:** cloud script 001 (real tables, trigger, `ping`), sign-in and session keeper, phone database + outbox + sync with the version check, the Problems page and log, plan import (PC view, phone file as the fallback), the cycle and rest rules, the Today screen (✓, sets, skip, Finish, steps line, "N waiting"), the daily ping workflow, the release script and the first signed release through Obtainium. Also: the declarative-screens check on the phone (CS1.1), the one-time setup (12b), and the privacy policy updated for daily steps.
+- **0.2-alpha · See progress:** progression suggestions (↑new, Undo), the Progress, Week and Weight tabs with charts, banners, the Friday notification.
+- **0.3-alpha · PC view and safety:** History editing, automatic Drive backups + "Back up now" (its browser Drive permission tested first), CSV export, the restore script and its test.
+
 ## Verification
 - Phase 0: each of the 12 checks recorded as pass/fail with notes. **If Google sign-in on Android fails (check 2), the fallback is an emailed code (F1.1).** Any other fail → we revisit that decision before building.
 - Later phases: automated tests for plan import/validation, cycle + rest rules, progression rules, PR/volume/streak math and sync against a fake cloud (offline → online, conflicts both ways, the 5-minute fetch overlap, refused changes, first download, the version check; 14b). End to end: airplane mode → log → reconnect → shows in the PC view.
@@ -362,3 +368,4 @@ Newest at the bottom. Every decision made after the plan was approved gets a lin
 - **2026-10-14 · NT1.2:** the Friday notification says "Time to weigh in" (replaces 16.1a's text).
 - **2026-10-14 · SC6.1:** PC screens (Plans, History, Backup) as drawn in section 10; first-launch flow on the phone written down there too.
 - **2026-10-14 · LK1.1:** accent colour white in dark mode and black in light mode (a black-and-white look). Rejected: always dark mode with white (would change G1).
+- **2026-10-14 · ST1.1:** staging: 0.1-alpha logs a workout, 0.2-alpha shows progress, 0.3-alpha adds the PC history editing and backups (section "Staging"). Building starts with 0.1-alpha.
