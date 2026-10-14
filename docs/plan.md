@@ -1,6 +1,6 @@
 # usefulTrash: Gym App Plan
 
-> **Status (2026-10-14):** Phase 0's 12 checks all passed (see `docs/phase0.md`), and the Google app is published (P1.1). The design round is done: code structure (3b), data tables, sync and data upgrades (14, 14b, 14c), releases (12b), diagnostics (12d), screens and look (6, 10, 12c). Staging decided (ST1.1, see "Staging"). Next: building 0.1-alpha. This file is the single source of truth: every decision made after approval is applied in the sections below and listed in the **Decision log** at the end.
+> **Status (2026-10-14):** Phase 0's 12 checks all passed (see `docs/phase0.md`), and the Google app is published (P1.1). The design round is done: code structure (3b), data tables, sync and data upgrades (14, 14b, 14c), releases (12b), diagnostics (12d), screens and look (6, 10, 12c). Staging decided (ST1.1, see "Staging"). Building 0.1-alpha: the code skeleton, the cycle and rest rules and cloud script 001 are done and tested; next come plan import, the phone database and sync. This file is the single source of truth: every decision made after approval is applied in the sections below and listed in the **Decision log** at the end.
 
 ## Context
 This is a personal suite of Python apps in one public repo (`claudProjects/usefulTrash/`). The first app is an Android **gym tracker**; a **diet app** comes later and will share the same cloud database and login. Every decision below was made with you point by point, including the resolution of the "brutal review" flaws. **Approving this plan starts Phase 0 only (the feasibility check).** The staging after that is decided from Phase 0's results (14.1).
@@ -89,9 +89,9 @@ This is a personal suite of Python apps in one public repo (`claudProjects/usefu
 ## 5. Cycle & rest
 - A **rotating cycle**; a missed day never shifts dates, the next step just waits.
 - **Strict about extra rest:** an unplanned rest day does not use up a planned Rest step (13.3).
-- **Train anyway** on a planned Rest step: the next workout is done and the rest step is kept for later (19.1c-2 / 13.1a).
+- **Train anyway** on a planned Rest step: the next workout is done and the rest step is kept for later (19.1c-2 / 13.1a). **At most one rest is owed (KR1.2):** training through two Rest steps in a row owes one rest day, not two, then the plan carries on. Training on that owed rest day keeps it owed.
 - **A planned Rest step is used up when the day ends** with it as the current step and no workout logged, even if the app was never opened (R4a).
-- **Nothing here is stored; it's all recalculated (F10.1).** Cycle position, rest-step use and midnight auto-finish are worked out each time from the facts: logged sessions (each records which plan step it was, 14), and plan imports with the date and starting step you chose. So the phone and the PC view always agree, and nothing has to run at midnight. These rules get written as automated tests first, including edge cases such as "train anyway" twice in a row on a Rest step.
+- **Nothing here is stored; it's all recalculated (F10.1).** Cycle position, rest-step use and midnight auto-finish are worked out each time from the facts: logged sessions (each records which plan step it was, 14), and plan imports with the date and starting step you chose. So the phone and the PC view always agree, and nothing has to run at midnight. These rules get written as automated tests first, including edge cases such as "train anyway" twice in a row on a Rest step (done: `tests/gym/rules/testCycle.py`).
 
 ## 6. Today screen (19.1)
 ```
@@ -369,3 +369,4 @@ Newest at the bottom. Every decision made after the plan was approved gets a lin
 - **2026-10-14 · SC6.1:** PC screens (Plans, History, Backup) as drawn in section 10; first-launch flow on the phone written down there too.
 - **2026-10-14 · LK1.1:** accent colour white in dark mode and black in light mode (a black-and-white look). Rejected: always dark mode with white (would change G1).
 - **2026-10-14 · ST1.1:** staging: 0.1-alpha logs a workout, 0.2-alpha shows progress, 0.3-alpha adds the PC history editing and backups (section "Staging"). Building starts with 0.1-alpha.
+- **2026-10-14 · KR1.2:** "Train anyway" keeps at most one rest owed: training through two Rest steps in a row owes one rest day, then the plan carries on. Rejected: every skipped rest stays owed (KR1.1), because rest days would pile up after a busy week.

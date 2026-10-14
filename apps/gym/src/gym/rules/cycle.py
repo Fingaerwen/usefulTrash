@@ -11,16 +11,15 @@ The rules, in plan order:
 - A planned Rest step is used up when its day ends without a workout, even if the app was never
   opened that day (R4a).
 - Train anyway on a Rest step: the next workout is done and the rest is kept for later
-  (19.1c-2 / 13.1a). A kept rest is used up by the next day that ends without a workout.
+  (19.1c-2 / 13.1a). At most one rest is owed at a time (KR1.2): training through two Rest steps in
+  a row owes one rest day, not two. A kept rest is used up by the next day that ends without a
+  workout.
 - "Missed" (calendar only) = the 3rd or later unplanned rest day in a row (4.9a).
 """
 
 import datetime as dt
 from collections.abc import Iterable
 from dataclasses import dataclass
-
-# How many skipped rests "Train anyway" keeps owed at once; None = every skipped rest stays owed.
-defaultKeptRestLimit: int | None = None
 
 oneDay = dt.timedelta(days=1)
 
@@ -73,15 +72,10 @@ def isFinished(workout: LoggedWorkout, today: dt.date) -> bool:
     return workout.finished or workout.date < today
 
 
-def dayCycle(
-    plans: Iterable[PlanStart],
-    workouts: Iterable[LoggedWorkout],
-    today: dt.date,
-    keptRestLimit: int | None = defaultKeptRestLimit,
-) -> DayCycle:
+def dayCycle(plans: Iterable[PlanStart], workouts: Iterable[LoggedWorkout], today: dt.date) -> DayCycle:
     """What the cycle says about today: the step due (or done), whether it's a rest day, what's next."""
     workouts = list(workouts)
-    days = replay(plans, workouts, today, keptRestLimit)
+    days = replay(plans, workouts, today)
     if today in days:
         return days[today]
     # No plan applies yet (none imported, or the first one takes effect later).
@@ -99,10 +93,7 @@ def dayCycle(
 
 
 def replay(
-    plans: Iterable[PlanStart],
-    workouts: Iterable[LoggedWorkout],
-    today: dt.date,
-    keptRestLimit: int | None = defaultKeptRestLimit,
+    plans: Iterable[PlanStart], workouts: Iterable[LoggedWorkout], today: dt.date
 ) -> dict[dt.date, DayCycle]:
     """Replays the cycle day by day, from the first plan's first day up to and including today.
 
@@ -112,8 +103,7 @@ def replay(
     workoutsByDate = _oneWorkoutPerDay(workouts)
     days: dict[dt.date, DayCycle] = {}
     for plan, endDate in _planPeriods(plans, today):
-        _replayPlan(plan, min(endDate - oneDay, today) if endDate else today, today, workoutsByDate,
-                    keptRestLimit, days)
+        _replayPlan(plan, min(endDate - oneDay, today) if endDate else today, today, workoutsByDate, days)
     return days
 
 
@@ -145,14 +135,13 @@ def _replayPlan(
     lastDay: dt.date,
     today: dt.date,
     workoutsByDate: dict[dt.date, LoggedWorkout],
-    keptRestLimit: int | None,
     days: dict[dt.date, DayCycle],
 ) -> None:
     """Replays one plan from its first day to lastDay, writing each day's result into `days`."""
     steps = plan.steps
     stepCount = len(steps)
     position = plan.startStep % stepCount  # the next step due in cycle order
-    keptRests: list[int] = []  # rests skipped by "Train anyway", still owed, oldest first
+    keptRest: int | None = None  # a rest skipped by "Train anyway" and still owed (at most one, KR1.2)
     unplannedRestRun = 0  # unplanned rest days in a row, for "missed"
 
     date = plan.effectiveDate
@@ -161,15 +150,14 @@ def _replayPlan(
         if workout is not None:
             unplannedRestRun = 0
             if workout.planImportId == plan.planImportId and 0 <= workout.stepIndex < stepCount:
-                # Rests passed over on the way to the step done are kept for later (Train anyway);
-                # training steps passed over (only possible by editing a day) are just skipped.
+                # A rest passed over on the way to the step done is kept for later (Train anyway).
+                # Only one is ever owed (KR1.2): the first one skipped; any more are let go.
+                # Training steps passed over (only possible by editing a day) are just skipped.
                 index = position
                 while index != workout.stepIndex:
-                    if steps[index].isRest:
-                        keptRests.append(index)
+                    if steps[index].isRest and keptRest is None:
+                        keptRest = index
                     index = (index + 1) % stepCount
-                if keptRestLimit is not None:
-                    del keptRests[keptRestLimit:]
                 position = (workout.stepIndex + 1) % stepCount
             # Otherwise it's another plan's workout (logged offline as a new plan took effect) or a
             # broken one: the day counts as trained, but this plan's cycle stays where it is.
@@ -184,8 +172,8 @@ def _replayPlan(
                 status="trained",
             )
         else:
-            if keptRests:
-                dueIndex, isRest, isKeptRest = keptRests[0], True, True
+            if keptRest is not None:
+                dueIndex, isRest, isKeptRest = keptRest, True, True
             else:
                 dueIndex, isRest, isKeptRest = position, steps[position].isRest, False
             if date == today:
@@ -207,10 +195,10 @@ def _replayPlan(
                 status=status,
             )
             if date < today:
-                # The day ended without a workout: a rest due that day is used up (kept ones first).
+                # The day ended without a workout: a rest due that day is used up (a kept one first).
                 # An unplanned rest uses nothing up: the training step just waits (13.3).
-                if keptRests:
-                    keptRests.pop(0)
+                if keptRest is not None:
+                    keptRest = None
                 elif isRest:
                     position = (position + 1) % stepCount
         date += oneDay

@@ -5,8 +5,6 @@ The example plan is Push, Pull, Rest, Legs, Rest ("day 1 of 5"). Days are counte
 
 import datetime as dt
 
-import pytest
-
 from gym.rules.cycle import CycleStep, LoggedWorkout, PlanStart, dayCycle, isFinished, replay
 
 push, pull, rest1, legs, rest2 = range(5)
@@ -109,22 +107,25 @@ def testTrainAnywayKeepsTheRestForLater():
     assert dayCycle([plan()], workouts, day(5)).stepIndex == push
 
 
-@pytest.mark.parametrize(
-    ("keptRestLimit", "restDaysBeforePull"),
-    [(None, 2), (1, 1)],
-    ids=["everyRestOwed", "atMostOneRestOwed"],
-)
-def testTrainAnywayTwiceInARow(keptRestLimit, restDaysBeforePull):
-    """Legs on the Rest day, then Push on the kept rest (passing the second Rest step).
-
-    Every skipped rest owed: two rest days follow. At most one owed: one rest day follows.
-    """
+def testTrainAnywayTwiceInARowOwesOnlyOneRest():
+    """KR1.2: Legs on the Rest day, then Push on the kept rest (passing the second Rest step).
+    At most one rest is owed, so one rest day follows, then the plan carries on with Pull."""
     workouts = [workout(0, push), workout(1, pull), workout(2, legs), workout(3, push)]
-    for n in range(4, 4 + restDaysBeforePull):
-        today = dayCycle([plan()], workouts, day(n), keptRestLimit=keptRestLimit)
-        assert (today.isRest, today.isKeptRest, today.nextWorkoutIndex) == (True, True, pull)
-    afterRests = dayCycle([plan()], workouts, day(4 + restDaysBeforePull), keptRestLimit=keptRestLimit)
-    assert (afterRests.stepIndex, afterRests.isRest) == (pull, False)
+    restDay = dayCycle([plan()], workouts, day(4))
+    assert (restDay.isRest, restDay.isKeptRest, restDay.nextWorkoutIndex) == (True, True, pull)
+    assert restDay.stepIndex == rest1  # the first rest skipped is the one owed
+    afterRest = dayCycle([plan()], workouts, day(5))
+    assert (afterRest.stepIndex, afterRest.isRest) == (pull, False)
+
+
+def testTrainingOnAKeptRestDayKeepsItOwed():
+    """Train anyway on the kept rest's day too, passing no new Rest step: the rest is still owed."""
+    steps = (CycleStep("A", isRest=False), CycleStep("Rest", isRest=True),
+             CycleStep("B", isRest=False), CycleStep("C", isRest=False))
+    workouts = [workout(0, 0), workout(1, 2), workout(2, 3)]  # B on the Rest day, C on the kept rest
+    today = dayCycle([plan(steps=steps)], workouts, day(3))
+    assert (today.stepIndex, today.isRest, today.isKeptRest, today.nextWorkoutIndex) == (1, True, True, 0)
+    assert dayCycle([plan(steps=steps)], workouts, day(4)).stepIndex == 0
 
 
 # --- Today's workout, finishing ---------------------------------------------------------------
