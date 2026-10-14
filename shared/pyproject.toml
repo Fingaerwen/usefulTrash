@@ -1,0 +1,13 @@
+# usefulShared: the code every usefulTrash app shares (plan 3b, CS1.1): cloud calls, sign-in,
+# the phone's database and sync, backups, shared tables and platform helpers.
+# Built into each app as a local package through Flet's dev_packages, like the extensions.
+[project]
+name = "usefulShared"
+version = "0.1.0"
+description = "Shared code for the usefulTrash apps"
+requires-python = "==3.14.*"
+dependencies = []
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"

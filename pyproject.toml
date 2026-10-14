@@ -3,3 +3,14 @@
 name = "usefulTrash"
 version = "0.0.0"  # the suite itself is unversioned; each app gets its own 0.x-alpha version
 requires-python = "==3.14.*"  # pinned to the Python Flet bundles for Android (plan R3)
+
+# Tests for the whole repo: `.venv/bin/pytest` from the repo root.
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# camelCase everywhere (plan 11.4c), so test files are testSomething.py and tests are testSomething().
+python_files = ["test*.py"]
+python_functions = ["test*"]
+# The apps' and the shared package's source folders, importable without installing them.
+pythonpath = ["apps/gym/src", "shared/src"]
+# importlib mode: test files with the same name in different folders don't clash.
+addopts = ["--import-mode=importlib"]
