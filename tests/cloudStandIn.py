@@ -9,6 +9,8 @@ earlier than rows already fetched). Not a test file itself: pytest only collects
 
 import asyncio
 import datetime as dt
+import hashlib
+import time
 from collections.abc import Callable, Sequence
 from typing import Any
 
@@ -32,6 +34,10 @@ class CloudStandIn:
         self.offline = False
         self.loseNextAnswer = False  # the next send is stored, but its answer never arrives
         self.callsUntilOffline: int | None = None  # the connection drops after this many more calls
+        self.acceptsWrongNonce = False  # acts out "Skip nonce checks" switched on in Supabase
+        self.signUpsAllowedFor: set[str] = set()  # Google accounts that may sign in; others get signup_disabled
+        self.refreshTokens: dict[str, str] = {}  # live refresh token -> user id (rotation: each works once)
+        self.sessionMinutes = 60
         self.calls: list[str] = []
         # Like the real tables' check constraints (cloud/001): a refused row gives Postgres's error code.
         self.checks: dict[str, Callable[[dict[str, Any]], bool]] = {
@@ -59,6 +65,39 @@ class CloudStandIn:
 
     def visibleRows(self, table: str, userId: str) -> list[dict[str, Any]]:
         return [row for row in self.rows.get(table, {}).values() if row["userId"] == userId]
+
+    # --- Sign-in (Supabase Auth) ------------------------------------------------------------
+
+    async def signInWithGoogleIdToken(self, idToken: str, rawNonce: str) -> dict:
+        """The fake Google ID token is "googleIdToken:<account>:<hashed nonce>", like the real one carrying
+        the hashed nonce inside. Supabase hashes the raw nonce and compares."""
+        await asyncio.sleep(0)
+        if self.offline:
+            raise CloudError(0, "network", "OSError: no connection")
+        _, account, hashedNonce = idToken.split(":")
+        if hashlib.sha256(rawNonce.encode()).hexdigest() != hashedNonce and not self.acceptsWrongNonce:
+            raise CloudError(400, "bad_oauth_callback", "Nonces mismatch")
+        if account not in self.signUpsAllowedFor:
+            raise CloudError(422, "signup_disabled", "Signups not allowed for this instance")
+        return self._newSession(account)
+
+    async def refreshSession(self, refreshToken: str) -> dict:
+        await asyncio.sleep(0)
+        if self.offline:
+            raise CloudError(0, "network", "OSError: no connection")
+        if refreshToken not in self.refreshTokens:
+            raise CloudError(400, "refresh_token_already_used", "Invalid Refresh Token: Already Used")
+        return self._newSession(self.refreshTokens.pop(refreshToken))
+
+    async def signOut(self, accessToken: str) -> None:
+        await self._userFor(accessToken)
+
+    def _newSession(self, userId: str) -> dict:
+        refreshToken = f"refresh{len(self.refreshTokens) + len(self.signedIn) + 1}"
+        self.refreshTokens[refreshToken] = userId
+        expiresAt = time.time() + self.sessionMinutes * 60  # the session keeper checks against real time
+        return {"access_token": self.tokenFor(userId), "refresh_token": refreshToken, "expires_at": expiresAt,
+                "user": {"id": userId, "email": "testAccount"}}
 
     # --- The calls sync makes ----------------------------------------------------------------
 

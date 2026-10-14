@@ -44,7 +44,10 @@ def runPhoneSteps(path: str, steps: Sequence[Sequence[str]]) -> int:
     copy is put back, so nothing is lost.
     """
     existed = os.path.exists(path) and os.path.getsize(path) > 0
-    database = sqlite3.connect(path, isolation_level=None)
+    try:
+        database = sqlite3.connect(path, isolation_level=None)
+    except sqlite3.Error as problem:  # say the folder doesn't exist or can't be written
+        raise PhoneDatabaseError(f"The phone's database can't be opened: {problem}") from None
     try:
         done = database.execute("pragma user_version").fetchone()[0]
     except sqlite3.DatabaseError as problem:

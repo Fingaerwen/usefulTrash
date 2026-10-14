@@ -89,6 +89,11 @@ def testDatabaseFromANewerAppIsRefused(path):
         runPhoneSteps(path, phoneSteps)
 
 
+def testFolderThatCantBeOpened(tmp_path):
+    with pytest.raises(PhoneDatabaseError, match="can't be opened"):
+        runPhoneSteps(str(tmp_path / "missing" / "gym.sqlite3"), phoneSteps)
+
+
 def testUnreadableDatabaseFile(path):
     with open(path, "wb") as file:
         file.write(b"not a database" * 100)
