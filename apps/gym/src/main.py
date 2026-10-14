@@ -80,7 +80,8 @@ def main(page: ft.Page):
             app.model.failure = "The app couldn't start. Details are on the Problems page."
             app.model.screen = "failed"
             return
-        log.info("start", f"ready in {time.monotonic() - startedAt:.1f} s")
+        app.startedIn = time.monotonic() - startedAt
+        log.info("start", f"ready in {app.startedIn:.1f} s")
 
     page.run_task(startUp)
 

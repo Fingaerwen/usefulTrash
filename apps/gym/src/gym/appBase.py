@@ -33,6 +33,7 @@ class AppBase:
         self.state = GymState()
         self.session = None  # usefulShared.signIn.sessionKeeper.SessionKeeper once started
         self.actions: GymActions | None = None
+        self.startedIn: float | None = None  # seconds from Python starting to the first real screen (main.py)
         self._trainAnywayOn: dt.date | None = None  # Train anyway applies to the day it was pressed
 
     def hasCloudSettings(self) -> bool:
@@ -139,7 +140,7 @@ class AppBase:
         recent = tuple((entry.at, entry.area, entry.plainWords, entry.technical) for entry in self.log.entries(limit=20))
         return problemsReport(appSchema, self.syncFacts(), LogFacts(check.lines, check.tokenShapedStrings,
                                                                      check.knownSecretsFound, recent),
-                              self.clock(), len(self.state.unreadablePlans))
+                              self.clock(), len(self.state.unreadablePlans), startedIn=self.startedIn)
 
     # --- Plan import (PC view; the phone's fallback, G2b-2) -----------------------------------
 

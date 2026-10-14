@@ -101,9 +101,11 @@ class LogFacts:
 
 
 def problemsReport(schema: int, sync: SyncFacts, log: LogFacts, now: dt.datetime, unreadablePlans: int = 0,
-                   lastBackup: str = "none yet (backups come with 0.3-alpha)") -> tuple[str, ...]:
+                   lastBackup: str = "none yet (backups come with 0.3-alpha)",
+                   startedIn: float | None = None) -> tuple[str, ...]:
     """The Problems page as lines of text; Copy puts exactly these on the clipboard (12d)."""
-    lines = [f"{appName} {appVersion} · schema {schema}",
+    started = f" · started in {startedIn:.1f} s" if startedIn is not None else ""  # cold start under 5 s (check 8)
+    lines = [f"{appName} {appVersion} · schema {schema}{started}",
              f"Sync: {plainSyncStatus(sync.lastStatus)} · last synced {ago(sync.lastSyncAt, now)}",
              f"Waiting to be sent: {sync.waiting}" + (f" (oldest from {ago(sync.oldestWaiting, now)})"
                                                      if sync.oldestWaiting else "")]

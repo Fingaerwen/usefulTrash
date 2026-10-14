@@ -86,12 +86,22 @@ def readSigningValues() -> dict[str, str]:
     return values
 
 
+def javaEnvironment() -> dict[str, str]:
+    """apksigner needs Java; on this PC that's the JDK Flet installed for Android builds (~/java/<version>),
+    which isn't on the PATH."""
+    jdks = sorted((Path.home() / "java").glob("*/bin/java"))
+    if not jdks:
+        return dict(os.environ)
+    home = jdks[-1].parent.parent
+    return {**os.environ, "JAVA_HOME": str(home), "PATH": f"{home / 'bin'}{os.pathsep}{os.environ.get('PATH', '')}"}
+
+
 def certificateDigest(apk: Path) -> str:
     """The APK's signing certificate SHA-256, from Android's apksigner, as AA:BB:… like keytool shows it."""
     candidates = sorted((Path.home() / "Android" / "sdk" / "build-tools").glob("*/apksigner"))
     if not candidates:
         raise ReleaseStopped("apksigner not found (it comes with the Android SDK Flet installed).")
-    result = run([str(candidates[-1]), "verify", "--print-certs", str(apk)], capture_output=True)
+    result = run([str(candidates[-1]), "verify", "--print-certs", str(apk)], capture_output=True, env=javaEnvironment())
     match = re.search(r"Signer #1 certificate SHA-256 digest: ([0-9a-f]{64})", result.stdout)
     if result.returncode != 0 or match is None:
         raise ReleaseStopped("The APK's signature couldn't be verified.")
