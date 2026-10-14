@@ -104,6 +104,12 @@ def dayRowId(table: Table, userId: str, **key: Any) -> str:
     return str(uuid.uuid5(idNamespace, "/".join(parts)))
 
 
+def momentText(moment: dt.datetime) -> str:
+    """A moment as fixed-width UTC text with microseconds, so comparing the texts compares the moments.
+    This is how the phone's database keeps moments, and how fetch cursors are sent to the cloud."""
+    return moment.astimezone(dt.UTC).isoformat(timespec="microseconds")
+
+
 def editTime(now: dt.datetime, previous: dt.datetime | None = None) -> dt.datetime:
     """The time an edit is stamped with: now, or just after the version it replaces if the clock is
     behind that, so an edit always beats the version it was made from (the newest edit wins, F11.1)."""
@@ -218,7 +224,7 @@ def _toText(column: Column, value: Any, forCloud: bool) -> Any:
         return None
     kind = column.cloudType
     if kind == moment:
-        return value.astimezone(dt.UTC).isoformat(timespec="microseconds")
+        return momentText(value)
     if kind == "date":
         return value.isoformat()
     if kind.startswith("numeric"):

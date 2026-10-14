@@ -18,7 +18,7 @@ from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from usefulShared.tables import Table, editTime, fromLocal, toLocal
+from usefulShared.tables import Table, editTime, fromLocal, momentText, toLocal
 
 Clock = Callable[[], dt.datetime]
 
@@ -34,11 +34,6 @@ class Waiting:
     count: int  # changes not sent yet, refused ones included
     oldestQueuedAt: dt.datetime | None  # when the oldest of them was made
     refused: tuple[tuple[str, str, str], ...]  # (table, row id, the cloud's reason) for each refused change
-
-
-def momentText(moment: dt.datetime) -> str:
-    """A moment as the fixed-width UTC text the phone's database keeps."""
-    return moment.astimezone(dt.UTC).isoformat(timespec="microseconds")
 
 
 def runPhoneSteps(path: str, steps: Sequence[Sequence[str]]) -> int:
