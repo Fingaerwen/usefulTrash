@@ -71,6 +71,22 @@ def testExamplePlanFileIsValid():
     assert (result.errors, result.warnings) == ((), ())
 
 
+def testPlanBriefExampleIsValid():
+    """The example in plans/planFormat.md is what the Claude project copies, so it must pass too, and
+    its sample problem must be word for word what the app says for that mistake."""
+    brief = (repoRoot / "plans" / "planFormat.md").read_text(encoding="utf-8")
+    example = brief.split("```json\n", 1)[1].split("```", 1)[0]
+    result = readPlanFile(example)
+    assert (result.errors, result.warnings) == ((), ())
+
+    broken = json.loads(example)
+    broken["cycle"][1]["exercises"][2]["weightKg"] = 10  # Lower A's plank
+    problem = ('Step 2 "Lower A", exercise 3 "Plank": a bodyweight exercise has no "weightKg"; its progress is '
+               "counted in reps.")
+    assert readPlanFile(json.dumps(broken)).errors == (problem,)
+    assert f"`{problem}`" in brief
+
+
 def testFileStartingWithAByteOrderMarkIsFine():
     """Some editors put an invisible marker at the start of UTF-8 files."""
     assert readPlanFile(b"\xef\xbb\xbf" + json.dumps(validPlan()).encode()).errors == ()
