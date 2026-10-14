@@ -1,0 +1,39 @@
+# Gym Tracker: one codebase, built into the phone APK and the PC view website (plan 1, 3b, 12b).
+# Build with tools/buildRelease.py, which checks the package guard before and after (CS1.1).
+[project]
+name = "gymTracker"
+version = "0.1-alpha"  # the visible version (V3a); gym/model.py's appVersion must match (a test checks)
+description = "Gym Tracker"
+requires-python = "==3.14.*"  # the Python Flet bundles for Android (R3)
+dependencies = [
+    "flet==1.0.3",
+    # Our own packages. Each must have a local path below, or a build would look the name up on PyPI
+    # (package guard, CS1.1). The unique prefix makes a stranger's package of the same name impossible.
+    "usefulTrashShared",
+    "usefulTrashNativeGoogleSignIn",
+    "usefulTrashSecureStore",
+]
+
+# Local packages: paths are relative to this folder, so the repo builds from wherever it's cloned.
+# Flet turns each into a direct file reference, so pip never looks the name up anywhere.
+[tool.flet.dev_packages]
+usefulTrashShared = "../../shared"
+usefulTrashNativeGoogleSignIn = "../../extensions/nativeGoogleSignIn"
+usefulTrashSecureStore = "../../extensions/secureStore"
+
+[tool.flet]
+product = "Gym Tracker"  # the name on the phone and the PC view's title (RL1.3)
+org = "io.github.fingaerwen"
+build_number = 1  # Android's versionCode: the middle version number, one up each release (12b)
+
+[tool.flet.android]
+bundle_id = "io.github.fingaerwen.gymtracker"  # set explicitly, separate from the Phase 0 spike (RL1.3)
+target_arch = ["arm64-v8a"]  # your phone's CPU type only: one small APK (RL3)
+
+[tool.flet.app]
+path = "src"
+
+# Workaround for a Flet 1.0.3 template bug (found in Phase 0): it pins Dart package jni to 1.0.0,
+# but jni_flutter 1.0.4+1 requires jni ^1.1.0, so the Android build fails.
+[tool.flet.flutter.pubspec.dependency_overrides]
+jni = "1.1.0"

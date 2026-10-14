@@ -57,6 +57,27 @@ class GymState:
         return todayView(self.plans, self.workouts, self.logs.get(date, {}), self.known, self.steps.get(date), date,
                          trainAnyway)
 
+    def planLines(self, today: dt.date) -> tuple[str, ...]:
+        """The PC view's Plans tab (SC6.1): the active plan, any taking effect later, and earlier ones."""
+        ordered = sorted(self.plans, key=lambda imported: (imported.start.effectiveDate, imported.start.importedAt))
+        tookEffect = list({imported.start.effectiveDate: imported for imported in ordered
+                           if imported.start.effectiveDate <= today}.values())  # the later import wins a day
+        lines = []
+        for index, imported in enumerate(tookEffect):
+            plan, since = imported.plan, imported.start.effectiveDate
+            name = f"{plan.name} (v{plan.version})"
+            if index == len(tookEffect) - 1:
+                lines.insert(0, f"Active: {name} · since {_shortDate(since)} · {plan.weeklyTarget}/week")
+            else:
+                until = tookEffect[index + 1].start.effectiveDate - dt.timedelta(days=1)
+                lines.append(f"Earlier: {name} · {_shortDate(since)} – {_shortDate(until)}")
+        for imported in ordered:
+            if imported.start.effectiveDate > today:
+                lines.insert(1 if tookEffect else 0,
+                             f"From {_shortDate(imported.start.effectiveDate)}: {imported.plan.name} "
+                             f"(v{imported.plan.version})")
+        return tuple(lines) or ("No plan yet.",)
+
     def row(self, tableName: str, rowId: str) -> dict[str, Any] | None:
         """A stored row, deleted or not (edits start from it)."""
         return self.rows.get(tableName, {}).get(rowId)
@@ -70,6 +91,11 @@ class GymState:
         if key not in self._planCache:
             self._planCache[key] = checkPlan(row["planJson"], strict=False).plan
         return self._planCache[key]
+
+
+def _shortDate(date: dt.date) -> str:
+    """6 Oct."""
+    return f"{date.day} {date:%b}"
 
 
 def _readSets(sets: Any) -> tuple[SetDone, ...]:

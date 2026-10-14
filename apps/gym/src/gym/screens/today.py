@@ -26,7 +26,7 @@ def TodayTab(app, model):
     header = ft.Row([
         ft.Text(headerText(view), size=16, weight=ft.FontWeight.BOLD, expand=True),
         quiet(f"{model.waiting} waiting") if model.waiting else ft.Container(visible=False),  # SC1.1
-        Menu(app),
+        Menu(app, app.menuItems),
     ])
     if not view.hasPlan:
         body = [NoPlan(app)]

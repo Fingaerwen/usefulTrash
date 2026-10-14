@@ -2,7 +2,7 @@
 # Python side (src/secureStore) talks to a Dart/Kotlin plugin (src/flutter/secure_store) that encrypts
 # with a key kept inside Android Keystore (the phone's security chip). No third-party code.
 [project]
-name = "secureStore"
+name = "usefulTrashSecureStore"  # unique prefix: PyPI already has a "securestore" (CS1.1)
 version = "0.1.0"
 description = "Encrypted storage with a phone-locked key for usefulTrash (Android)"
 requires-python = "==3.14.*"

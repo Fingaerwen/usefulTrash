@@ -2,7 +2,7 @@
 # Python side (src/nativeGoogleSignIn) talks to a Dart/Kotlin plugin (src/flutter/native_google_sign_in)
 # that uses Android's Credential Manager with Google's official sign-in library. No client secret anywhere.
 [project]
-name = "nativeGoogleSignIn"
+name = "usefulTrashNativeGoogleSignIn"  # unique prefix (CS1.1)
 version = "0.1.0"
 description = "Native Google sign-in for usefulTrash (Android)"
 requires-python = "==3.14.*"

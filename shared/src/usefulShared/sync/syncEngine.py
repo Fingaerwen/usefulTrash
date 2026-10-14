@@ -11,12 +11,14 @@ import asyncio
 import datetime as dt
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from usefulShared.cloud.supabaseApi import CloudError
-from usefulShared.store.phoneStore import PhoneStore
 from usefulShared.sync.fetchChanges import fetchChanges
 from usefulShared.tables import Table, momentText, toCloud
+
+if TYPE_CHECKING:  # only for type hints: the PC view imports this module, and its browser Python has no SQLite
+    from usefulShared.store.phoneStore import PhoneStore
 
 sendBatchSize = 200  # rows per request when sending
 maxBatchesPerRound = 50  # a round never runs forever, even if rows keep changing while it sends
@@ -54,7 +56,7 @@ class SyncOutcome:
 class SyncEngine:
     """Runs sync rounds for one phone database."""
 
-    def __init__(self, store: PhoneStore, cloud: SyncCloud, session: Session, tables: Sequence[Table],
+    def __init__(self, store: "PhoneStore", cloud: SyncCloud, session: Session, tables: Sequence[Table],
                  appSchema: int, clock: Callable[[], dt.datetime]):
         self.store = store
         self.cloud = cloud

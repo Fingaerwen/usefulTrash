@@ -33,6 +33,7 @@ class AppModel:
     downloaded: int = 0  # first download: "Downloading your data… N rows" (14b)
     problems: tuple[str, ...] = ()  # the Problems page's lines (12d)
     planImport: PlanImport | None = None
+    planLines: tuple[str, ...] = ()  # the PC view's Plans tab (SC6.1)
     tab: str = "today"
 
 
@@ -60,6 +61,8 @@ def plainSyncStatus(status: str) -> str:
         "cloudTooOld": "stopped: the cloud needs an upgrade first",
         "failed": "failed (see below)",
         "busy": "running",
+        "versions": "stopped: the cloud and this app don't fit together (see the banner)",
+        "none": "not run yet",
     }.get(status, status)
 
 

@@ -2,7 +2,7 @@
 # the phone's database and sync, backups, shared tables and platform helpers.
 # Built into each app as a local package through Flet's dev_packages, like the extensions.
 [project]
-name = "usefulShared"
+name = "usefulTrashShared"  # unique prefix: PyPI can never supply a stranger's package (CS1.1)
 version = "0.1.0"
 description = "Shared code for the usefulTrash apps"
 requires-python = "==3.14.*"

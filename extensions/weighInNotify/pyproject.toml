@@ -2,7 +2,7 @@
 # Python side (src/weighInNotify) talks to a Dart/Kotlin plugin (src/flutter/weigh_in_notify)
 # that uses Android's built-in alarms and notifications. No third-party notification code.
 [project]
-name = "weighInNotify"
+name = "usefulTrashWeighInNotify"  # unique prefix (CS1.1)
 version = "0.1.0"
 description = "Scheduled local notifications for usefulTrash (Android)"
 requires-python = "==3.14.*"
