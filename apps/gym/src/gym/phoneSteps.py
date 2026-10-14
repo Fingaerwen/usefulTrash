@@ -1,0 +1,57 @@
+"""The phone database's numbered steps (plan 14c): step N brings the phone's database to schema N,
+matching cloud upgrade N (a step can be empty if that upgrade changed only the cloud).
+
+Frozen once released: a later change is a new step, never an edit to an old one, because phones that
+already ran a step never run it again. A test checks that running every step builds exactly the
+tables in gym/tables.py, and that there's one step per cloud upgrade.
+
+How values are kept (usefulShared.tables): UUIDs, text, dates, moments and JSON as text; whole numbers
+and booleans as integers; decimals as real numbers. The cloud's stamp may be empty on the phone.
+SQLite lets a text primary key be empty unless it says "not null", so every id does.
+"""
+
+phoneSteps: tuple[tuple[str, ...], ...] = (
+    # Step 1 (cloud 001): the six synced tables, and the phone-only outbox, syncState and meta.
+    (
+        """create table "plans" (
+            "id" text not null primary key, "userId" text not null, "updatedAt" text not null,
+            "deleted" integer not null, "cloudUpdatedAt" text,
+            "importedAt" text not null, "effectiveDate" text not null, "startStep" integer not null,
+            "planJson" text not null, "archived" integer not null)""",
+        """create table "sessions" (
+            "id" text not null primary key, "userId" text not null, "updatedAt" text not null,
+            "deleted" integer not null, "cloudUpdatedAt" text,
+            "date" text not null, "planImportId" text not null, "stepIndex" integer not null,
+            "finishedAt" text)""",
+        """create table "exerciseLogs" (
+            "id" text not null primary key, "userId" text not null, "updatedAt" text not null,
+            "deleted" integer not null, "cloudUpdatedAt" text,
+            "date" text not null, "exerciseId" text not null, "targetReps" integer, "targetWeightKg" real,
+            "sets" text not null, "minutes" integer, "skipped" integer not null,
+            "declinedSuggestion" integer not null)""",
+        """create table "bodyWeight" (
+            "id" text not null primary key, "userId" text not null, "updatedAt" text not null,
+            "deleted" integer not null, "cloudUpdatedAt" text,
+            "date" text not null, "weightKg" real not null)""",
+        """create table "dailySteps" (
+            "id" text not null primary key, "userId" text not null, "updatedAt" text not null,
+            "deleted" integer not null, "cloudUpdatedAt" text,
+            "date" text not null, "steps" integer not null)""",
+        """create table "backups" (
+            "id" text not null primary key, "userId" text not null, "updatedAt" text not null,
+            "deleted" integer not null, "cloudUpdatedAt" text,
+            "madeAt" text not null, "fileName" text not null, "driveFileId" text, "sizeBytes" integer,
+            "schemaVersion" integer not null, "madeBy" text not null)""",
+        # Changes waiting to be sent: one entry per row, holding the edit time of its newest unsent
+        # edit. queuedAt stays the time of the oldest unsent edit (the 3-day banner, G9.2b).
+        # refusedReason: the cloud refused it; it's not sent again until it's edited or retried.
+        """create table "outbox" (
+            "tableName" text not null, "rowId" text not null, "updatedAt" text not null,
+            "queuedAt" text not null, "refusedReason" text,
+            primary key ("tableName", "rowId"))""",
+        # How far fetching has got in each table: the newest cloud stamp seen (14b).
+        """create table "syncState" ("tableName" text not null primary key, "cloudUpdatedAt" text not null)""",
+        # Small facts about this database, such as whose data it holds.
+        """create table "meta" ("key" text not null primary key, "value" text not null)""",
+    ),
+)
