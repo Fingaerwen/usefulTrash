@@ -13,8 +13,9 @@
 6. Tells you the rest: the GitHub release (made by you, on the website: no GitHub token anywhere) and
    Obtainium.
 
-Usage (from the repo root): python3 tools/buildRelease.py [--cloudReady]
+Usage (from the repo root): python3 tools/buildRelease.py [--cloudReady | --buildOnly]
   --cloudReady: you've already confirmed the cloud upgrade for this release is done (or there is none).
+  --buildOnly: steps 1 to 4 only, a trial run: nothing is tagged or published.
 """
 
 import os
@@ -202,6 +203,9 @@ def main() -> int:
         releaseApk = appFolder / "build" / "release" / f"GymTracker-{version}.apk"
         releaseApk.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(apk, releaseApk)
+        if "--buildOnly" in sys.argv:
+            print(f"\n✅ Built and checked: {releaseApk.relative_to(repoRoot)}. Nothing was tagged or published.")
+            return 0
 
         step("5. Tagging and publishing")
         git("tag", "-a", tag, "-m", f"Gym Tracker {version}")
