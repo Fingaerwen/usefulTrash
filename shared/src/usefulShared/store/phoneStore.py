@@ -121,32 +121,41 @@ class PhoneStore:
     # --- Saving an edit (the one write path, CS1.1) ------------------------------------------
 
     def save(self, tableName: str, row: dict[str, Any]) -> dict[str, Any]:
-        """Saves an edit and queues it for sending, in one transaction. Returns the row as saved.
+        """Saves one edit; see saveMany."""
+        return self.saveMany([(tableName, row)])[0]
 
-        The edit time is stamped here: now, or just after the version it replaces if the clock is
-        behind that, so the edit always wins over what it was made from (F11.1). The cloud's stamp is
+    def saveMany(self, edits: Sequence[tuple[str, dict[str, Any]]]) -> list[dict[str, Any]]:
+        """Saves edits (table, row) and queues them for sending, all in one transaction: either every
+        one is kept, or none. Returns the rows as saved.
+
+        Each edit time is stamped here: now, or just after the version it replaces if the clock is
+        behind that, so an edit always wins over what it was made from (F11.1). The cloud's stamp is
         kept from the stored version. Raises ValueError for a malformed row or another account's row.
         """
-        table = self.tables[tableName]
         owner = self.owner()
-        if owner is not None and row.get("userId") != owner:
-            raise ValueError("this phone's database holds another account's data")
-        existing = self.row(tableName, row["id"])
-        if existing is not None and existing["userId"] != row["userId"]:
-            raise ValueError(f"{tableName}: a row's owner never changes")
-        saved = dict(row)
-        saved["updatedAt"] = editTime(self.clock(), existing["updatedAt"] if existing else None)
-        saved["cloudUpdatedAt"] = existing["cloudUpdatedAt"] if existing else None
-        values = toLocal(table, saved)  # checks every column first
+        now = self.clock()
+        prepared = []
+        for tableName, row in edits:
+            table = self.tables[tableName]
+            if owner is not None and row.get("userId") != owner:
+                raise ValueError("this phone's database holds another account's data")
+            existing = self.row(tableName, row["id"])
+            if existing is not None and existing["userId"] != row["userId"]:
+                raise ValueError(f"{tableName}: a row's owner never changes")
+            saved = dict(row)
+            saved["updatedAt"] = editTime(now, existing["updatedAt"] if existing else None)
+            saved["cloudUpdatedAt"] = existing["cloudUpdatedAt"] if existing else None
+            prepared.append((table, saved, toLocal(table, saved)))  # checks every column first
         with self._transaction() as db:
-            db.execute(_replaceSql(table), values)
-            db.execute(
-                'insert into "outbox" ("tableName", "rowId", "updatedAt", "queuedAt") values (?, ?, ?, ?) '
-                'on conflict ("tableName", "rowId") do update set "updatedAt" = excluded."updatedAt", '
-                '"refusedReason" = null',
-                (tableName, saved["id"], momentText(saved["updatedAt"]), momentText(self.clock())),
-            )
-        return saved
+            for table, saved, values in prepared:
+                db.execute(_replaceSql(table), values)
+                db.execute(
+                    'insert into "outbox" ("tableName", "rowId", "updatedAt", "queuedAt") values (?, ?, ?, ?) '
+                    'on conflict ("tableName", "rowId") do update set "updatedAt" = excluded."updatedAt", '
+                    '"refusedReason" = null',
+                    (table.name, saved["id"], momentText(saved["updatedAt"]), momentText(now)),
+                )
+        return [saved for _, saved, _ in prepared]
 
     # --- The outbox (sending) ----------------------------------------------------------------
 

@@ -251,3 +251,14 @@ def testADifferentAccountSigningInClearsEverything(store):
     assert store.claimFor(userB) is True
     assert store.owner() == userB
     assert store.rows("bodyWeight") == [] and store.waiting().count == 0 and store.fetchCursor("dailySteps") is None
+
+
+def testSeveralEditsAreSavedTogetherOrNotAtAll(store):
+    """A workout day and its first exercise go in together; a bad row keeps the good one out too."""
+    session = exampleRow("sessions")
+    with pytest.raises(ValueError):
+        store.saveMany([("sessions", session), ("exerciseLogs", exampleRow("exerciseLogs", targetReps=True))])
+    assert store.rows("sessions") == [] and store.waiting().count == 0
+    saved = store.saveMany([("sessions", session), ("exerciseLogs", exampleRow("exerciseLogs"))])
+    assert [row["id"] for row in saved] == [session["id"], exampleRow("exerciseLogs")["id"]]
+    assert store.waiting().count == 2
