@@ -130,6 +130,7 @@ Incline Walk  15 min                     [✓]
 ## 9. Weekly summary & weight
 - **Summary:** completion, volume vs last week, PRs hit, weight change. Nutrition is added when the diet app exists (15.1).
 - **Summary also shows** total cardio minutes for the week (G9.4a). Cardio counts toward completion %.
+- **Daily steps (CA1.1):** you can enter your day's step total (what your phone's step counter shows) once a day, any day, rest days included; entering it again replaces it. It's converted at **100 steps = 1 minute** (a brisk walking pace) and added to the week's cardio, shown as e.g. `Cardio 185 min (45 gym + 140 from steps)`. Steps aren't a workout: they don't move the cycle, don't count toward completion %, the weekly workout count or streaks, and a day with only steps is still a rest day.
 - **Weight:** a weekly weigh-in in the gym app plus a trend chart. The reminder is **Friday 07:00** (G9.1), with the text "same day, morning, after toilet, before food" (16.1a). **One weight per day (DT2.1):** entering it again replaces it.
 - **Past exercises** (not in the current plan) appear in Progress under "Past exercises", with full history (G10a).
 - **"Not synced" banner** appears after 3 days of unsynced changes (G9.2b).
@@ -201,10 +202,11 @@ Every synced row has `id` (UUID), `userId`, `updatedAt` (when the edit was made,
 | `sessions` (gym) | workout day (DT1.1) | `date`, `planImportId` + `stepIndex` (which plan step this workout was), `finishedAt` (empty until you tap Finish) |
 | `exerciseLogs` (gym) | exercise per workout day | `date`, `exerciseId`, `targetReps` + `targetWeightKg` (what Today suggested), `sets` (a list of reps + kg), `minutes` (cardio), `skipped`, `declinedSuggestion` (an Undo) |
 | `bodyWeight` (shared) | day (DT2.1) | `date`, `weightKg` |
+| `dailySteps` (shared) | day (CA1.1) | `date`, `steps` |
 | `backups` (shared) | backup | `fileName`, `driveFileId`, `sizeBytes`, `schemaVersion`, `madeBy` (phone or PC view) |
 | `cloudInfo` (cloud only) | one row in total | `schemaVersion`, `minAppSchema` (UP1.1); the apps only read it |
 
-- **IDs that can't duplicate (DT1.1 / DT2.1):** a day's workout, an exercise on a day and a day's weight get IDs calculated from your user ID and the date (plus the exercise), so the phone and the PC view logging the same thing produce the same row, never two. Plan imports and backups get random IDs.
+- **IDs that can't duplicate (DT1.1 / DT2.1):** a day's workout, an exercise on a day, a day's weight and a day's steps get IDs calculated from your user ID and the date (plus the exercise), so the phone and the PC view logging the same thing produce the same row, never two. Plan imports and backups get random IDs.
 - **Only facts are stored (F10.1).** Recalculated instead: cycle position, rest-step use, auto-finish (a past day's workout counts as finished), auto-skips (an exercise with no entry in a finished workout), suggestions, PRs, streaks, and the exercise list itself: current and past names come from the plan imports, which replaces the planned `exercises` table (R8) with the same uses (11.3 matching, "Past exercises"). Cardio entries live in `exerciseLogs`, which replaces `cardioLogs`. No `cycleState` or `suggestions` tables.
 - **Each workout records its plan step**, so editing or deleting an old day never rewrites the steps of later ones.
 - **Dates** are the device's local calendar date when you log (16.4c); edit times are exact moments (UTC).
@@ -314,3 +316,4 @@ Newest at the bottom. Every decision made after the plan was approved gets a lin
 - **2026-10-14 · SC1.1:** Today shows a small "N waiting" while changes wait to be sent. Rejected: nothing until the 3-day banner.
 - **2026-10-14 · SC2.1:** the Today layout as drawn in section 6 (header with step, cycle place and week count; ⋮ menu with Problems and Sign out; Finish button; tabs at the bottom).
 - **2026-10-14 · SC3.1:** tab split (Progress = exercises, PRs and charts; Week = summary, calendar, streak; Weight = weigh-in and chart) and the Progress layout as drawn in section 10; the app says "PR".
+- **2026-10-14 · CA1.1:** daily step totals can be entered (one per day, any day), converted at 100 steps = 1 minute and added to the week's cardio; they never count as a workout. New shared table `dailySteps`. Rejected: steps only for gym cardio exercises.
