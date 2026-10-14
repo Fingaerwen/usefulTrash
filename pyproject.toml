@@ -11,7 +11,7 @@ testpaths = ["tests"]
 python_files = ["test*.py"]
 python_functions = ["test*"]
 # The apps' and the shared package's source folders, importable without installing them, and tests/ for
-# usefulTestKit.py (helpers shared by the tests).
-pythonpath = ["apps/gym/src", "shared/src", "tests"]
+# usefulTestKit.py (helpers shared by the tests), and tools/ for the PC-only scripts.
+pythonpath = ["apps/gym/src", "shared/src", "tests", "tools"]
 # importlib mode: test files with the same name in different folders don't clash.
 addopts = ["--import-mode=importlib"]
