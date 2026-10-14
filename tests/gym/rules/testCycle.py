@@ -5,7 +5,7 @@ The example plan is Push, Pull, Rest, Legs, Rest ("day 1 of 5"). Days are counte
 
 import datetime as dt
 
-from gym.rules.cycle import CycleStep, LoggedWorkout, PlanStart, dayCycle, isFinished, replay
+from gym.rules.cycle import CycleStep, LoggedWorkout, PlanStart, dayCycle, isFinished, planInEffect, replay
 
 push, pull, rest1, legs, rest2 = range(5)
 pplSteps = (
@@ -23,10 +23,10 @@ def day(n: int) -> dt.date:
     return monday + dt.timedelta(days=n)
 
 
-def plan(planImportId="p1", startDay=0, startStep=push, steps=pplSteps, importedHour=8) -> PlanStart:
+def plan(planImportId="p1", startDay=0, startStep=push, steps=pplSteps, importedHour=8, weeklyTarget=4) -> PlanStart:
     """A plan import that takes effect on day(startDay)."""
     importedAt = dt.datetime.combine(day(startDay), dt.time(importedHour), tzinfo=dt.UTC)
-    return PlanStart(planImportId, day(startDay), startStep, importedAt, steps)
+    return PlanStart(planImportId, day(startDay), startStep, importedAt, steps, weeklyTarget)
 
 
 def workout(n: int, stepIndex: int, planImportId="p1", finished=True) -> LoggedWorkout:
@@ -156,15 +156,24 @@ def testNewPlanStartsAtItsChosenStep():
 
 
 def testSameDayImportTheLaterOneWins():
-    plans = [plan("p1", importedHour=8), plan("p2", startStep=pull, importedHour=9)]
-    assert dayCycle(plans, [], day(0)).planImportId == "p2"
-    assert dayCycle(list(reversed(plans)), [], day(0)).planImportId == "p2"
+    """Decided by import time, not by id: "a" was imported after "b"."""
+    plans = [plan("b", importedHour=8), plan("a", startStep=pull, importedHour=9)]
+    assert dayCycle(plans, [], day(0)).planImportId == "a"
+    assert dayCycle(list(reversed(plans)), [], day(0)).planImportId == "a"
 
 
 def testPlanTakingEffectLaterIsNotActiveYet():
     plans = [plan(), plan("p2", startDay=5)]
     assert dayCycle(plans, [], day(4)).planImportId == "p1"
     assert dayCycle(plans, [], day(5)).planImportId == "p2"
+
+
+def testPlanInEffect():
+    plans = [plan("b", importedHour=8), plan("a", importedHour=9), plan("c", startDay=5)]
+    assert planInEffect(plans, day(-1)) is None
+    assert planInEffect(plans, day(4)).planImportId == "a"
+    assert planInEffect(list(reversed(plans)), day(4)).planImportId == "a"
+    assert planInEffect(plans, day(5)).planImportId == "c"
 
 
 def testOldPlansWorkoutAfterASwitchDoesNotMoveTheNewPlan():

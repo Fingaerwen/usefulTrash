@@ -34,13 +34,14 @@ class CycleStep:
 
 @dataclass(frozen=True, slots=True)
 class PlanStart:
-    """What the cycle needs from one plan import (a `plans` row)."""
+    """What the rules need from one plan import (a `plans` row)."""
 
     planImportId: str
     effectiveDate: dt.date  # the first day this plan applies
     startStep: int  # the cycle step you chose to start on (17.2c)
     importedAt: dt.datetime  # breaks ties between imports taking effect on the same day
     steps: tuple[CycleStep, ...]
+    weeklyTarget: int  # workouts a week (17.1a)
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,6 +108,17 @@ def replay(
     return days
 
 
+def planInEffect(plans: Iterable[PlanStart], date: dt.date) -> PlanStart | None:
+    """The plan that applies on a date: the latest to take effect by then (the later import on a tie)."""
+    started = [plan for plan in plans if plan.effectiveDate <= date and plan.steps]
+    return max(started, key=_importOrder, default=None)
+
+
+def _importOrder(plan: PlanStart) -> tuple[dt.date, dt.datetime, str]:
+    """Plans in the order they take over; the id only makes exact ties come out the same every time."""
+    return (plan.effectiveDate, plan.importedAt, plan.planImportId)
+
+
 def _oneWorkoutPerDay(workouts: Iterable[LoggedWorkout]) -> dict[dt.date, LoggedWorkout]:
     """Workouts by date. There's one per day (DT1.1); should two ever exist, the same one always wins."""
     ordered = sorted(workouts, key=lambda w: (w.date, w.planImportId, w.stepIndex, w.finished))
@@ -119,10 +131,7 @@ def _planPeriods(plans: Iterable[PlanStart], today: dt.date) -> list[tuple[PlanS
     Of two imports taking effect on the same day, the later import wins. Plans without steps are
     skipped (plan import refuses them anyway).
     """
-    started = sorted(
-        (p for p in plans if p.effectiveDate <= today and p.steps),
-        key=lambda p: (p.effectiveDate, p.importedAt),
-    )
+    started = sorted((p for p in plans if p.effectiveDate <= today and p.steps), key=_importOrder)
     latestPerDay = list({p.effectiveDate: p for p in started}.values())
     return [
         (plan, latestPerDay[i + 1].effectiveDate if i + 1 < len(latestPerDay) else None)
