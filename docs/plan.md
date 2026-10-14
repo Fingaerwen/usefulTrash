@@ -170,6 +170,15 @@ Incline Walk  15 min                     [✓]
   ✓ trained   · rest   ✗ missed
   ```
   All numbers in these sketches are examples. A part that's zero is left out, e.g. `Cardio 140 min (from steps)` when no gym cardio was logged.
+- **Weight (SC5.1)**, as approved (any day works, Friday is preselected; saving again the same day replaces it, DT2.1; on Fridays a "weigh-in due" banner shows until you've weighed in, 18.4a). No hint text on this screen:
+  ```
+  Weight                                       ⋮
+  ─────────────────────────────────────────────
+  Fri 16 Oct    [ 81.2 ] kg              [Save]
+  ─────────────────────────────────────────────
+   kg  ▆▅▅▄▄▃▃▂                3M · 1Y · All
+  Last 4:  82.0 · 81.8 · 81.6 · 81.2   (↓ 0.8 kg)
+  ```
 - **Banners at the top of any tab** (18.4a): weekly summary ready, not synced, weigh-in due.
 - **PC:** the same tabs + Plans (import/switch/archive) + History (edit any day) + Export CSV + backup status with a "Back up now" button (F14.1).
 
@@ -334,3 +343,4 @@ Newest at the bottom. Every decision made after the plan was approved gets a lin
 - **2026-10-14 · SC3.1:** tab split (Progress = exercises, PRs and charts; Week = summary, calendar, streak; Weight = weigh-in and chart) and the Progress layout as drawn in section 10; the app says "PR".
 - **2026-10-14 · CA1.1:** daily step totals can be entered (one per day, any day), converted at 100 steps = 1 minute and added to the week's cardio; they never count as a workout. New shared table `dailySteps`. Rejected: steps only for gym cardio exercises.
 - **2026-10-14 · SC4.1:** Week layout as drawn in section 10; steps are entered on Today ("Steps today" line) or by tapping a day in Week's calendar row; zero parts of the cardio line are left out.
+- **2026-10-14 · SC5.1:** Weight layout as drawn in section 10, without the "same day, morning…" hint on the screen.
