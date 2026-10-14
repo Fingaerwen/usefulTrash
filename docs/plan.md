@@ -136,6 +136,23 @@ Incline Walk  15 min                     [✓]
 
 ## 10. Screens
 - **Phone tabs:** Today · Progress · Week · Weight (18.1 + 18.3c). The app opens on the **last tab used** (18.2c).
+- **What each tab holds (SC3.1):** **Progress** = each exercise with its PRs and chart; **Week** = this week's summary, the calendar and the streak; **Weight** = the weigh-in and its chart. Progress, as approved:
+  ```
+  Progress                                     ⋮
+  ─────────────────────────────────────────────
+  Bench Press   now 82.5 kg × 9    PR 85 kg   ▸
+  Squat         now 120 kg × 6     PR 120 kg  ▸
+  Dips          now 12 reps        PR 14 reps ▸
+  Past exercises (2)                          ▸
+  ```
+  Tapping an exercise opens its detail: a chart (3M · 1Y · All), its PRs (heaviest, estimated 1RM, most reps at the current weight; 8) and its history:
+  ```
+  Bench Press                      3M · 1Y · All
+   kg  ▁▂▃▃▄▅▅▆
+  PRs: heaviest 85 kg · 1RM ~107 kg · 12 reps @ 82.5 kg
+  14 Oct  4×9 @ 82.5   ·   10 Oct  4×8 @ 82.5   · …
+  ```
+  The app says "PR" (personal record).
 - **Banners at the top of any tab** (18.4a): weekly summary ready, not synced, weigh-in due.
 - **PC:** the same tabs + Plans (import/switch/archive) + History (edit any day) + Export CSV + backup status with a "Back up now" button (F14.1).
 
@@ -296,3 +313,4 @@ Newest at the bottom. Every decision made after the plan was approved gets a lin
 - **2026-10-14 · SY2.2:** your gym's internet drops for up to ~30 minutes, so offline sync tries every minute instead of backing off to 5 minutes, and each request gives up after 15 seconds; changes still waiting when you close the app go out the next time it's open.
 - **2026-10-14 · SC1.1:** Today shows a small "N waiting" while changes wait to be sent. Rejected: nothing until the 3-day banner.
 - **2026-10-14 · SC2.1:** the Today layout as drawn in section 6 (header with step, cycle place and week count; ⋮ menu with Problems and Sign out; Finish button; tabs at the bottom).
+- **2026-10-14 · SC3.1:** tab split (Progress = exercises, PRs and charts; Week = summary, calendar, streak; Weight = weigh-in and chart) and the Progress layout as drawn in section 10; the app says "PR".
