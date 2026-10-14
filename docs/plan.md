@@ -101,6 +101,7 @@ Bench Press   4×9 @ 82.5 kg ↑new  [✓]   rest 2:00 · "pause at bottom"  ▾
 - **[✓]** logs it as targeted. **▾ sets** opens per-set rows pre-filled with the target (19.1a-1). **skip** = today only.
 - **Finish workout:** anything untouched is **auto-skipped** (19.1b-1) and the cycle advances. **Forgot to finish → it auto-finishes at midnight** the same way (R5a).
 - **One workout per day (DT1.1):** logging again later the same day adds to that day's workout.
+- **Waiting changes (SC1.1):** while changes wait to be sent (no internet), a small, quiet "3 waiting" shows at the top; it disappears once they're sent. The 3-day "Not synced" banner stays (G9.2b).
 - Past days can be edited on the **phone for the last 7 days** (19.1f-1) and on the **PC for any day**. Edits recalculate suggestions, streaks and summaries.
 
 ## 7. Progression
@@ -285,3 +286,4 @@ Newest at the bottom. Every decision made after the plan was approved gets a lin
 - **2026-10-14 · RL3:** release details (technical design; you left the details to me): arm64-only APK, versionCode = the middle version number, signing key made with `keytool` into a private folder with a random password that is never shown and a certificate name without personal details, the release script's checks before and after building, and the GitHub release created by you on the website (no GitHub token anywhere).
 - **2026-10-14 · DG1.1:** a "Problems" page in the app with recent errors in plain words and a Copy button; nothing is sent anywhere automatically. Rejected: reading the phone's log over USB only. The log design in section 12d is technical (you left the details to me).
 - **2026-10-14 · SY2.2:** your gym's internet drops for up to ~30 minutes, so offline sync tries every minute instead of backing off to 5 minutes, and each request gives up after 15 seconds; changes still waiting when you close the app go out the next time it's open.
+- **2026-10-14 · SC1.1:** Today shows a small "N waiting" while changes wait to be sent. Rejected: nothing until the 3-day banner.
