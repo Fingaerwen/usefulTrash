@@ -1,6 +1,6 @@
 # usefulTrash: Gym App Plan
 
-> **Status (2026-10-14):** Phase 0's 12 checks all passed (see `docs/phase0.md`), and the Google app is published (P1.1). The design round is done: code structure (3b), data tables, sync and data upgrades (14, 14b, 14c), releases (12b), diagnostics (12d), screens and look (6, 10, 12c). Staging decided (ST1.1, see "Staging"). Building 0.1-alpha: the code skeleton, the cycle and rest rules and cloud script 001 are done and tested; next come plan import, the phone database and sync. This file is the single source of truth: every decision made after approval is applied in the sections below and listed in the **Decision log** at the end.
+> **Status (2026-10-14):** Phase 0's 12 checks all passed (see `docs/phase0.md`), and the Google app is published (P1.1). The design round is done: code structure (3b), data tables, sync and data upgrades (14, 14b, 14c), releases (12b), diagnostics (12d), screens and look (6, 10, 12c). Staging decided (ST1.1, see "Staging"). Building 0.1-alpha. Done and tested: the cycle and rest rules, plan file checks and matching, cloud script 001, the table definitions, the cloud calls, the phone database, sync (also against the real Data API server in a local pod), the session keeper and the log. Next: the app's facts and actions, then the screens. This file is the single source of truth: every decision made after approval is applied in the sections below and listed in the **Decision log** at the end.
 
 ## Context
 This is a personal suite of Python apps in one public repo (`claudProjects/usefulTrash/`). The first app is an Android **gym tracker**; a **diet app** comes later and will share the same cloud database and login. Every decision below was made with you point by point, including the resolution of the "brutal review" flaws. **Approving this plan starts Phase 0 only (the feasibility check).** The staging after that is decided from Phase 0's results (14.1).
@@ -53,7 +53,7 @@ This is a personal suite of Python apps in one public repo (`claudProjects/usefu
 ## 3b. Code structure (CS1.1)
 - **Rules are pure** (`gym/rules/`): cycle, progression, PRs/volume/streaks, weekly summary and plan-file checks never touch a screen, the database, the network or the clock; "today" is passed in. Most tests live here, and the phone and the PC view compute identical results from identical facts (F10.1).
 - **All your facts are held in memory.** On start the app loads every row (phone: its own database; PC view: the cloud) and `state.py` calculates everything from them. Start-up has about 2 s of room under the 5 s limit (check 8: 2.8–3.3 s); the load time is measured at every release.
-- **One write path:** screens call `actions.py`, which builds the row (new `id`, your `userId`, `updatedAt` from the device), checks it and hands it to the store. Screens never write rows themselves.
+- **One write path:** screens call `actions.py`, which builds the row (new `id`, your `userId`) and hands it to the store. The store checks every column and stamps the edit time: the device's clock, or just after the version it replaces if the clock is behind that, so an edit always beats what it was made from. Screens never write rows themselves.
 - **Two stores, one interface** (`usefulShared.store`): the phone saves to SQLite and the outbox in one transaction, and sync (phone only) sends the outbox and fetches changes made elsewhere. The PC view writes straight to the cloud; if that fails, nothing changes on screen and you see why.
 - **Declarative screens** (Flet 1.0 components): a screen is drawn from the state and redraws itself when facts change. Not yet tried on the phone, so the first build stage checks the cold start stays under 5 s and the extensions work inside components; fallback: the spike's style.
 - **Phone vs PC is decided once,** in `main.py` (phone: database + sync + phone sign-in + notifications + automatic backups; PC view: cloud store + browser sign-in + Plans/History/Backup tabs). No scattered "if website" checks.
@@ -231,7 +231,7 @@ Dark mode that follows the phone setting, minimal screens and taps, medium-sized
 - **One shared log** (`usefulShared.platform`): on the phone a small file in the app's private storage (two files of 256 KB, oldest dropped first); in the PC view memory only, so nothing is stored in your browser. Release builds don't write to Android's system log.
 - **No secrets or personal details in the log:** code logs events and kinds, never values: HTTP errors as status, error code and a short message (capped, as in Phase 0); tokens only as fingerprints (the first 8 characters of their SHA-256, as in Phase 0). Every line also passes a scrubber that removes anything token-, key- or email-shaped, as a safety net. The Problems page runs the Phase 0 log check and shows its result ("0 token-shaped strings").
 - **Crashes:** an unexpected error is written to the log before anything else, so after a crash the next start shows what happened. If the app can't start at all, the fallback is reading the log over USB.
-- **Tested:** fake tokens, keys and emails go through the scrubber and must come out removed; a full fake sign-in, renewal and sync run must leave no token value in the log.
+- **Tested:** fake tokens, keys and emails go through the scrubber and must come out removed; a full fake sign-in, renewal and sync run must leave no token value in the log. The scrubber is also given the session's current tokens, because Supabase's refresh tokens are short and look like nothing in particular.
 
 ## 13. Diet app (later)
 - Same Supabase project, login and naming. For now the gym app only **shares weight + training days**. Nutrition tables and goals are designed when the diet app is planned (15.1).
@@ -265,6 +265,7 @@ Every synced row has `id` (UUID), `userId`, `updatedAt` (when the edit was made,
 - **Version check (UP1.1):** before each sync the app reads `cloudInfo` and syncs only if `minAppSchema` ≤ its own schema number ≤ `schemaVersion`. Otherwise it stops, keeps the outbox and says what to update.
 - **Signed out:** sync pauses and the outbox is kept. The phone's database remembers whose data it holds and is cleared if a different account ever signs in (impossible today: sign-ups are off).
 - **"Not synced" banner** (G9.2b): when the oldest outbox entry is 3+ days old. Changes the cloud refused show the reason.
+- **Refused changes:** the cloud takes a batch all or nothing, so a refused batch is sent again row by row to find the refused row. That row is set aside with the cloud's reason (Problems page), the rest still go, and it's sent again once it's edited or you tap "Try again". A connection dropping meanwhile refuses nothing.
 - **Backups** sync first, then write from the device's copy (phone) or the loaded copy (PC view). Deleted rows are included, so a restore is exact.
 
 ## 14c. Data upgrades (UP1.1 / UP2.1)
@@ -325,6 +326,7 @@ Decided 2026-10-14, after Phase 0 and the design round. Each release gets its te
 ## Verification
 - Phase 0: each of the 12 checks recorded as pass/fail with notes. **If Google sign-in on Android fails (check 2), the fallback is an emailed code (F1.1).** Any other fail → we revisit that decision before building.
 - Later phases: automated tests for plan import/validation, cycle + rest rules, progression rules, PR/volume/streak math and sync against a fake cloud (offline → online, conflicts both ways, the 5-minute fetch overlap, refused changes, first download, the version check; 14b). End to end: airplane mode → log → reconnect → shows in the PC view.
+- **Sync against the real server (built 2026-10-14):** besides the fake cloud, the cloud calls and whole sync rounds between two devices run against PostgREST (the Data API server Supabase runs) on a local copy of the cloud built from `cloud/`, in a podman pod reachable only from this PC (`tests/cloud/testDataApi.py`). Every rule is also checked by breaking it on purpose and seeing a test fail.
 
 ---
 
