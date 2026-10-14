@@ -368,3 +368,34 @@ def testSignInRenewalAndSyncLeaveNoTokenInTheLog(phone, cloud):
     logText = (phone.folder / "appLog.txt").read_text()
     assert "sync" in logText and "signIn" in logText  # the run was logged…
     assert [token for token in issued if token in logText] == []  # …without a single token
+
+
+def testTheNonceCheckIsNeverSkippedForAMomentWithoutInternet(phone, cloud):
+    """If the wrong-nonce request is lost, nothing is proven: sign-in stops instead of going on unchecked."""
+    cloud.dropNextSignIn = True
+    press(find(phone.screen(), "Sign in with Google", "Button"))
+    assert not phone.app.session.isSignedIn()
+    assert "No internet: signing in needs it." in phone.texts()
+
+
+def testAnotherAccountSigningInStartsFromNothing(phone, cloud):
+    """14b: the phone's database is cleared if a different account ever signs in (sign-ups are off today)."""
+    cloud.signUpsAllowedFor = {userA, userB}
+    planInCloud(cloud)
+    signedIn(phone)
+    press(find(phone.screen(), "Bench Press: done as targeted", "IconButton"))
+    phone.run(phone.app.signOut())
+    phone.services.googleSignIn.account = userB
+    press(find(phone.screen(), "Sign in with Google", "Button"))
+    assert phone.app.store.owner() == userB
+    assert phone.app.store.rows("plans") == [] and phone.app.store.rows("exerciseLogs") == []
+    assert "Import your plan in the PC view." in phone.texts()
+
+
+def testTheLogScrubsTheSessionsOwnTokens(phone, cloud):
+    """Even if some code wrongly wrote a token into the log, the scrubber knows the current ones."""
+    signedIn(phone)
+    session = phone.app.session.session
+    phone.app.log.problem("test", "a careless line", f"{session['access_token']} {session['refresh_token']}")
+    logText = (phone.folder / "appLog.txt").read_text()
+    assert session["access_token"] not in logText and session["refresh_token"] not in logText

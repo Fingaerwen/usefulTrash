@@ -35,6 +35,7 @@ class CloudStandIn:
         self.loseNextAnswer = False  # the next send is stored, but its answer never arrives
         self.callsUntilOffline: int | None = None  # the connection drops after this many more calls
         self.acceptsWrongNonce = False  # acts out "Skip nonce checks" switched on in Supabase
+        self.dropNextSignIn = False  # the next sign-in request is lost on the way (a moment without internet)
         self.signUpsAllowedFor: set[str] = set()  # Google accounts that may sign in; others get signup_disabled
         self.refreshTokens: dict[str, str] = {}  # live refresh token -> user id (rotation: each works once)
         self.sessionMinutes = 60
@@ -72,7 +73,8 @@ class CloudStandIn:
         """The fake Google ID token is "googleIdToken:<account>:<hashed nonce>", like the real one carrying
         the hashed nonce inside. Supabase hashes the raw nonce and compares."""
         await asyncio.sleep(0)
-        if self.offline:
+        if self.offline or self.dropNextSignIn:
+            self.dropNextSignIn = False
             raise CloudError(0, "network", "OSError: no connection")
         _, account, hashedNonce = idToken.split(":")
         if hashlib.sha256(rawNonce.encode()).hexdigest() != hashedNonce and not self.acceptsWrongNonce:
