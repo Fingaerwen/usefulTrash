@@ -10,7 +10,8 @@ testpaths = ["tests"]
 # camelCase everywhere (plan 11.4c), so test files are testSomething.py and tests are testSomething().
 python_files = ["test*.py"]
 python_functions = ["test*"]
-# The apps' and the shared package's source folders, importable without installing them.
-pythonpath = ["apps/gym/src", "shared/src"]
+# The apps' and the shared package's source folders, importable without installing them, and tests/ for
+# usefulTestKit.py (helpers shared by the tests).
+pythonpath = ["apps/gym/src", "shared/src", "tests"]
 # importlib mode: test files with the same name in different folders don't clash.
 addopts = ["--import-mode=importlib"]

@@ -14,6 +14,8 @@ from pathlib import Path
 
 import pytest
 
+from gym.tables import appSchema, appTables
+
 repoRoot = Path(__file__).resolve().parents[2]
 cloudScripts = sorted((repoRoot / "cloud").glob("[0-9][0-9][0-9]_*.sql"))
 standInSql = (Path(__file__).parent / "supabaseStandIn.sql").read_text(encoding="utf-8")
@@ -305,3 +307,28 @@ def testEverySyncedTableHasTheCommonColumns(database, table):
         where table_schema = 'public' and table_name = '{table}' and ordinal_position <= 5;""")
     assert rows == ["id:uuid,userId:uuid,updatedAt:timestamp with time zone,deleted:boolean,"
                     "cloudUpdatedAt:timestamp with time zone"]
+
+
+# --- The apps' table definitions match the cloud (plan 14) --------------------------------------
+
+@pytest.mark.parametrize("table", appTables, ids=lambda table: table.name)
+def testAppTablesMatchTheCloud(database, table):
+    """gym/tables.py and usefulShared/tables.py list every column with the cloud's own type, in order."""
+    rows = database.ok(f"""
+        select a.attname || '|' || format_type(a.atttypid, a.atttypmod) || '|' || a.attnotnull
+        from pg_attribute a
+        where a.attrelid = 'public."{table.name}"'::regclass and a.attnum > 0 and not a.attisdropped
+        order by a.attnum;""")
+    assert rows == [f"{column.name}|{column.cloudType}|{str(column.required).lower()}" for column in table.columns]
+
+
+def testEveryCloudTableIsDefinedInTheApp(database):
+    rows = database.ok("select tablename from pg_tables where schemaname = 'public' order by tablename;")
+    assert rows == sorted([table.name for table in appTables] + ["cloudInfo"])
+    assert sorted(syncedTables) == sorted(table.name for table in appTables)
+
+
+def testTheAppIsBuiltForTheLatestUpgrade(database):
+    """Raising appSchema with each new cloud script can't be forgotten (version check, 14b)."""
+    assert database.ok('select "schemaVersion" from public."cloudInfo";') == [str(appSchema)]
+    assert appSchema == len(cloudScripts)
