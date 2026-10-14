@@ -347,3 +347,24 @@ def testAPhoneClockFarAheadShowsABannerAndTheReason(phone, cloud):
     press(find(phone.screen(), "Try again", "OutlinedButton"))
     phone.run(phone.app.syncNow())
     assert phone.app.model.waiting == 0 and phone.app.model.banners == ()
+
+
+def testSignInRenewalAndSyncLeaveNoTokenInTheLog(phone, cloud):
+    """12d: a full run (sign-in, a renewal, sync rounds, a refused change, going offline) must leave no
+    token value in the log file. Every token the cloud ever issued is looked for in the raw file."""
+    planInCloud(cloud)
+    signedIn(phone)
+    press(find(phone.screen(), "Bench Press: done as targeted", "IconButton"))
+    phone.run(phone.app.syncNow())
+    phone.app.session.session["expires_at"] = 0  # forces a renewal on the next round
+    phone.clock.advance(hours=1)
+    press(find(phone.screen(), "Dips: done as targeted", "IconButton"))  # refused: clock an hour ahead
+    phone.run(phone.app.syncNow())
+    cloud.offline = True
+    phone.run(phone.app.syncNow())
+    cloud.offline = False
+    phone.run(phone.app.signOut())
+    issued = list(cloud.signedIn) + [f"refresh{number}" for number in range(1, 20)]
+    logText = (phone.folder / "appLog.txt").read_text()
+    assert "sync" in logText and "signIn" in logText  # the run was logged…
+    assert [token for token in issued if token in logText] == []  # …without a single token
