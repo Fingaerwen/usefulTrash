@@ -95,9 +95,17 @@ This is a personal suite of Python apps in one public repo (`claudProjects/usefu
 
 ## 6. Today screen (19.1)
 ```
-Push · cycle day 1/5 · this week 2/4 sessions
-Bench Press   4×9 @ 82.5 kg ↑new  [✓]   rest 2:00 · "pause at bottom"  ▾ sets · skip
+Push · day 1 of 5 · week 2/4      3 waiting  ⋮
+─────────────────────────────────────────────
+Bench Press   4×9 @ 82.5 kg ↑new         [✓]
+  rest 2:00 · "pause at bottom"  ▾ sets · skip
+Dips          3×10                       [✓]
+Incline Walk  15 min                     [✓]
+─────────────────────────────────────────────
+              [ Finish workout ]
+  Today     Progress     Week     Weight
 ```
+- **Approved layout (SC2.1).** The top line is the plan step's title (from your plan), its place in the cycle, and workouts done this week vs the weekly target. A rest day shows "Rest day · next: Pull" with a **[ Train anyway ]** button. The **⋮** menu holds Problems (12d) and Sign out.
 - **[✓]** logs it as targeted. **▾ sets** opens per-set rows pre-filled with the target (19.1a-1). **skip** = today only.
 - **Finish workout:** anything untouched is **auto-skipped** (19.1b-1) and the cycle advances. **Forgot to finish → it auto-finishes at midnight** the same way (R5a).
 - **One workout per day (DT1.1):** logging again later the same day adds to that day's workout.
@@ -287,3 +295,4 @@ Newest at the bottom. Every decision made after the plan was approved gets a lin
 - **2026-10-14 · DG1.1:** a "Problems" page in the app with recent errors in plain words and a Copy button; nothing is sent anywhere automatically. Rejected: reading the phone's log over USB only. The log design in section 12d is technical (you left the details to me).
 - **2026-10-14 · SY2.2:** your gym's internet drops for up to ~30 minutes, so offline sync tries every minute instead of backing off to 5 minutes, and each request gives up after 15 seconds; changes still waiting when you close the app go out the next time it's open.
 - **2026-10-14 · SC1.1:** Today shows a small "N waiting" while changes wait to be sent. Rejected: nothing until the 3-day banner.
+- **2026-10-14 · SC2.1:** the Today layout as drawn in section 6 (header with step, cycle place and week count; ⋮ menu with Problems and Sign out; Finish button; tabs at the bottom).
