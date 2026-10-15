@@ -9,6 +9,7 @@ wrote the plan. Problems that would lose or garble something are errors (the pla
 harmless ones are warnings (it's imported anyway).
 """
 
+import dataclasses
 import difflib
 import json
 import re
@@ -27,12 +28,17 @@ bodyParts = ("upper", "lower")
 exerciseKinds = ("strength", "cardio")
 defaultIncrementKg = {"upper": 2.5, "lower": 5.0}  # used when the plan gives no incrementKg (9.1)
 
+# The how-to shown when you tap an exercise on Today (SC7.1): what you need, the steps, form cues.
+howToFields = ("setup", "howTo", "form")
+maxSetupLength = 300
+maxHowToLines, maxHowToLineLength = 12, 200  # for each of howTo and form
+
 # The fields each block may have.
 planFields = ("planId", "name", "version", "weeklyTarget", "cycle")
 stepFields = ("title", "restDay", "exercises")
 strengthFields = ("exerciseId", "name", "type", "equipment", "body", "sets", "repsMin", "repsMax", "weightKg",
-                  "incrementKg", "restSec", "notes")
-cardioFields = ("exerciseId", "name", "type", "minutes", "notes")
+                  "incrementKg", "restSec", "notes", *howToFields)
+cardioFields = ("exerciseId", "name", "type", "minutes", "notes", *howToFields)
 exerciseFields = tuple(dict.fromkeys(strengthFields + cardioFields))  # every field any exercise may have
 
 # What must match when one exercise is in several steps; notes and rest time are display only.
@@ -58,6 +64,9 @@ class PlanExercise:
     restSec: int | None = None  # shown on Today, no timer (17.3a)
     notes: str | None = None  # form cues shown on Today (17.3a)
     minutes: int | None = None  # the cardio target
+    setup: str | None = None  # how-to (SC7.1): the machine or equipment needed and how to set it up
+    howTo: tuple[str, ...] = ()  # how-to: the steps, in order
+    form: tuple[str, ...] = ()  # how-to: form cues
 
     @property
     def isCardio(self) -> bool:
@@ -196,7 +205,7 @@ def _cycle(data: dict[str, Any], problems: "_Problems") -> list[PlanStep]:
     if len(steps) == len(cycle) and all(step.isRest for step in steps):
         problems.error("The plan: the cycle has no workout; every step is a rest day.")
     _sameSettingsEverywhere([(place, step) for place, step in placedSteps if step is not None], problems)
-    return steps
+    return _howToGivenOnce(steps)
 
 
 def _step(index: int, rawStep: Any, problems: "_Problems") -> PlanStep | None:
@@ -247,6 +256,9 @@ def _exercise(basePlace: str, raw: Any, problems: "_Problems") -> PlanExercise |
     name = problems.text(raw, "name", place, maxLength=100)
     kind = problems.choice(raw, "type", place, exerciseKinds, required=False) or "strength"
     notes = problems.text(raw, "notes", place, maxLength=500, required=False)
+    howTo = {"setup": problems.text(raw, "setup", place, maxLength=maxSetupLength, required=False),
+             "howTo": problems.lines(raw, "howTo", place, maxHowToLines, maxHowToLineLength),
+             "form": problems.lines(raw, "form", place, maxHowToLines, maxHowToLineLength)}
     if "type" in raw and raw["type"] not in exerciseKinds:
         return None  # the kind is unknown, so its other fields can't be checked
     if kind == "cardio":
@@ -255,15 +267,16 @@ def _exercise(basePlace: str, raw: Any, problems: "_Problems") -> PlanExercise |
         details = _strengthDetails(raw, place, problems)
     if len(problems.errors) > errorsBefore:
         return None
-    return PlanExercise(exerciseId=exerciseId, name=name, kind=kind, notes=notes, **details)
+    return PlanExercise(exerciseId=exerciseId, name=name, kind=kind, notes=notes, **howTo, **details)
 
 
 def _cardioDetails(raw: dict[str, Any], place: str, problems: "_Problems") -> dict[str, Any]:
-    """A cardio exercise has a minutes target and nothing else besides its name and notes."""
+    """A cardio exercise has a minutes target and nothing else besides its name, notes and how-to."""
+    allowed = [f'"{key}"' for key in cardioFields if key not in ("exerciseId", "name", "type")]
     for key in raw:
         if key in strengthFields and key not in cardioFields:
-            problems.error(f'{place}: "{key}" doesn\'t belong to a cardio exercise; it has only "minutes" and '
-                           '"notes".')
+            problems.error(f'{place}: "{key}" doesn\'t belong to a cardio exercise; it has only '
+                           f'{", ".join(allowed[:-1])} and {allowed[-1]}.')
     return {"minutes": problems.wholeNumber(raw, "minutes", place, 1, 600)}
 
 
@@ -319,6 +332,26 @@ def _sameSettingsEverywhere(placedSteps: list[tuple[str, PlanStep]], problems: "
                 problems.error(f'"{exercise.exerciseId}" is in {_lowerFirst(firstPlace)} and {_lowerFirst(place)} '
                                f"with different settings ({', '.join(differences)}). Give it the same settings in "
                                "both, or a different exerciseId in one.")
+
+
+def _howToGivenOnce(steps: list[PlanStep]) -> list[PlanStep]:
+    """The how-to belongs to the exercise, so the plan gives it once (SC7.1): a step that leaves a how-to
+    field out shows the one from the first step that gives it. A step's own always wins."""
+    given: dict[str, dict[str, Any]] = {}
+    for step in steps:
+        for exercise in step.exercises:
+            fields = given.setdefault(exercise.exerciseId, {})
+            for field in howToFields:
+                if getattr(exercise, field) and field not in fields:
+                    fields[field] = getattr(exercise, field)
+
+    def filledIn(exercise: PlanExercise) -> PlanExercise:
+        missing = {field: value for field, value in given[exercise.exerciseId].items()
+                   if not getattr(exercise, field)}
+        return dataclasses.replace(exercise, **missing) if missing else exercise
+
+    return [dataclasses.replace(step, exercises=tuple(filledIn(exercise) for exercise in step.exercises))
+            for step in steps]
 
 
 # --- Checking single fields ---------------------------------------------------------------------
@@ -390,20 +423,40 @@ class _Problems:
         """Text on one line, trimmed; empty optional text counts as not given."""
         if not self.present(block, key, place, required):
             return None
+        return self._oneLine(block[key], f'"{key}"', place, maxLength, required)
+
+    def lines(self, block, key, place, maxLines: int, maxLength: int) -> tuple[str, ...]:
+        """An optional list of one-line texts, like a how-to's steps; an empty list counts as not given.
+        Every line must have something in it."""
+        if not self.present(block, key, place, required=False):
+            return ()
         value = block[key]
+        if not isinstance(value, list):
+            self.error(f'{place}: "{key}" must be a list of lines, like ["First step", "Second step"], not '
+                       f"{_shown(value)}.")
+            return ()
+        if len(value) > maxLines:
+            self.error(f'{place}: "{key}" has {len(value)} lines; at most {maxLines} are allowed.')
+            return ()
+        checked = [self._oneLine(line, f'"{key}" line {number}', place, maxLength, required=True)
+                   for number, line in enumerate(value, start=1)]
+        return () if None in checked else tuple(checked)
+
+    def _oneLine(self, value, what: str, place, maxLength: int, required: bool) -> str | None:
+        """Checks one text (`what` names it in errors, like "notes" or "howTo" line 2), trimmed."""
         if not isinstance(value, str):
-            self.error(f'{place}: "{key}" must be text, not {_shown(value)}.')
+            self.error(f"{place}: {what} must be text, not {_shown(value)}.")
             return None
         value = value.strip()
         if not value:
             if required:
-                self.error(f'{place}: "{key}" is empty.')
+                self.error(f"{place}: {what} is empty.")
             return None
         if len(value) > maxLength:
-            self.error(f'{place}: "{key}" is longer than {maxLength} characters.')
+            self.error(f"{place}: {what} is longer than {maxLength} characters.")
             return None
         if _hasControlCharacters(value):
-            self.error(f'{place}: "{key}" can\'t have line breaks or other control characters.')
+            self.error(f"{place}: {what} can't have line breaks or other control characters.")
             return None
         return value
 

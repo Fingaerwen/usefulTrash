@@ -31,6 +31,19 @@ a list of problems the user pastes back to you.
              [ Finish workout ]
   ```
   The user ticks an exercise (done as targeted), opens it to enter each set's reps and kg, or skips it.
+- **Tapping an exercise's name shows its how-to** underneath, from the plan's optional `setup`,
+  `howTo` and `form` fields (a plan without them works too: the app then says there's no how-to):
+  ```
+  Bench Press   4×8 @ 80 kg              [✓]
+    rest 2:00 · "pause at bottom"   ▾ sets · skip
+    │ Setup: flat bench in a rack, safety pins just below chest height
+    │ How to
+    │ 1. Lie back with your eyes under the bar
+    │ 2. Grip a little wider than your shoulders
+    │ Form
+    │ •  Shoulder blades squeezed together and down
+  ```
+  `notes` stays the one short cue that's always visible; `form` is the full list, shown on a tap.
 - **Progression is automatic, so a plan gives only the starting point.** Give each exercise a rep
   range and a starting weight. Don't write week-by-week weights. The app's rules (from 0.2-alpha; in
   0.1-alpha the target is simply `repsMin` at the plan's weight):
@@ -64,6 +77,8 @@ a list of problems the user pastes back to you.
 | One arm or leg at a time | Reps per side; say "per side" in `notes`. Dumbbell weight is one dumbbell |
 | Pounds | Kilograms only: convert, at most 2 decimals |
 | Deloads, blocks, week-by-week changes | Not inside one plan. When it's time, write a new version of the plan for the user to import |
+| Pictures, videos or links showing an exercise | Describe it in words in `setup`, `howTo` and `form` |
+| Machine settings (seat height, pin position) | In `setup`, like `"seat at notch 4, back pad upright"` |
 
 ## The file
 
@@ -97,29 +112,42 @@ a list of problems the user pastes back to you.
 | `body` | see below | `"upper"` or `"lower"`: the default weight step, upper 2.5 kg, lower 5 kg |
 | `incrementKg` | see below | the weight step, 0.01 to 100 kg, at most 2 decimals; overrides `body`. Set it for dumbbells (e.g. 1 or 2) and machines (the stack's step) |
 | `restSec` | no | rest between sets in seconds, 0 to 3600 (shown only, there's no timer) |
-| `notes` | no | form cues shown on the Today screen, **one line**, up to 500 characters |
+| `notes` | no | the short cue always shown on the Today screen, **one line**, up to 500 characters |
+| `setup` | no | how-to: the machine or equipment needed and how to set it up, **one line**, up to 300 characters |
+| `howTo` | no | how-to: the steps to do it, in order, as a **list of lines**, like `["Lie back…", "Grip…"]`; 1 to 12 lines, each one line of up to 200 characters, without numbers (the app numbers them) |
+| `form` | no | how-to: form cues and common mistakes, a **list of lines** like `howTo`; 1 to 12 lines of up to 200 characters |
 
 A weighted exercise (not bodyweight) needs `body` or `incrementKg`. A bodyweight exercise has no
 `weightKg` (and an `incrementKg` there is ignored, with a warning).
 
 ### A cardio exercise
 
-`"type": "cardio"`, `exerciseId`, `name`, `minutes` (1 to 600) and optionally `notes`. Nothing else.
+`"type": "cardio"`, `exerciseId`, `name`, `minutes` (1 to 600) and optionally `notes`, `setup`, `howTo`
+and `form`. Nothing else.
+
+### The how-to
+
+`setup`, `howTo` and `form` describe the exercise, so give them **once**: when an exercise is in several
+steps, a step that leaves one out shows the one from the first step that has it. A step can still give
+its own (it then shows that one instead), and nothing has to match. Write them for someone standing at the
+machine: short, plain lines, one idea each.
 
 ### Rules the app enforces
 
 - Each exercise can be in a step only once.
-- An exercise in several steps needs **identical settings in each**; only `notes` and `restSec` may
-  differ. Otherwise give it a different ID.
+- An exercise in several steps needs **identical settings in each**; only `notes`, `restSec` and the
+  how-to may differ. Otherwise give it a different ID.
 - **No other fields.** An unknown field is refused, so a typo like `"repMin"` can't slip through.
   No field twice in one block.
 - Plain JSON (UTF-8): no comments, no trailing commas, no `NaN` or `Infinity`, numbers as numbers
-  (`80`, not `"80"`), `true`/`false` as booleans. Text is one line: no line breaks.
+  (`80`, not `"80"`), `true`/`false` as booleans. Text is one line: no line breaks. For several
+  lines (`howTo`, `form`), use a list of one-line texts; no empty lines in it.
 
 ## Example
 
 A 4-day upper/lower plan. `pullUp` and `lateralRaise` appear twice with the same settings (only the
-notes differ), `plank` uses reps as seconds, and the squat has a top set plus back-off sets.
+notes differ), `plank` uses reps as seconds, and the squat has a top set plus back-off sets. The bench
+press and the pull-up have a how-to; Upper B's pull-up leaves it out and shows Upper A's.
 
 ```json
 {
@@ -130,11 +158,20 @@ notes differ), `plank` uses reps as seconds, and the squat has a top set plus ba
   "cycle": [
     {"title": "Upper A", "exercises": [
       {"exerciseId": "benchPress", "name": "Bench Press", "equipment": "barbell", "body": "upper",
-       "sets": 3, "repsMin": 6, "repsMax": 10, "weightKg": 70, "restSec": 150, "notes": "pause on the chest"},
+       "sets": 3, "repsMin": 6, "repsMax": 10, "weightKg": 70, "restSec": 150, "notes": "pause on the chest",
+       "setup": "Flat bench in a rack; bar at the height of your straight arms, safety pins just below chest height",
+       "howTo": ["Lie back with your eyes under the bar, feet flat on the floor",
+                 "Grip a little wider than your shoulders", "Unrack, lower to mid-chest, pause, press back up"],
+       "form": ["Shoulder blades squeezed together and down", "Wrists straight over the elbows",
+                "Bum stays on the bench"]},
       {"exerciseId": "seatedCableRow", "name": "Seated Cable Row", "equipment": "machine", "incrementKg": 5,
        "sets": 3, "repsMin": 8, "repsMax": 12, "weightKg": 50, "restSec": 90},
       {"exerciseId": "pullUp", "name": "Pull-up", "equipment": "bodyweight",
-       "sets": 3, "repsMin": 5, "repsMax": 10, "restSec": 120},
+       "sets": 3, "repsMin": 5, "repsMax": 10, "restSec": 120,
+       "setup": "Pull-up bar, or the pull-up handles of the cable tower",
+       "howTo": ["Hang with straight arms, hands just wider than your shoulders, palms forward",
+                 "Pull until your chin is over the bar", "Lower all the way down"],
+       "form": ["No swinging or kicking", "Shoulders down, away from your ears"]},
       {"exerciseId": "lateralRaise", "name": "Lateral Raise", "equipment": "dumbbell", "incrementKg": 1,
        "sets": 3, "repsMin": 12, "repsMax": 20, "weightKg": 8, "restSec": 60, "notes": "superset with pull-ups"}
     ]},
@@ -177,7 +214,9 @@ notes differ), `plank` uses reps as seconds, and the squat has a top set plus ba
    `<planId>-v<version>.json`** if you can create files; otherwise as **one ```json code block holding
    only the plan**, for the user to save as a `.json` file. A short summary in words before it is fine.
 3. Revising a plan: keep the `planId`, raise `version` by 1, keep every `exerciseId` for the same
-   exercise (never rename one), and use the user's current working weights.
+   exercise (never rename one), and use the user's current working weights. Keep each exercise's
+   `setup`, `howTo` and `form` too, unless the user asks to change them: the app shows only what the
+   plan in use has.
 4. If the app refuses the file, the user pastes its problem list, for example
    `Step 2 "Lower A", exercise 3 "Plank": a bodyweight exercise has no "weightKg"; its progress is counted in reps.`
    Fix exactly those and give the whole file again.

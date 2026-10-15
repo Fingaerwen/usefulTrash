@@ -8,7 +8,8 @@
       Steps today: 14,000 ✎
 
 A rest day shows "Rest day · next: Pull" with [ Train anyway ]. No plan yet: "Import your plan in the PC
-view", with "Import a file" as the fallback (G2b-2).
+view", with "Import a file" as the fallback (G2b-2). Tapping an exercise's name unfolds the plan's how-to
+under it: Setup, the steps and the form cues (SC7.1).
 """
 
 import flet as ft
@@ -60,8 +61,10 @@ def RestDay(app, view):
 
 @ft.component
 def ExerciseRow(app, line: ExerciseLine):
-    """One exercise: name, target, [✓]; underneath rest time, form cues, ▾ sets and skip (19.1)."""
+    """One exercise: name, target, [✓]; underneath rest time, form cues, ▾ sets and skip (19.1). Tapping
+    the name unfolds its how-to (SC7.1)."""
     editing, setEditing = ft.use_state(False)
+    showingHowTo, setShowingHowTo = ft.use_state(False)
     exercise = line.exercise
     done, skipped = line.status == "done", line.status in ("skipped", "autoSkipped")
 
@@ -73,8 +76,11 @@ def ExerciseRow(app, line: ExerciseLine):
 
     shown = _loggedText(line) if done else targetText(line)
     top = ft.Row([
-        ft.Text(exercise.name, size=16, weight=ft.FontWeight.W_500, expand=True,
-                color=ft.Colors.GREY_500 if skipped else None),
+        ft.Container(ft.Text(exercise.name, size=16, weight=ft.FontWeight.W_500,
+                             color=ft.Colors.GREY_500 if skipped else None),
+                     expand=True, height=tapSize, alignment=ft.Alignment.CENTER_LEFT, ink=True,
+                     tooltip=f"{exercise.name}: {'hide how to' if showingHowTo else 'how to'}",
+                     on_click=lambda e: setShowingHowTo(not showingHowTo)),
         ft.Text(shown, color=ft.Colors.GREY_500 if skipped else None),
         ft.IconButton(ft.Icons.CHECK_CIRCLE if done else ft.Icons.RADIO_BUTTON_UNCHECKED,
                       tooltip=f"{exercise.name}: done as targeted" if not done else f"{exercise.name}: take back",
@@ -94,9 +100,35 @@ def ExerciseRow(app, line: ExerciseLine):
         ft.TextButton("unskip" if line.status == "skipped" else "skip", on_click=skip),
     ], spacing=4, wrap=True)
     parts = [top, under]
+    if showingHowTo:
+        parts.append(HowTo(exercise))
     if editing:
         parts.append(SetsEditor(app, line, lambda: setEditing(False)))
     return ft.Column(parts, spacing=0)
+
+
+@ft.component
+def HowTo(exercise):
+    """The plan's how-to under an exercise (SC7.1): Setup, the numbered steps, and the form cues."""
+    def numbered(mark: str, text: str) -> ft.Row:
+        """One step or cue; a long one wraps under its own text, not under the mark."""
+        return ft.Row([ft.Text(mark, width=20), ft.Text(text, expand=True)],
+                      spacing=4, vertical_alignment=ft.CrossAxisAlignment.START)
+
+    parts = []
+    if exercise.setup:
+        parts.append(ft.Text(f"Setup: {exercise.setup}"))
+    if exercise.howTo:
+        parts.append(ft.Text("How to", weight=ft.FontWeight.W_500))
+        parts += [numbered(f"{number}.", step) for number, step in enumerate(exercise.howTo, start=1)]
+    if exercise.form:
+        parts.append(ft.Text("Form", weight=ft.FontWeight.W_500))
+        parts += [numbered("•", cue) for cue in exercise.form]
+    if not parts:
+        parts.append(quiet("Your plan has no how-to for this exercise."))
+    return ft.Container(ft.Column(parts, spacing=4),
+                        border=ft.Border.only(left=ft.BorderSide(2, ft.Colors.OUTLINE)),
+                        padding=ft.Padding.only(left=12, top=4, bottom=4), margin=ft.Margin.only(left=12, bottom=8))
 
 
 @ft.component

@@ -225,6 +225,38 @@ def testTappingCheckAgainTakesItBack(phone, cloud):
     assert phone.app.model.today.exercises[0].status == "todo" and not phone.app.model.today.workoutExists
 
 
+def testTappingAnExercisesNameShowsItsHowTo(phone, cloud):
+    """SC7.1: tapping the name unfolds the plan's how-to under the exercise, and tapping it again folds
+    it away. The example plan's Bench Press has one; Dips has none."""
+    from screenTestKit import redraw
+
+    from gym.screens.today import ExerciseRow
+    planInCloud(cloud)
+    signedIn(phone)
+    benchLine, _, dipsLine, _ = phone.app.model.today.exercises
+    row = draw(ExerciseRow, phone.app, benchLine)
+    assert "How to" not in visibleTexts(row)
+    press(find(row, "Bench Press: how to", "Container"))
+    redraw(row)
+    texts = visibleTexts(row)
+    assert texts[texts.index("How to"):] == [
+        "How to", "1.", "Lie back with your eyes under the bar, feet flat on the floor",
+        "2.", "Grip a little wider than your shoulders", "3.", "Unrack, lower to mid-chest, pause, press back up",
+        "Form", "•", "Shoulder blades squeezed together and down", "•", "Wrists straight over the elbows",
+        "•", "Bum stays on the bench"]
+    assert ("Setup: Flat bench in a rack; bar at the height of your straight arms, safety pins just below chest "
+            "height") in texts
+    assert "“pause at bottom”" in texts  # the one-line notes stay on the row
+    press(find(row, "Bench Press: hide how to", "Container"))
+    redraw(row)
+    assert "How to" not in visibleTexts(row)
+
+    dipsRow = draw(ExerciseRow, phone.app, dipsLine)
+    press(find(dipsRow, "Dips: how to", "Container"))
+    redraw(dipsRow)
+    assert "Your plan has no how-to for this exercise." in visibleTexts(dipsRow)
+
+
 def testStepsEditing(phone, cloud):
     from gym.screens.today import StepsLine
     planInCloud(cloud)

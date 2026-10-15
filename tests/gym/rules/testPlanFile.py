@@ -306,7 +306,8 @@ def testCardioHasOnlyMinutes():
     data = validPlan()
     data["cycle"][0]["exercises"][2]["sets"] = 3
     assert errorsOf(data) == (
-        f'{walk}: "sets" doesn\'t belong to a cardio exercise; it has only "minutes" and "notes".',)
+        f'{walk}: "sets" doesn\'t belong to a cardio exercise; it has only "minutes", "notes", "setup", "howTo" '
+        'and "form".',)
     data = validPlan()
     del data["cycle"][0]["exercises"][2]["minutes"]
     assert errorsOf(data) == (f'{walk}: "minutes" is missing.',)
@@ -347,3 +348,71 @@ def testExerciseThatIsNotABlock():
     data = validPlan()
     data["cycle"][1]["exercises"] = ["Deadlift"]
     assert errorsOf(data) == ('Step 2 "Pull", exercise 1 must be a {…} block with an "exerciseId" and a "name".',)
+
+
+# --- How-to (SC7.1) -----------------------------------------------------------------------------
+
+def withHowTo() -> dict:
+    """The valid plan with a how-to for Bench Press and Incline Walk."""
+    data = validPlan()
+    data["cycle"][0]["exercises"][0].update(
+        setup="  Flat bench, barbell in a rack, safety pins at chest height ",
+        howTo=["Lie back, eyes under the bar", "Grip a bit wider than shoulders", "Lower to mid-chest, press up"],
+        form=["Shoulder blades pinched", "Feet flat on the floor"])
+    data["cycle"][0]["exercises"][2].update(setup="Treadmill", howTo=["Incline 10, 5 km/h"])
+    return data
+
+
+def testHowToIsReadForTheTodayScreen():
+    result = checkPlan(withHowTo())
+    assert (result.errors, result.warnings) == ((), ())
+    benchPress, dips, walk = result.plan.steps[0].exercises
+    assert benchPress.setup == "Flat bench, barbell in a rack, safety pins at chest height"
+    assert benchPress.howTo == ("Lie back, eyes under the bar", "Grip a bit wider than shoulders",
+                                "Lower to mid-chest, press up")
+    assert benchPress.form == ("Shoulder blades pinched", "Feet flat on the floor")
+    assert (dips.setup, dips.howTo, dips.form) == (None, (), ())
+    assert (walk.setup, walk.howTo, walk.form) == ("Treadmill", ("Incline 10, 5 km/h",), ())
+
+
+def testHowToIsGivenOnceForAllSteps():
+    """The how-to belongs to the exercise: a step that leaves a field out shows the one given elsewhere,
+    and a step that gives its own keeps it. Like notes, it never has to match."""
+    data = withHowTo()
+    pullBench = {key: value for key, value in data["cycle"][0]["exercises"][0].items()
+                 if key not in ("setup", "howTo", "form")}
+    data["cycle"][1]["exercises"].insert(0, dict(pullBench, form=["Pause on the chest"]))
+    plan = checkPlan(data).plan
+    pushBench, pullBenchRead = plan.steps[0].exercises[0], plan.steps[1].exercises[0]
+    assert pullBenchRead.setup == pushBench.setup and pullBenchRead.howTo == pushBench.howTo
+    assert pullBenchRead.form == ("Pause on the chest",) and pushBench.form == ("Shoulder blades pinched",
+                                                                                 "Feet flat on the floor")
+
+
+def testHowToInAStoredPlanIsReadToo():
+    plan = checkPlan(withHowTo(), strict=False).plan
+    assert planExercises(plan)["benchPress"].form == ("Shoulder blades pinched", "Feet flat on the floor")
+
+
+def testHowToProblems():
+    data = validPlan()
+    benchPress, dips, walk = data["cycle"][0]["exercises"]
+    benchPress.update(howTo="Lie back and press", form=["Fine", 5], setup="x" * 301)
+    dips.update(howTo=["Step"] * 13, form=["One", "  "])
+    walk.update(howTo=["x" * 201], form=["line one\nline two"])
+    dipsPlace, walkPlace = 'Step 1 "Push", exercise 2 "Dips"', 'Step 1 "Push", exercise 3 "Incline Walk"'
+    assert errorsOf(data) == (
+        f'{bench}: "setup" is longer than 300 characters.',
+        f'{bench}: "howTo" must be a list of lines, like ["First step", "Second step"], not "Lie back and press".',
+        f'{bench}: "form" line 2 must be text, not 5.',
+        f'{dipsPlace}: "howTo" has 13 lines; at most 12 are allowed.',
+        f'{dipsPlace}: "form" line 2 is empty.',
+        f'{walkPlace}: "howTo" line 1 is longer than 200 characters.',
+        f'{walkPlace}: "form" line 1 can\'t have line breaks or other control characters.')
+
+
+def testEmptyHowToCountsAsNotGiven():
+    data = validPlan()
+    data["cycle"][0]["exercises"][0].update(setup=" ", howTo=[], form=[])
+    benchPress = checkPlan(data).plan.steps[0].exercises[0]
+    assert (benchPress.setup, benchPress.howTo, benchPress.form) == (None, (), ())
