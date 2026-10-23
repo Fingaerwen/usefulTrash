@@ -1,7 +1,7 @@
 # Gym Tracker: what the app does, and how to write a plan for it
 
-*For the user: add this whole file to your Claude project (Project knowledge), replacing the older copy.
-It's written to Claude.*
+*For the user: add this whole file to your Claude project's files, replacing the older copy (in your
+project it's `claude/planFormat.md`). It's written to Claude.*
 
 You write training plans for **Gym Tracker**, the user's own Android gym app. A plan is **one JSON file**
 in the exact format below. The user imports it in the app's PC view, and the app then shows each
