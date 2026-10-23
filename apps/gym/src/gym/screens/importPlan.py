@@ -1,9 +1,11 @@
 """Importing a plan file (plan 10, SC6.1): problems listed in plain words (G8a) → "is this the same
-exercise?" for likely matches (11.3) → choose the starting step (17.2c) → it takes effect.
-The same screen serves the PC view's Plans tab and the phone's fallback (G2b-2)."""
+exercise?" for likely matches (11.3) → the week at a glance and Import → it takes effect. There's no
+starting step to choose (WD1.1). The same screen serves the PC view's Plans tab and the phone's fallback
+(G2b-2)."""
 
 import flet as ft
 
+from gym.rules.schedule import weekdayNames
 from gym.screens.look import gap, quiet, title
 
 
@@ -21,7 +23,7 @@ def ImportPlanScreen(app, model):
     elif flow.step == "questions":
         body = [*warnings, SameExerciseQuestions(app, flow, key=flow.fileName)]
     else:
-        body = [*warnings, StartStepChoice(app, flow, key=flow.fileName)]
+        body = [*warnings, ReadyToImport(app, flow, key=flow.fileName)]
     return ft.Column([back, *body], spacing=gap, scroll=ft.ScrollMode.AUTO, expand=True)
 
 
@@ -47,22 +49,18 @@ def SameExerciseQuestions(app, flow):
 
 
 @ft.component
-def StartStepChoice(app, flow):
-    """You choose the step the plan starts on (17.2c); it takes effect today, or tomorrow if a workout is
-    already logged today (PF1)."""
-    chosen, setChosen = ft.use_state("0")
-
+def ReadyToImport(app, flow):
+    """The plan's week at a glance, then Import: it takes effect today, or tomorrow if a workout is already
+    logged today (PF1)."""
     async def finish(e):
-        await app.finishPlanImport(int(chosen))
+        await app.finishPlanImport()
 
     when = "today" if flow.takesEffect == app.localToday() else "tomorrow"
     plan = flow.plan
+    week = [f"{weekdayNames[index][:3].capitalize()} · {step.title}" for index, step in enumerate(plan.steps)]
     return ft.Column([
-        ft.Text(f"{plan.name} (v{plan.version}) · {len(plan.steps)} steps · {plan.weeklyTarget} workouts a week"),
-        ft.Text("Start on:"),
-        ft.RadioGroup(content=ft.Column([ft.Radio(value=str(index), label=f"{index + 1} · {stepTitle}")
-                                         for index, stepTitle in enumerate(flow.stepTitles)]),
-                      value=chosen, on_change=lambda e: setChosen(e.control.value)),
+        ft.Text(f"{plan.name} (v{plan.version}) · {plan.weeklyTarget} workouts a week"),
+        *[ft.Text(day) for day in week],
         quiet(f"It takes effect {when}."),
         ft.Button("Import", icon=ft.Icons.CHECK, on_click=finish),
     ], spacing=gap)

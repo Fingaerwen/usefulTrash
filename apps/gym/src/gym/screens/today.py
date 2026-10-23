@@ -1,20 +1,20 @@
-"""The Today tab (plan 6, SC2.1), as approved:
+"""The Today tab (plan 6, SC2.1), as approved, with the weekday in the header (WD1.1):
 
-    Push · day 1 of 5 · week 2/4      3 waiting  ⋮
+    Upper · Monday · week 2/5         3 waiting  ⋮
     Bench Press   4×9 @ 82.5 kg              [✓]
       rest 2:00 · "pause at bottom"  ▾ sets · skip
     ...
                   [ Finish workout ]
       Steps today: 14,000 ✎
 
-A rest day shows "Rest day · next: Pull" with [ Train anyway ]. No plan yet: "Import your plan in the PC
-view", with "Import a file" as the fallback (G2b-2). Tapping an exercise's name unfolds the plan's how-to
-under it: Setup, the steps and the form cues (SC7.1).
+A rest day shows "Rest day · next: Upper". No plan yet: "Import your plan in the PC view", with "Import a
+file" as the fallback (G2b-2). Tapping an exercise's name unfolds the plan's how-to under it: Setup, the
+steps and the form cues (SC7.1).
 """
 
 import flet as ft
 
-from gym.rules.today import ExerciseLine, SetDone, headerText, targetText
+from gym.rules.today import ExerciseLine, SetDone, headerText, kilogramsUnit, targetText
 from gym.screens.common import Banners, Menu, Notice
 from gym.screens.look import gap, quiet, tapSize
 
@@ -52,11 +52,9 @@ def NoPlan(app):
 
 @ft.component
 def RestDay(app, view):
-    """Rest day · next: Pull, and Train anyway (19.1c-2): the next workout now, the rest kept for later."""
+    """Rest day · next: Upper. Rest days are rest: today's weekday decides the session (WD1.1)."""
     nextText = f"Rest day · next: {view.nextWorkoutTitle}" if view.nextWorkoutTitle else "Rest day"
-    trainAnyway = ft.OutlinedButton("Train anyway", on_click=lambda e: app.trainAnyway(), height=tapSize)
-    return ft.Column([ft.Text(nextText, size=16), trainAnyway if view.nextWorkoutTitle else ft.Container(visible=False)],
-                     spacing=gap)
+    return ft.Column([ft.Text(nextText, size=16)], spacing=gap)
 
 
 @ft.component
@@ -169,7 +167,8 @@ def SetsEditor(app, line: ExerciseLine, close):
                      ft.TextField(label="Reps", value=reps, keyboard_type=ft.KeyboardType.NUMBER, width=90,
                                   on_change=lambda e, i=index: changeCell(i, 0, e.control.value))]
             if weighted:
-                cells.append(ft.TextField(label="kg", value=kg, keyboard_type=ft.KeyboardType.NUMBER, width=100,
+                cells.append(ft.TextField(label=kilogramsUnit(exercise), value=kg, keyboard_type=ft.KeyboardType.NUMBER,
+                                          width=100,
                                           on_change=lambda e, i=index: changeCell(i, 1, e.control.value)))
             fields.append(ft.Row(cells, spacing=gap))
         fields.append(ft.Row([
@@ -241,7 +240,8 @@ def _loggedText(line: ExerciseLine) -> str:
     if len(set(logged.sets)) == 1:
         first = logged.sets[0]
         text = f"{len(logged.sets)}×{first.reps}"
-        return text + (f" @ {_kgText(first.weightKg)} kg" if first.weightKg is not None else "")
+        return text + (f" @ {_kgText(first.weightKg)} {kilogramsUnit(line.exercise)}" if first.weightKg is not None
+                       else "")
     return " · ".join(f"{done.reps}" + (f"@{_kgText(done.weightKg)}" if done.weightKg is not None else "")
                       for done in logged.sets)
 

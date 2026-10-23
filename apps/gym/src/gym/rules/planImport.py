@@ -85,7 +85,7 @@ def renameExercises(planJson: Mapping[str, Any], sameAs: Mapping[str, str]) -> d
     """The plan with each exercise you said is the same as a known one given that one's ID, so its
     history carries on (plans.planJson stores the matched IDs, plan 14). Check the result again."""
     renamed = copy.deepcopy(dict(planJson))
-    for step in renamed.get("cycle", []):
+    for step in renamed.get("week", []):
         if not isinstance(step, dict):
             continue
         for exercise in step.get("exercises") or []:

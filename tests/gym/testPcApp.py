@@ -118,10 +118,10 @@ def signedIn(browser):
 def testSignInLoadsEverythingThenShowsToday(browser, cloud):
     planInCloud(cloud)
     signedIn(browser)
-    assert "Push · day 1 of 3 · week 0/4" in browser.texts()
+    assert "Push · Monday · week 0/3" in browser.texts()
     browser.app.model.tab = "plans"
     texts = browser.texts()
-    assert "Active: Push Pull Legs (example) (v1) · since 12 Oct · 4/week" in texts
+    assert "Active: Push Pull Legs (example) (v1) · since 12 Oct · 3/week" in texts
 
 
 def testImportingAPlanWritesStraightToTheCloud(browser, cloud):
@@ -133,7 +133,7 @@ def testImportingAPlanWritesStraightToTheCloud(browser, cloud):
     press(find(browser.screen(), "Import a plan file…", "Button"))
     press(find(browser.screen(), "Import", "Button"))
     assert len(cloud.rows["plans"]) == 1
-    assert "Active: Push Pull Legs (example) (v1) · since 12 Oct · 4/week" in browser.texts()
+    assert "Active: Push Pull Legs (example) (v1) · since 12 Oct · 3/week" in browser.texts()
 
 
 def testAFailedWriteChangesNothingOnScreen(browser, cloud):

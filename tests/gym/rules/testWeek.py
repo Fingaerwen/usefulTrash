@@ -3,11 +3,11 @@ Monday to Sunday. Written before the code."""
 
 import datetime as dt
 
-from gym.rules.cycle import CycleStep, LoggedWorkout, PlanStart
+from gym.rules.schedule import LoggedWorkout, PlanStart, ScheduleDay
 from gym.rules.week import weekStart, weeklyTarget, workoutsInWeek
 
 monday = dt.date(2026, 10, 12)
-steps = (CycleStep("Workout", isRest=False), CycleStep("Rest", isRest=True))
+days = (ScheduleDay("Workout", isRest=False), ScheduleDay("Rest", isRest=True)) * 3 + (ScheduleDay("Rest", isRest=True),)
 
 
 def day(n: int) -> dt.date:
@@ -17,7 +17,7 @@ def day(n: int) -> dt.date:
 
 def plan(planImportId: str, startDay: int, weeklyTarget: int) -> PlanStart:
     importedAt = dt.datetime.combine(day(startDay), dt.time(8), tzinfo=dt.UTC)
-    return PlanStart(planImportId, day(startDay), 0, importedAt, steps, weeklyTarget)
+    return PlanStart(planImportId, day(startDay), importedAt, days, weeklyTarget)
 
 
 def workout(n: int) -> LoggedWorkout:

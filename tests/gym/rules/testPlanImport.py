@@ -21,9 +21,11 @@ def barbell(exerciseId: str, name: str, **settings) -> dict:
 
 
 def planFile(*exercises: dict) -> dict:
-    """A plan file with one workout step holding the given exercises, and a rest day."""
-    return {"planId": "test", "name": "Test", "version": 1, "weeklyTarget": 3,
-            "cycle": [{"title": "Workout", "exercises": list(exercises)}, {"title": "Rest", "restDay": True}]}
+    """A plan file with one workout on Monday holding the given exercises, and rest the other days."""
+    week = [{"day": "monday", "title": "Workout", "exercises": list(exercises)}]
+    week += [{"day": name, "title": "Rest", "restDay": True}
+             for name in ("tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")]
+    return {"planId": "test", "name": "Test", "version": 1, "weeklyTarget": 1, "week": week}
 
 
 def checked(*exercises: dict) -> Plan:
@@ -70,7 +72,7 @@ def testDifferentEquipmentOrKindIsNotAsked():
     """One dumbbell's weight isn't a barbell's, so their histories can't be joined."""
     earlier = known(barbell("benchPress", "Bench Press"),
                     {"exerciseId": "walk", "name": "Walk", "type": "cardio", "minutes": 10})
-    new = checked(barbell("dumbbellBench", "Bench Press", equipment="dumbbell"),
+    new = checked(barbell("dumbbellBench", "Bench Press", equipment="dumbbell", dumbbells=2),
                   barbell("walking", "Walk"))
     assert sameExerciseQuestions(new, earlier) == []
 
@@ -111,8 +113,8 @@ def testYesKeepsTheKnownId():
     """plans.planJson stores the matched IDs (plan 14); the file as read is left alone."""
     data = planFile(barbell("flatBench", "Bench Press"), barbell("row", "Row"))
     renamed = renameExercises(data, {"flatBench": "benchPress"})
-    assert [exercise["exerciseId"] for exercise in renamed["cycle"][0]["exercises"]] == ["benchPress", "row"]
-    assert data["cycle"][0]["exercises"][0]["exerciseId"] == "flatBench"
+    assert [exercise["exerciseId"] for exercise in renamed["week"][0]["exercises"]] == ["benchPress", "row"]
+    assert data["week"][0]["exercises"][0]["exerciseId"] == "flatBench"
     assert checkPlan(renamed).errors == ()
 
 

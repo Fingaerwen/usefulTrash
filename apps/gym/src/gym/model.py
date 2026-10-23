@@ -27,7 +27,6 @@ class AppModel:
     notice: str = ""  # a message shown once, like a refused entry or a sign-in problem
     failure: str = ""  # why the app can't start (screen "failed")
     today: TodayView | None = None
-    trainAnyway: bool = False
     waiting: int = 0  # changes not sent yet: "3 waiting" (SC1.1)
     banners: tuple[str, ...] = ()  # shown at the top of any tab (18.4a)
     downloaded: int = 0  # first download: "Downloading your data… N rows" (14b)

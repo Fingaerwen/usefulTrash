@@ -1,5 +1,5 @@
 """Tests for Today's actions and the facts behind them (gym/actions.py, gym/state.py), on a real phone
-database: ✓, sets, skip, Finish, Train anyway and steps, and what each does to the cycle."""
+database: ✓, sets, skip, Finish and steps, and what each does to the week."""
 
 import asyncio
 import datetime as dt
@@ -16,18 +16,24 @@ from usefulShared.store.phoneStore import PhoneStore, runPhoneSteps
 from usefulShared.tables import newRowId
 
 monday = dt.date(2026, 10, 12)
+tuesday, saturday = monday + dt.timedelta(days=1), monday + dt.timedelta(days=5)
 planFile = {
-    "planId": "pushPullLegs", "name": "Push Pull Legs", "version": 1, "weeklyTarget": 4,
-    "cycle": [
-        {"title": "Push", "exercises": [
+    "planId": "pushPullLegs", "name": "Push Pull Legs", "version": 1, "weeklyTarget": 2,
+    "week": [
+        {"day": "monday", "title": "Push", "exercises": [
             {"exerciseId": "benchPress", "name": "Bench Press", "equipment": "barbell", "body": "upper",
              "sets": 4, "repsMin": 8, "repsMax": 12, "weightKg": 82.5},
             {"exerciseId": "dips", "name": "Dips", "equipment": "bodyweight", "sets": 3, "repsMin": 8, "repsMax": 12},
             {"exerciseId": "inclineWalk", "name": "Incline Walk", "type": "cardio", "minutes": 15}]},
-        {"title": "Rest", "restDay": True},
-        {"title": "Pull", "exercises": [
+        {"day": "tuesday", "title": "Rest", "restDay": True},
+        {"day": "wednesday", "title": "Pull", "exercises": [
             {"exerciseId": "deadlift", "name": "Deadlift", "equipment": "barbell", "body": "lower",
              "sets": 3, "repsMin": 5, "repsMax": 8, "weightKg": 140}]},
+        {"day": "thursday", "title": "Rest", "restDay": True},
+        {"day": "friday", "title": "Rest", "restDay": True},
+        {"day": "saturday", "title": "Flex", "makeUp": ["monday", "wednesday"], "exercises": [
+            {"exerciseId": "inclineWalk", "name": "Incline Walk", "type": "cardio", "minutes": 15}]},
+        {"day": "sunday", "title": "Rest", "restDay": True},
     ],
 }
 
@@ -60,8 +66,8 @@ class App:
     def do(self, action, *args):
         asyncio.run(action(*args))
 
-    def today(self, date=monday, trainAnyway=False):
-        return self.state.today(date, trainAnyway)
+    def today(self, date=monday):
+        return self.state.today(date)
 
 
 @pytest.fixture
@@ -86,14 +92,14 @@ def testCheckLogsTheTargetAndStartsTheWorkout(app):
 
 
 def testCheckingAgainTakesItBackAndTheWorkoutWithIt(app):
-    """A mistaken tap mustn't move the cycle on: with nothing left logged, the workout goes too."""
+    """A mistaken tap mustn't count as a workout: with nothing left logged, the workout goes too."""
     view = app.today()
     app.do(app.actions.checkExercise, view, line(view, "benchPress"))
     view = app.today()
     app.do(app.actions.checkExercise, view, line(view, "benchPress"))
     view = app.today()
     assert line(view, "benchPress").status == "todo" and not view.workoutExists
-    assert app.today(monday + dt.timedelta(days=1)).title == "Push"  # the cycle didn't move
+    assert app.today(saturday).title == "Push"  # Monday counts as missed, so Saturday makes it up
 
 
 def testTakingBackOneOfTwoKeepsTheWorkout(app):
@@ -136,7 +142,7 @@ def testCardioCheckLogsTheTargetMinutes(app):
     assert (logged.minutes, logged.sets) == (15, ())
 
 
-def testFinishAutoSkipsTheRestAndMovesTheCycle(app):
+def testFinishAutoSkipsWhatsLeft(app):
     view = app.today()
     app.do(app.actions.checkExercise, view, line(view, "benchPress"))
     app.do(app.actions.finishWorkout, app.today())
@@ -144,7 +150,7 @@ def testFinishAutoSkipsTheRestAndMovesTheCycle(app):
     assert view.finished and [entry.status for entry in view.exercises] == ["done", "autoSkipped", "autoSkipped"]
     (session,) = app.database.rows("sessions")
     assert session["finishedAt"] == app.clock()
-    assert app.today(monday + dt.timedelta(days=1)).isRestDay
+    assert app.today(tuesday).weekDone == 1
 
 
 def testLoggingAfterFinishAddsToTheSameWorkout(app):
@@ -172,7 +178,7 @@ def testTakingBackTheLastEntryRemovesEvenAFinishedWorkout(app):
     app.do(app.actions.finishWorkout, app.today())
     app.do(app.actions.checkExercise, app.today(), line(app.today(), "benchPress"))
     assert not app.today().workoutExists
-    assert app.today(monday + dt.timedelta(days=1)).title == "Push"
+    assert app.today(tuesday).weekDone == 0
 
 
 def testFinishWithNothingLoggedDoesNothing(app):
@@ -180,16 +186,16 @@ def testFinishWithNothingLoggedDoesNothing(app):
     assert app.database.rows("sessions") == []
 
 
-def testTrainAnywayLogsTheNextWorkoutAndKeepsTheRest(app):
-    """19.1c-2: on the rest day, Pull is done instead, and the rest comes the day after."""
-    tuesday, wednesday = monday + dt.timedelta(days=1), monday + dt.timedelta(days=2)
-    app.do(app.actions.checkExercise, app.today(), line(app.today(), "benchPress"))
-    assert app.today(tuesday).isRestDay
-    view = app.today(tuesday, trainAnyway=True)
-    app.do(app.actions.checkExercise, view, line(view, "deadlift"))
-    assert app.today(tuesday).title == "Pull"  # the logged workout is now the day
-    nextDay = app.today(wednesday)
-    assert nextDay.isRestDay and nextDay.nextWorkoutTitle == "Push"
+def testTheFlexDayLogsTheSessionItMakesUp(app):
+    """WD1.1: Monday was missed, so Saturday's workout is Monday's Push, and it's saved as Monday's."""
+    view = app.today(saturday)
+    assert (view.title, view.makesUp) == ("Push", "Monday")
+    app.do(app.actions.checkExercise, view, line(view, "benchPress"))
+    (session,) = app.database.rows("sessions")
+    assert (session["date"], session["stepIndex"]) == (saturday, 0)
+    assert app.today(saturday).makesUp == "Monday"
+    sunday = app.today(saturday + dt.timedelta(days=1))
+    assert sunday.isRestDay and sunday.nextWorkoutTitle == "Push"
 
 
 def testStepsEnteredReplacedAndCleared(app):
@@ -205,7 +211,7 @@ def testStepsEnteredReplacedAndCleared(app):
 def testStepsAreNeverAWorkout(app):
     app.do(app.actions.setSteps, monday, 14000)
     assert not app.today().workoutExists
-    assert app.today(monday + dt.timedelta(days=1)).title == "Push"
+    assert app.today(tuesday).weekDone == 0
 
 
 def testAPlanThatCantBeReadIsListedNotFatal(app):

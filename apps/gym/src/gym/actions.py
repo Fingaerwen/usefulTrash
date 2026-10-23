@@ -131,8 +131,8 @@ class GymActions:
 
     async def _takeBack(self, view: TodayView, line: ExerciseLine) -> None:
         """Takes an exercise's entry back. If it was the day's only entry, the workout goes too (finished or
-        not): a workout exists only while something is logged in it, so a mistaken tap can't move the
-        cycle on."""
+        not): a workout exists only while something is logged in it, so a mistaken tap never counts as a
+        workout."""
         logId = dayRowId(exerciseLogs, self.userId, date=view.date, exerciseId=line.exercise.exerciseId)
         logRow = self.state.row("exerciseLogs", logId)
         if logRow is None or logRow["deleted"]:

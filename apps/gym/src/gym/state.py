@@ -9,9 +9,9 @@ import datetime as dt
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from gym.rules.cycle import LoggedWorkout, PlanStart
-from gym.rules.planFile import Plan, PlanExercise, checkPlan, cycleSteps
+from gym.rules.planFile import Plan, PlanExercise, checkPlan, scheduleDays
 from gym.rules.planImport import knownExercises
+from gym.rules.schedule import LoggedWorkout, PlanStart
 from gym.rules.today import ImportedPlan, LoggedExercise, SetDone, TodayView, todayView
 
 
@@ -39,8 +39,7 @@ class GymState:
             if plan is None:
                 self.unreadablePlans.append(row["id"])
                 continue
-            start = PlanStart(row["id"], row["effectiveDate"], row["startStep"], row["importedAt"], cycleSteps(plan),
-                              plan.weeklyTarget)
+            start = PlanStart(row["id"], row["effectiveDate"], row["importedAt"], scheduleDays(plan), plan.weeklyTarget)
             self.plans.append(ImportedPlan(start, plan))
         self.known = knownExercises((imported.start.importedAt, imported.plan) for imported in self.plans)
 
@@ -53,9 +52,8 @@ class GymState:
         self.steps = {row["date"]: row["steps"] for row in self._live("dailySteps")}
         self.weights = {row["date"]: row["weightKg"] for row in self._live("bodyWeight")}
 
-    def today(self, date: dt.date, trainAnyway: bool = False) -> TodayView:
-        return todayView(self.plans, self.workouts, self.logs.get(date, {}), self.known, self.steps.get(date), date,
-                         trainAnyway)
+    def today(self, date: dt.date) -> TodayView:
+        return todayView(self.plans, self.workouts, self.logs.get(date, {}), self.known, self.steps.get(date), date)
 
     def planLines(self, today: dt.date) -> tuple[str, ...]:
         """The PC view's Plans tab (SC6.1): the active plan, any taking effect later, and earlier ones."""

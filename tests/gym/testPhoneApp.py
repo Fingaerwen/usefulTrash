@@ -148,7 +148,7 @@ def testSignInDownloadsEverythingThenShowsToday(phone, cloud):
     planInCloud(cloud)
     signedIn(phone)
     texts = phone.texts()
-    assert "Push · day 1 of 3 · week 0/4" in texts
+    assert "Push · Monday · week 0/3" in texts
     assert "Bench Press" in texts and "4×8 @ 80 kg" in texts
     assert phone.app.store.meta("firstDownloadDone") is not None
 
@@ -271,16 +271,19 @@ def testStepsEditing(phone, cloud):
     assert phone.app.model.today.stepsToday == 14000
 
 
-def testRestDayAndTrainAnyway(phone, cloud):
+def testRestDayAndTheFlexDay(phone, cloud):
+    """WD1.1: today's weekday decides; a rest day is rest, and Saturday makes up what was missed."""
     planInCloud(cloud)
     signedIn(phone)
     app = phone.app
     press(find(phone.screen(), "Bench Press: done as targeted", "IconButton"))  # Push today (Monday)
-    app.localToday = lambda: monday + dt.timedelta(days=1)  # Tuesday: the plan's Rest step
+    app.localToday = lambda: monday + dt.timedelta(days=1)  # Tuesday: a rest day
     app.refresh()
-    assert "Rest day · next: Pull" in phone.texts()
-    press(find(phone.screen(), "Train anyway", "OutlinedButton"))
-    assert "Deadlift" in phone.texts()
+    texts = phone.texts()
+    assert "Rest day · next: Pull" in texts and "Train anyway" not in texts
+    app.localToday = lambda: monday + dt.timedelta(days=5)  # Saturday: Wednesday's Pull was missed
+    app.refresh()
+    assert "Pull · Saturday, for Wednesday · week 1/3" in phone.texts() and "Deadlift" in phone.texts()
 
 
 def testARefusedEntryShowsWhy(phone, cloud):
@@ -347,7 +350,7 @@ def testImportingAPlanFileOnThePhone(phone, cloud):
     press(find(phone.screen(), "Import a file", "OutlinedButton"))
     assert phone.app.model.screen == "importPlan"
     texts = phone.texts()
-    assert "Start on:" in texts and "It takes effect today." in texts
+    assert "Mon · Push" in texts and "Sun · Rest" in texts and "It takes effect today." in texts
     press(find(phone.screen(), "Import", "Button"))
     assert phone.app.model.screen == "main"
     assert "Plan imported. It takes effect today." in phone.texts()

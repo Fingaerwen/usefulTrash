@@ -7,7 +7,7 @@ Pure logic: no screen, database, network or clock; the date is passed in.
 import datetime as dt
 from collections.abc import Iterable
 
-from gym.rules.cycle import LoggedWorkout, PlanStart, planInEffect
+from gym.rules.schedule import LoggedWorkout, PlanStart, planInEffect
 
 oneWeek = dt.timedelta(days=7)
 
@@ -27,7 +27,7 @@ def weeklyTarget(plans: Iterable[PlanStart], date: dt.date) -> int | None:
     monday = weekStart(date)
     plan = planInEffect(plans, monday)
     if plan is None:
-        firstStart = min((p.effectiveDate for p in plans if monday < p.effectiveDate < monday + oneWeek and p.steps),
+        firstStart = min((p.effectiveDate for p in plans if monday < p.effectiveDate < monday + oneWeek and p.days),
                          default=None)
         plan = planInEffect(plans, firstStart) if firstStart else None
     return plan.weeklyTarget if plan else None

@@ -2,10 +2,10 @@
   "planId": "pushPullLegs",
   "name": "Push Pull Legs (example)",
   "version": 1,
-  "weeklyTarget": 4,
-  "cycle": [
-    {"title": "Push", "exercises": [
-      {"exerciseId": "benchPress", "name": "Bench Press", "equipment": "barbell", "body": "upper",
+  "weeklyTarget": 3,
+  "week": [
+    {"day": "monday", "title": "Push", "exercises": [
+      {"exerciseId": "benchPress", "name": "Bench Press", "equipment": "barbell", "body": "upper", "compound": true,
        "sets": 4, "repsMin": 8, "repsMax": 12, "weightKg": 80, "restSec": 120, "incrementKg": 2.5,
        "notes": "pause at bottom",
        "setup": "Flat bench in a rack; bar at the height of your straight arms, safety pins just below chest height",
@@ -14,16 +14,25 @@
                  "Unrack, lower to mid-chest, pause, press back up"],
        "form": ["Shoulder blades squeezed together and down", "Wrists straight over the elbows",
                 "Bum stays on the bench"]},
-      {"exerciseId": "lateralRaise", "name": "Lateral Raise", "equipment": "dumbbell", "body": "upper",
+      {"exerciseId": "lateralRaise", "name": "Lateral Raise", "equipment": "dumbbell", "dumbbells": 2, "body": "upper",
        "sets": 3, "repsMin": 12, "repsMax": 15, "weightKg": 8, "restSec": 60, "incrementKg": 1},
       {"exerciseId": "dips", "name": "Dips", "equipment": "bodyweight",
        "sets": 3, "repsMin": 8, "repsMax": 12, "restSec": 90},
       {"exerciseId": "inclineWalk", "name": "Incline Walk", "type": "cardio", "minutes": 15}
     ]},
-    {"title": "Rest", "restDay": true},
-    {"title": "Pull", "exercises": [
-      {"exerciseId": "deadlift", "name": "Deadlift", "equipment": "barbell", "body": "lower",
-       "sets": 3, "repsMin": 5, "repsMax": 8, "weightKg": 140, "restSec": 180}
-    ]}
+    {"day": "tuesday", "title": "Rest", "restDay": true},
+    {"day": "wednesday", "title": "Pull", "exercises": [
+      {"exerciseId": "deadlift", "name": "Deadlift", "equipment": "barbell", "body": "lower", "compound": true,
+       "platesPerSide": true, "barKg": 20, "sets": 3, "repsMin": 5, "repsMax": 8, "weightKg": 60, "restSec": 180}
+    ]},
+    {"day": "thursday", "title": "Rest", "restDay": true},
+    {"day": "friday", "title": "Legs", "exercises": [
+      {"exerciseId": "squat", "name": "Squat", "equipment": "barbell", "body": "lower", "compound": true,
+       "sets": 3, "repsMin": 5, "repsMax": 8, "weightKg": 100, "restSec": 180}
+    ]},
+    {"day": "saturday", "title": "Flex", "makeUp": ["monday", "wednesday", "friday"], "exercises": [
+      {"exerciseId": "inclineWalk", "name": "Incline Walk", "type": "cardio", "minutes": 15}
+    ]},
+    {"day": "sunday", "title": "Rest", "restDay": true}
   ]
 }

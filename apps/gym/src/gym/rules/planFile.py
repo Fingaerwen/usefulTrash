@@ -4,9 +4,11 @@
 Pure logic: no screen, database or network. A file being imported is checked strictly, so typos are
 caught (an unknown field is an error). A plan that's already stored is read leniently: fields that a
 newer app version might add are ignored, so an older app can still read it. Each problem names its
-place (Step 1 "Push", exercise 2 "Dips") and the field, so the list can be pasted back to whoever
+place (Monday "Upper", exercise 2 "Dips") and the field, so the list can be pasted back to whoever
 wrote the plan. Problems that would lose or garble something are errors (the plan is refused);
 harmless ones are warnings (it's imported anyway).
+
+A plan is a week, Monday to Sunday (WD1.1). Inside the app each day is a step: step 0 is Monday.
 """
 
 import dataclasses
@@ -18,12 +20,12 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import Any
 
-from gym.rules.cycle import CycleStep
+from gym.rules.schedule import ScheduleDay, weekdayNames
 
 maxFileBytes = 1_000_000  # a plan is a few KB; a file this big isn't one
-maxSteps = 60  # a cycle longer than two months is surely a mistake
 idPattern = re.compile(r"[a-z][A-Za-z0-9]{0,99}")  # camelCase (11.4c), at most 100 characters
 equipmentKinds = ("barbell", "dumbbell", "bodyweight", "machine")
+plateLoaded = ("barbell", "machine")  # what platesPerSide and barKg are for (WD1.3)
 bodyParts = ("upper", "lower")
 exerciseKinds = ("strength", "cardio")
 defaultIncrementKg = {"upper": 2.5, "lower": 5.0}  # used when the plan gives no incrementKg (9.1)
@@ -33,17 +35,23 @@ howToFields = ("setup", "howTo", "form")
 maxSetupLength = 300
 maxHowToLines, maxHowToLineLength = 12, 200  # for each of howTo and form
 
+# How volume and estimated 1RM count the weight (WD1.3), and the lifts the deload trigger watches; read
+# now, used from 0.2-alpha.
+loadFields = ("dumbbells", "platesPerSide", "barKg", "compound")
+
 # The fields each block may have.
-planFields = ("planId", "name", "version", "weeklyTarget", "cycle")
-stepFields = ("title", "restDay", "exercises")
+planFields = ("planId", "name", "version", "weeklyTarget", "week")
+dayFields = ("day", "title", "restDay", "makeUp", "moves", "exercises")
+moveFields = ("exerciseId", "from", "to", "when")
 strengthFields = ("exerciseId", "name", "type", "equipment", "body", "sets", "repsMin", "repsMax", "weightKg",
-                  "incrementKg", "restSec", "notes", *howToFields)
+                  "incrementKg", *loadFields, "restSec", "notes", *howToFields)
 cardioFields = ("exerciseId", "name", "type", "minutes", "notes", *howToFields)
 exerciseFields = tuple(dict.fromkeys(strengthFields + cardioFields))  # every field any exercise may have
 
-# What must match when one exercise is in several steps; notes and rest time are display only.
-sameEverywhere = ("name", "kind", "equipment", "body", "sets", "repsMin", "repsMax", "weightKg", "incrementKg",
-                  "minutes")
+# What must match when one exercise is on several days. Notes and rest time are display only, and the
+# number of sets may differ (WD1.4): progress is about reps and weight.
+sameEverywhere = ("name", "kind", "equipment", "body", "repsMin", "repsMax", "weightKg", "incrementKg", "dumbbells",
+                  "platesPerSide", "barKg", "compound", "minutes")
 fieldNames = {"kind": "type"}  # PlanExercise names that differ from the file's
 
 
@@ -61,6 +69,10 @@ class PlanExercise:
     repsMax: int | None = None
     weightKg: float | None = None  # for dumbbells, one dumbbell (plan 4); None for bodyweight and cardio
     incrementKg: float | None = None  # added when you top the rep range: from the plan, else from body (9.1)
+    dumbbells: int | None = None  # dumbbell exercises: 1 or 2 dumbbells, for volume (WD1.3)
+    platesPerSide: bool = False  # weights are the plates on one side: doubled for volume and 1RM (WD1.3)
+    barKg: float | None = None  # the bar's or sled's own weight, added for volume and 1RM (WD1.3)
+    compound: bool = False  # a compound lift, watched by the deload trigger (0.2-alpha)
     restSec: int | None = None  # shown on Today, no timer (17.3a)
     notes: str | None = None  # form cues shown on Today (17.3a)
     minutes: int | None = None  # the cardio target
@@ -75,11 +87,23 @@ class PlanExercise:
 
 @dataclass(frozen=True, slots=True)
 class PlanStep:
-    """One step of the cycle: a workout with its exercises, or a rest day."""
+    """One day of the week: a workout with its exercises, or a rest day."""
 
     title: str
     isRest: bool
     exercises: tuple[PlanExercise, ...]
+    makeUp: tuple[int, ...] = ()  # the flex day: the earlier days it makes up, by priority (0 = Monday)
+
+
+@dataclass(frozen=True, slots=True)
+class ExerciseMove:
+    """An exercise that moves to another day in a week the flex day makes up one of `when` (WD1.2)."""
+
+    exerciseId: str
+    fromDay: int  # 0 = Monday
+    toDay: int  # the flex day itself means the end of the session it makes up
+    when: tuple[int, ...]
+    exercise: PlanExercise  # as the from day has it
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,7 +114,8 @@ class Plan:
     name: str
     version: int
     weeklyTarget: int  # workouts a week (17.1a)
-    steps: tuple[PlanStep, ...]
+    steps: tuple[PlanStep, ...]  # the 7 days, Monday first
+    moves: tuple[ExerciseMove, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -147,36 +172,36 @@ def checkPlan(data: Any, strict: bool = True) -> PlanCheck:
     """
     if not isinstance(data, dict):
         return _refused('The file must hold one plan: a {…} block with "planId", "name", "version", '
-                        '"weeklyTarget" and "cycle".')
+                        '"weeklyTarget" and "week".')
     problems = _Problems(strict)
     place = "The plan"
-    problems.unknownFields(data, planFields, place)
+    oldFormat = "cycle" in data and "week" not in data  # said once, in plain words, by _week
+    problems.unknownFields(data, planFields + (("cycle",) if oldFormat else ()), place)
     planId = problems.identifier(data, "planId", place)
     name = problems.text(data, "name", place, maxLength=100)
     version = problems.wholeNumber(data, "version", place, 1, 1_000_000)
     weeklyTarget = problems.wholeNumber(data, "weeklyTarget", place, 1, 7)  # F12.1
-    steps = _cycle(data, problems)
+    steps, moves = _week(data, problems)
+
+    # There's no Train anyway (WD1.1), so a target above the week's workout days can never be met.
+    workoutDays = sum(not step.isRest for step in steps)
+    if workoutDays and weeklyTarget is not None and weeklyTarget > workoutDays:
+        problems.error(f'The plan: "weeklyTarget" ({weeklyTarget}) is more than the week\'s {workoutDays} workout '
+                       "days, so it could never be met.")
     if problems.errors:
         return PlanCheck(None, data, tuple(problems.errors), tuple(problems.warnings))
-
-    # A target faster than the cycle's own pace is allowed (a short cycle can run more than once a
-    # week, and Train anyway exists), but it gets a warning (F12.1).
-    pace = sum(not step.isRest for step in steps) / len(steps) * 7
-    if weeklyTarget > pace + 1e-9:
-        problems.warn(f"The weekly target ({weeklyTarget}) is more than this cycle's pace (about "
-                      f"{_number(round(pace, 1))} workouts a week), so some weeks will fall short unless you "
-                      "train on rest days.")
-    plan = Plan(planId, name, version, weeklyTarget, tuple(steps))
+    plan = Plan(planId, name, version, weeklyTarget, tuple(steps), tuple(moves))
     return PlanCheck(plan, data, (), tuple(problems.warnings))
 
 
-def cycleSteps(plan: Plan) -> tuple[CycleStep, ...]:
-    """What the cycle rules need from a plan: each step's title and whether it's a rest day."""
-    return tuple(CycleStep(step.title, step.isRest) for step in plan.steps)
+def scheduleDays(plan: Plan) -> tuple[ScheduleDay, ...]:
+    """What the schedule rules need from a plan: each day's title, whether it's a rest day, and what the
+    flex day makes up."""
+    return tuple(ScheduleDay(step.title, step.isRest, step.makeUp) for step in plan.steps)
 
 
 def planExercises(plan: Plan) -> dict[str, PlanExercise]:
-    """The plan's exercises by exerciseId, in the order they first appear in the cycle."""
+    """The plan's exercises by exerciseId, in the order they first appear in the week."""
     exercises: dict[str, PlanExercise] = {}
     for step in plan.steps:
         for exercise in step.exercises:
@@ -186,36 +211,49 @@ def planExercises(plan: Plan) -> dict[str, PlanExercise]:
 
 # --- The blocks of a plan -----------------------------------------------------------------------
 
-def _cycle(data: dict[str, Any], problems: "_Problems") -> list[PlanStep]:
-    """Checks the cycle's steps. Returns the valid ones; every problem goes into `problems`."""
-    if "cycle" not in data:
-        problems.error('The plan: "cycle" is missing.')
-        return []
-    cycle = data["cycle"]
-    if not isinstance(cycle, list) or not cycle:
-        problems.error('The plan: "cycle" must be a list with at least one step.')
-        return []
-    if len(cycle) > maxSteps:
-        problems.error(f"The plan: the cycle has {len(cycle)} steps; at most {maxSteps} are allowed.")
-        return []
+def _week(data: dict[str, Any], problems: "_Problems") -> tuple[list[PlanStep], list[ExerciseMove]]:
+    """Checks the week's 7 days and the flex day's moves. Returns them only if every day is valid; every
+    problem goes into `problems`."""
+    if "week" not in data:
+        if "cycle" in data:
+            problems.error('The plan: "cycle" is the old format; plans now run on weekdays. Give "week" with the 7 '
+                           "days, Monday to Sunday, instead.")
+        else:
+            problems.error('The plan: "week" is missing.')
+        return [], []
+    week = data["week"]
+    if not isinstance(week, list) or len(week) != len(weekdayNames):
+        has = f"it has {len(week)}" if isinstance(week, list) else f"not {_shown(week)}"
+        problems.error(f'The plan: "week" must be a list of the 7 days, Monday to Sunday; {has}.')
+        return [], []
 
-    placedSteps = [(_stepPlace(index, rawStep), _step(index, rawStep, problems))
-                   for index, rawStep in enumerate(cycle)]
-    steps = [step for _, step in placedSteps if step is not None]
-    if len(steps) == len(cycle) and all(step.isRest for step in steps):
-        problems.error("The plan: the cycle has no workout; every step is a rest day.")
-    _sameSettingsEverywhere([(place, step) for place, step in placedSteps if step is not None], problems)
-    return _howToGivenOnce(steps)
+    places = [_dayPlace(index, rawDay) for index, rawDay in enumerate(week)]
+    checked = [_step(index, rawDay, problems) for index, rawDay in enumerate(week)]
+    if all(step is not None and step.isRest for step in checked):
+        problems.error("The plan: the week has no workout; every day is a rest day.")
+    valid = [(place, step) for place, step in zip(places, checked) if step is not None]
+    _sameSettingsEverywhere(valid, problems)
+    filledIn = iter(_howToGivenOnce([step for _, step in valid]))
+    steps = [next(filledIn) if step is not None else None for step in checked]
+    flexIndex, makeUp, moves = _flexDay(week, places, steps, problems)
+    if any(step is None for step in steps):
+        return [], []
+    if flexIndex is not None:
+        steps[flexIndex] = dataclasses.replace(steps[flexIndex], makeUp=makeUp)
+    return steps, moves
 
 
 def _step(index: int, rawStep: Any, problems: "_Problems") -> PlanStep | None:
-    """Checks one step of the cycle; None if it has errors."""
-    place = _stepPlace(index, rawStep)
+    """Checks one day of the week; None if it has errors. Its "makeUp" and "moves" are checked by _flexDay."""
+    place = _dayPlace(index, rawStep)
     if not isinstance(rawStep, dict):
-        problems.error(f'{place} must be a {{…}} block with a "title".')
+        problems.error(f'{place} must be a {{…}} block with "day" and "title".')
         return None
     errorsBefore = len(problems.errors)
-    problems.unknownFields(rawStep, stepFields, place)
+    problems.unknownFields(rawStep, dayFields, place)
+    if problems.present(rawStep, "day", place, required=True) and rawStep["day"] != weekdayNames[index]:
+        problems.error(f'{place}: "day" must be "{weekdayNames[index]}" (the week runs Monday to Sunday, in order), '
+                       f'not {_shown(rawStep["day"])}.')
     title = problems.text(rawStep, "title", place, maxLength=50)
     isRest = problems.flag(rawStep, "restDay", place)
 
@@ -235,7 +273,7 @@ def _step(index: int, rawStep: Any, problems: "_Problems") -> PlanStep | None:
         # A day logs each exercise once (one exerciseLogs row per exercise and day, plan 14).
         for exerciseId, count in Counter(exercise.exerciseId for exercise in exercises).items():
             if count > 1:
-                problems.error(f'{place}: "{exerciseId}" appears more than once; each exercise can be in a step '
+                problems.error(f'{place}: "{exerciseId}" appears more than once; each exercise can be in a day '
                                "only once.")
 
     if len(problems.errors) > errorsBefore:
@@ -310,12 +348,132 @@ def _strengthDetails(raw: dict[str, Any], place: str, problems: "_Problems") -> 
             problems.error(f'{place}: needs "body" ("upper" or "lower") or "incrementKg", to know how much weight '
                            "to add.")
     return {"equipment": equipment, "body": body, "sets": sets, "repsMin": repsMin, "repsMax": repsMax,
-            "weightKg": weightKg, "incrementKg": incrementKg, "restSec": restSec}
+            "weightKg": weightKg, "incrementKg": incrementKg, "restSec": restSec,
+            **_loadDetails(raw, equipment, place, problems)}
+
+
+def _loadDetails(raw: dict[str, Any], equipment: str | None, place: str, problems: "_Problems") -> dict[str, Any]:
+    """How volume and estimated 1RM count the weight (WD1.3): the number of dumbbells, or plates logged per
+    side plus the bar's or sled's weight. And whether it's a compound lift (the deload trigger's)."""
+    details: dict[str, Any] = {"compound": problems.flag(raw, "compound", place)}
+    if equipment is None:
+        return details  # its error is listed already; the rest can't be judged
+    if equipment == "dumbbell":
+        if "dumbbells" not in raw:
+            problems.error(f'{place}: "dumbbells" is missing: 2 for one in each hand, 1 for a single dumbbell.')
+        else:
+            details["dumbbells"] = problems.wholeNumber(raw, "dumbbells", place, 1, 2)
+    elif "dumbbells" in raw:
+        problems.error(f'{place}: "dumbbells" is only for dumbbell exercises.')
+    if equipment in plateLoaded:
+        details["platesPerSide"] = problems.flag(raw, "platesPerSide", place)
+        if "barKg" in raw:
+            details["barKg"] = problems.kilograms(raw, "barKg", place, 0, 1000)
+    else:
+        for key in ("platesPerSide", "barKg"):
+            if key in raw:
+                problems.error(f'{place}: "{key}" is only for barbell and plate-loaded machine exercises.')
+    return details
+
+
+def _flexDay(week: list[Any], places: list[str], steps: list[PlanStep | None],
+             problems: "_Problems") -> tuple[int | None, tuple[int, ...], list[ExerciseMove]]:
+    """The flex day (WD1.1): the earlier days it makes up, by priority, and the exercises that move when it
+    makes up certain days (WD1.2). At most one day has "makeUp", and "moves" goes only with it.
+
+    Returns the flex day (or None), its makeUp and the moves; anything wrong goes into `problems`.
+    """
+    blocks = [rawDay if isinstance(rawDay, dict) else {} for rawDay in week]
+    for place, block in zip(places, blocks):
+        if "moves" in block and "makeUp" not in block:
+            problems.error(f'{place}: "moves" only goes with "makeUp", on the flex day.')
+    flexDays = [index for index, block in enumerate(blocks) if "makeUp" in block]
+    if len(flexDays) > 1:
+        problems.error(f'The plan: only one day can make up missed days, but {_inWords([places[i] for i in flexDays])} '
+                       'all have "makeUp".')
+    if len(flexDays) != 1:
+        return None, (), []
+    flex = flexDays[0]
+    block, place, flexName = blocks[flex], places[flex], weekdayNames[flex]
+    if block.get("restDay") is True:
+        problems.error(f'{place}: a rest day can\'t make up missed days; give it exercises (its bonus workout) or '
+                       'leave "makeUp" out.')
+        return None, (), []
+
+    makeUp = problems.days(block, "makeUp", place)
+    if makeUp is None:
+        return None, (), []  # the moves depend on it, so they're checked once it's right
+    for index in makeUp:
+        if index >= flex:
+            problems.error(f'{place}: "makeUp" can only list days before {flexName}, not "{weekdayNames[index]}".')
+        elif steps[index] is not None and steps[index].isRest:
+            problems.error(f'{place}: "makeUp" lists "{weekdayNames[index]}", which is a rest day.')
+
+    rawMoves = block.get("moves", [])
+    if not isinstance(rawMoves, list):
+        problems.error(f'{place}: "moves" must be a list of moves, like [{{"exerciseId": "…", "from": "friday", '
+                       f'"to": "{flexName}", "when": ["monday"]}}].')
+        rawMoves = []
+    moves: list[ExerciseMove] = []
+    movedAlready: set[tuple[str, int, int]] = set()
+    for number, rawMove in enumerate(rawMoves, start=1):
+        move = _move(f"{place}, move {number}", rawMove, flex, makeUp, places, steps, movedAlready, problems)
+        if move is not None:
+            moves.append(move)
+    return flex, makeUp, moves
+
+
+def _move(place: str, raw: Any, flex: int, makeUp: tuple[int, ...], places: list[str],
+          steps: list[PlanStep | None], movedAlready: set[tuple[str, int, int]],
+          problems: "_Problems") -> ExerciseMove | None:
+    """Checks one of the flex day's moves; None if it has errors."""
+    if not isinstance(raw, dict):
+        problems.error(f'{place} must be a {{…}} block with "exerciseId", "from", "to" and "when".')
+        return None
+    errorsBefore = len(problems.errors)
+    problems.unknownFields(raw, moveFields, place)
+    exerciseId = problems.identifier(raw, "exerciseId", place)
+    fromDay, toDay = problems.day(raw, "from", place), problems.day(raw, "to", place)
+    when = problems.days(raw, "when", place)
+    if len(problems.errors) > errorsBefore:
+        return None
+
+    if fromDay == flex:
+        problems.error(f'{place}: "from" can\'t be the flex day itself; its own exercises are only its bonus workout.')
+    elif fromDay == toDay:
+        problems.error(f'{place}: "from" and "to" are the same day.')
+    for key, index in (("from", fromDay), ("to", toDay)):
+        if steps[index] is not None and steps[index].isRest:
+            problems.error(f'{place}: "{key}" is {weekdayNames[index]}, a rest day.')
+    for index in when:
+        if index not in makeUp:
+            problems.error(f'{place}: "when" lists "{weekdayNames[index]}", which "makeUp" doesn\'t.')
+    if len(problems.errors) > errorsBefore or steps[fromDay] is None:
+        return None  # a day with errors of its own is listed already
+
+    exercise = next((e for e in steps[fromDay].exercises if e.exerciseId == exerciseId), None)
+    if exercise is None:
+        problems.error(f'{place}: "{exerciseId}" isn\'t in {places[fromDay]}.')
+        return None
+    # Moved to the flex day, it joins the end of the session made up; otherwise the end of its "to" day.
+    for target in (when if toDay == flex else (toDay,)):
+        if steps[target] is not None and any(e.exerciseId == exerciseId for e in steps[target].exercises):
+            madeUp = f", which {weekdayNames[flex].capitalize()} makes up" if toDay == flex else ""
+            problems.error(f'{place}: "{exerciseId}" is already in {places[target]}{madeUp}; an exercise can be in a '
+                           "workout only once.")
+    for index in when:
+        if (exerciseId, fromDay, index) in movedAlready:
+            problems.error(f'{place}: "{exerciseId}" already moves from {weekdayNames[fromDay]} when '
+                           f"{weekdayNames[flex]} makes up {weekdayNames[index]}.")
+        movedAlready.add((exerciseId, fromDay, index))
+    if len(problems.errors) > errorsBefore:
+        return None
+    return ExerciseMove(exerciseId, fromDay, toDay, when, exercise)
 
 
 def _sameSettingsEverywhere(placedSteps: list[tuple[str, PlanStep]], problems: "_Problems") -> None:
-    """An exercise in several steps needs the same settings in each, since progress is tracked per
-    exercise (7). Notes and rest time may differ."""
+    """An exercise on several days needs the same settings on each, since progress is tracked per
+    exercise (7). Notes, rest time and the number of sets may differ."""
     firstSeen: dict[str, tuple[str, PlanExercise]] = {}
     for place, step in placedSteps:
         for exercise in step.exercises:
@@ -329,14 +487,14 @@ def _sameSettingsEverywhere(placedSteps: list[tuple[str, PlanStep]], problems: "
                 for field in sameEverywhere if getattr(first, field) != getattr(exercise, field)
             ]
             if differences:
-                problems.error(f'"{exercise.exerciseId}" is in {_lowerFirst(firstPlace)} and {_lowerFirst(place)} '
-                               f"with different settings ({', '.join(differences)}). Give it the same settings in "
-                               "both, or a different exerciseId in one.")
+                problems.error(f'"{exercise.exerciseId}" is on {firstPlace} and {place} with different settings '
+                               f"({', '.join(differences)}). Give it the same settings on both, or a different "
+                               "exerciseId on one.")
 
 
 def _howToGivenOnce(steps: list[PlanStep]) -> list[PlanStep]:
-    """The how-to belongs to the exercise, so the plan gives it once (SC7.1): a step that leaves a how-to
-    field out shows the one from the first step that gives it. A step's own always wins."""
+    """The how-to belongs to the exercise, so the plan gives it once (SC7.1): a day that leaves a how-to
+    field out shows the one from the first day that gives it. A day's own always wins."""
     given: dict[str, dict[str, Any]] = {}
     for step in steps:
         for exercise in step.exercises:
@@ -491,6 +649,35 @@ class _Problems:
             return False
         return value
 
+    def day(self, block, key, place) -> int | None:
+        """A required day of the week, like "friday", as its index (0 = Monday)."""
+        if not self.present(block, key, place, required=True):
+            return None
+        value = block[key]
+        if value not in weekdayNames:
+            self.error(f'{place}: "{key}" must be a day, "monday" to "sunday", not {_shown(value)}.')
+            return None
+        return weekdayNames.index(value)
+
+    def days(self, block, key, place) -> tuple[int, ...] | None:
+        """A required list of days, in an order that matters, each once: ["monday", "thursday"]."""
+        if not self.present(block, key, place, required=True):
+            return None
+        value = block[key]
+        if not isinstance(value, list) or not value:
+            self.error(f'{place}: "{key}" must be a list of days, like ["monday", "thursday"], not {_shown(value)}.')
+            return None
+        errorsBefore = len(self.errors)
+        for name in value:
+            if name not in weekdayNames:
+                self.error(f'{place}: "{key}" has {_shown(name)}, which isn\'t a day; days are "monday" to "sunday".')
+        for name, count in Counter(name for name in value if name in weekdayNames).items():
+            if count > 1:
+                self.error(f'{place}: "{key}" has "{name}" more than once.')
+        if len(self.errors) > errorsBefore:
+            return None
+        return tuple(weekdayNames.index(name) for name in value)
+
 
 class _SpecialNumber(ValueError):
     """The file uses NaN or Infinity, which Python's JSON reader would otherwise accept."""
@@ -504,10 +691,12 @@ def _refused(*errors: str) -> PlanCheck:
     return PlanCheck(None, None, errors, ())
 
 
-def _stepPlace(index: int, rawStep: Any) -> str:
-    """How errors name a step: Step 2 "Pull", or just Step 2 if its title is unusable."""
-    title = rawStep.get("title") if isinstance(rawStep, dict) else None
-    return f'Step {index + 1} "{title.strip()}"' if _fitsInAPlace(title, maxLength=50) else f"Step {index + 1}"
+def _dayPlace(index: int, rawDay: Any) -> str:
+    """How errors name a day, by its place in the week: Thursday "Pull", or just Thursday if its title is
+    unusable."""
+    weekday = weekdayNames[index].capitalize()
+    title = rawDay.get("title") if isinstance(rawDay, dict) else None
+    return f'{weekday} "{title.strip()}"' if _fitsInAPlace(title, maxLength=50) else weekday
 
 
 def _fitsInAPlace(value: Any, maxLength: int) -> bool:
@@ -530,6 +719,8 @@ def _setting(value: Any) -> str:
     """A setting in a "different settings" error."""
     if value is None:
         return "not set"
+    if isinstance(value, bool):
+        return json.dumps(value)  # true or false, as the file has it
     if isinstance(value, str):
         return f'"{value}"'
     return _number(value)
@@ -542,5 +733,6 @@ def _number(value: float) -> str:
     return str(value)
 
 
-def _lowerFirst(text: str) -> str:
-    return text[:1].lower() + text[1:]
+def _inWords(items: list[str]) -> str:
+    """["a", "b", "c"] as "a, b and c"."""
+    return items[0] if len(items) == 1 else f"{', '.join(items[:-1])} and {items[-1]}"

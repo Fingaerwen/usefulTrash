@@ -1,6 +1,6 @@
 # usefulTrash: Gym App Plan
 
-> **Status (2026-10-14):** Phase 0's 12 checks all passed (see `docs/phase0.md`), and the Google app is published (P1.1). The design round is done: code structure (3b), data tables, sync and data upgrades (14, 14b, 14c), releases (12b), diagnostics (12d), screens and look (6, 10, 12c). Staging decided (ST1.1, see "Staging"). Building 0.1-alpha. Built and tested on the PC: everything in 0.1-alpha's list (see "Staging"), including the phone app and PC view screens, the ping workflow, the release script and a signed trial build. Your one-time setup (`docs/setup.md`, steps 1-4) is done. Next: the first release and the check on your phone. This file is the single source of truth: every decision made after approval is applied in the sections below and listed in the **Decision log** at the end.
+> **Status (2026-10-14):** Phase 0's 12 checks all passed (see `docs/phase0.md`), and the Google app is published (P1.1). The design round is done: code structure (3b), data tables, sync and data upgrades (14, 14b, 14c), releases (12b), diagnostics (12d), screens and look (6, 10, 12c). Staging decided (ST1.1, see "Staging"). Building 0.1-alpha. Built and tested on the PC: everything in 0.1-alpha's list (see "Staging"), including the phone app and PC view screens, the ping workflow, the release script and a signed trial build. Your one-time setup (`docs/setup.md`, steps 1-4) is done. **2026-10-23:** your Claude project's plan needed changes (WD1, WD2): the weekly schedule replaced the rotating cycle and the plan format got its new fields, both in 0.1-alpha; the rest is recorded for 0.2-alpha. Next: the first release and the check on your phone. This file is the single source of truth: every decision made after approval is applied in the sections below and listed in the **Decision log** at the end.
 
 ## Context
 This is a personal suite of Python apps in one public repo (`claudProjects/usefulTrash/`). The first app is an Android **gym tracker**; a **diet app** comes later and will share the same cloud database and login. Every decision below was made with you point by point, including the resolution of the "brutal review" flaws. **Approving this plan starts Phase 0 only (the feasibility check).** The staging after that is decided from Phase 0's results (14.1).
@@ -51,7 +51,7 @@ This is a personal suite of Python apps in one public repo (`claudProjects/usefu
 - **Full documentation write-up** in `docs/` when the project is done, updated whenever anything relevant changes or is added.
 
 ## 3b. Code structure (CS1.1)
-- **Rules are pure** (`gym/rules/`): cycle, progression, PRs/volume/streaks, weekly summary and plan-file checks never touch a screen, the database, the network or the clock; "today" is passed in. Most tests live here, and the phone and the PC view compute identical results from identical facts (F10.1).
+- **Rules are pure** (`gym/rules/`): the weekly schedule, progression, PRs/volume/streaks, weekly summary and plan-file checks never touch a screen, the database, the network or the clock; "today" is passed in. Most tests live here, and the phone and the PC view compute identical results from identical facts (F10.1).
 - **All your facts are held in memory.** On start the app loads every row (phone: its own database; PC view: the cloud) and `state.py` calculates everything from them. Start-up has about 2 s of room under the 5 s limit (check 8: 2.8–3.3 s); the load time is measured at every release.
 - **One write path:** screens call `actions.py`, which builds the row (new `id`, your `userId`) and hands it to the store. The store checks every column and stamps the edit time: the device's clock, or just after the version it replaces if the clock is behind that, so an edit always beats what it was made from. Screens never write rows themselves.
 - **Two stores, one interface** (`usefulShared.store`): the phone saves to SQLite and the outbox in one transaction, and sync (phone only) sends the outbox and fetches changes made elsewhere. The PC view writes straight to the cloud; if that fails, nothing changes on screen and you see why.
@@ -65,41 +65,48 @@ This is a personal suite of Python apps in one public repo (`claudProjects/usefu
 ## 4. Plan JSON (written in your Claude project)
 ```json
 {
-  "planId": "pushPullLegs", "name": "Push Pull Legs", "version": 2, "weeklyTarget": 4,
-  "cycle": [
-    {"title": "Push", "exercises": [
+  "planId": "pushPullLegs", "name": "Push Pull Legs", "version": 2, "weeklyTarget": 3,
+  "week": [
+    {"day": "monday", "title": "Push", "exercises": [
       {"exerciseId": "benchPress", "name": "Bench Press", "equipment": "barbell",
-       "body": "upper", "sets": 4, "repsMin": 8, "repsMax": 12, "weightKg": 80,
-       "restSec": 120, "incrementKg": 2.5, "notes": "pause at bottom"},
+       "body": "upper", "compound": true, "platesPerSide": true, "barKg": 20,
+       "sets": 4, "repsMin": 8, "repsMax": 12, "weightKg": 30,
+       "restSec": 120, "incrementKg": 1.25, "notes": "pause at bottom"},
       {"exerciseId": "dips", "name": "Dips", "equipment": "bodyweight",
        "sets": 3, "repsMin": 8, "repsMax": 12, "restSec": 90},
       {"exerciseId": "inclineWalk", "name": "Incline Walk", "type": "cardio", "minutes": 15}
     ]},
-    {"title": "Rest", "restDay": true}
+    {"day": "tuesday", "title": "Rest", "restDay": true},
+    …
+    {"day": "saturday", "title": "Flex", "makeUp": ["monday", "wednesday", "friday"],
+     "moves": [{"exerciseId": "…", "from": "friday", "to": "saturday", "when": ["monday"]}],
+     "exercises": [ … the bonus workout … ]},
+    {"day": "sunday", "title": "Rest", "restDay": true}
   ]
 }
 ```
-- `equipment`: `barbell` | `dumbbell` | `bodyweight` | `machine`. Dumbbell `weightKg` is **one dumbbell**.
+- **A plan is a week (WD1.1):** `week` lists the 7 days in order, Monday first, each with its `day`. One day may be the **flex day**: its `makeUp` lists the earlier days it makes up, most important first, and its `moves` say which exercises move in the weeks it makes up certain days (WD1.2, section 5). The old `cycle` format is refused with a plain-words message.
+- `equipment`: `barbell` | `dumbbell` | `bodyweight` | `machine`. Dumbbell `weightKg` is **one dumbbell**, and `dumbbells` (1 or 2, required) says how many are lifted.
+- **Load (WD1.3):** `platesPerSide` (barbell or machine) means the logged weight is the plates on one side, and `barKg` is the bar's or sled's own weight; `compound` marks the lifts the deload trigger watches. The app reads them now; volume, 1RM and deloads use them from 0.2-alpha (sections 7 and 8). Today shows a per-side weight as `@ 20 kg/side`.
 - `incrementKg` is optional; the default comes from `body` (upper 2.5 / lower 5) (9.1).
 - `weeklyTarget` lives in the plan (17.1a). Mid-week imports: **Monday's plan decides** that week's target (17.4a).
 - `notes` = form cues shown on the Today screen (17.3a). Rest time is display only, no timer.
 - **How-to (SC7.1):** optional `setup` (one line: the machine or equipment needed and how to set it up), `howTo` (the steps) and `form` (form cues), the last two as lists of one-line texts (up to 12 lines of 200 characters each). Your Claude project writes them with the plan, and Today shows them when you tap the exercise. They're given once per exercise: a step that leaves one out shows the one from the first step that has it, and they never have to match across steps. No new table: they're stored inside `planJson`.
-- **Import:** PC view normally; phone file import only as a fallback (G2b-2). Exercises are matched by `exerciseId`, else by name with a prompt (11.3). **You choose the starting cycle day** on import (17.2c). **New plan weights win** (8.12). History stays continuous, so a reset shows as a dip (8.16d).
-- **The brief for your Claude project is `plans/planFormat.md`** (what the app does with a plan, what isn't supported and the workaround for each, the format, a tested example, how to hand a plan over), for you to add to the project's knowledge; the checks live in `gym/rules/planFile.py` (PF1). A file being imported is checked strictly: an unknown field is refused with the closest real one as a hint, so typos can't slip through. A plan already stored is read leniently, so an older app can still read a plan with fields a newer one added. An exercise in several steps needs the same settings in each (notes and rest time may differ), because progress is tracked per exercise.
+- **Import:** PC view normally; phone file import only as a fallback (G2b-2). Exercises are matched by `exerciseId`, else by name with a prompt (11.3). There's no starting day to choose: today's weekday decides (WD1.1; replaces 17.2c). **Known exercises keep your weights** (WD2.2, from 0.2-alpha; replaces 8.12): the import lists the plan weights it didn't use, and only new exercises start at the plan's weight. In 0.1-alpha the targets are still the plan's own weights. History stays continuous.
+- **The brief for your Claude project is `plans/planFormat.md`** (what the app does with a plan, what isn't supported and the workaround for each, the format, a tested example, how to hand a plan over), for you to add to the project's knowledge; the checks live in `gym/rules/planFile.py` (PF1). A file being imported is checked strictly: an unknown field is refused with the closest real one as a hint, so typos can't slip through. A plan already stored is read leniently, so an older app can still read a plan with fields a newer one added. An exercise on several days needs the same settings on each (notes, rest time and the number of sets may differ, WD1.4), because progress is tracked per exercise.
 - **Likely matches (11.3, PF1):** an exercise with a new ID is asked about if a known exercise of the same kind and equipment has a similar name (ignoring case and punctuation, or one name inside the other) and isn't in the new plan itself. Each is asked about once, best match first. "Yes" stores the known ID in the plan, so the history carries on.
 - **A new plan takes effect today, or tomorrow if a workout is already logged today** (PF1), so one day's workout never mixes two plans.
 - A week whose Monday had no plan yet (your first import) takes the first plan's weekly target.
 
-## 5. Cycle & rest
-- A **rotating cycle**; a missed day never shifts dates, the next step just waits.
-- **Strict about extra rest:** an unplanned rest day does not use up a planned Rest step (13.3).
-- **Train anyway** on a planned Rest step: the next workout is done and the rest step is kept for later (19.1c-2 / 13.1a). **At most one rest is owed (KR1.2):** training through two Rest steps in a row owes one rest day, not two, then the plan carries on. Training on that owed rest day keeps it owed.
-- **A planned Rest step is used up when the day ends** with it as the current step and no workout logged, even if the app was never opened (R4a).
-- **Nothing here is stored; it's all recalculated (F10.1).** Cycle position, rest-step use and midnight auto-finish are worked out each time from the facts: logged sessions (each records which plan step it was, 14), and plan imports with the date and starting step you chose. So the phone and the PC view always agree, and nothing has to run at midnight. These rules get written as automated tests first, including edge cases such as "train anyway" twice in a row on a Rest step (done: `tests/gym/rules/testCycle.py`).
+## 5. Weekly schedule (WD1.1)
+- **Each weekday has its own session**, Monday to Sunday, and **today's weekday decides** what Today shows. A missed day is just missed: nothing shifts. Rest days are rest: there's no Train anyway. (Replaces the rotating cycle, Train anyway and kept rests: 13.1a, 13.3, 19.1c-2, R4a, KR1.2.)
+- **The flex day:** one day of the plan (yours: Saturday) shows a core session **missed earlier that week**: the first missed one in the plan's `makeUp` order (yours: Upper, Pull, Push, Lower A, Lower B). If two were missed, only that one is made up; if none was, it shows its own **bonus** workout. A missed day is a workout day that ended without a workout, under the plan in effect that day, so a new plan version mid-week still makes up a day missed under the old one.
+- **Moves (WD1.2):** in weeks the flex day makes up certain days, an exercise moves: it leaves its `from` day and joins the **end** of its `to` day (the flex day itself means the end of the session it makes up). Yours: Friday's behind-the-back wrist curl moves to the end of Saturday when Saturday is Monday's or Thursday's session; Friday's rear delt machine moves to Thursday when Saturday is Wednesday's. Each day decides from what it knows: on Thursday, Monday to Wednesday are over and Thursday and Friday count as trained. (For your plan that's always the final answer, since only lower-priority days are left by then.)
+- **Nothing here is stored; it's all recalculated (F10.1).** The day's session, what the flex day makes up and midnight auto-finish are worked out each time from the facts: logged sessions (each records whose session it was, 14) and plan imports with their dates. So the phone and the PC view always agree, and nothing has to run at midnight. Tests: `tests/gym/rules/testSchedule.py`, each rule also checked by breaking it on purpose.
 
 ## 6. Today screen (19.1)
 ```
-Push · day 1 of 5 · week 2/4      3 waiting  ⋮
+Upper · Monday · week 2/5         3 waiting  ⋮
 ─────────────────────────────────────────────
 Bench Press   4×9 @ 82.5 kg ↑new         [✓]
   rest 2:00 · "pause at bottom"  ▾ sets · skip
@@ -109,13 +116,13 @@ Incline Walk  15 min                     [✓]
               [ Finish workout ]
   Today     Progress     Week     Weight
 ```
-- **Approved layout (SC2.1).** The top line is the plan step's title (from your plan), its place in the cycle, and workouts done this week vs the weekly target. A rest day shows "Rest day · next: Pull" with a **[ Train anyway ]** button. The **⋮** menu holds Problems (12d) and Sign out.
+- **Approved layout (SC2.1).** The top line is the session's title (from your plan), the weekday (WD1.1), and workouts done this week vs the weekly target. On the flex day doing a missed session it reads `Upper · Saturday, for Monday · week 4/5`. A rest day shows "Rest day · next: Upper", with no button. The **⋮** menu holds Problems (12d) and Sign out.
 - **Steps today (SC4.1):** one line under Finish, on rest days too: `Steps today: 14,000 ✎` (CA1.1).
 - **[✓]** logs it as targeted. **▾ sets** opens per-set rows pre-filled with the target (19.1a-1). **skip** = today only.
 - **Tapping an exercise's name (SC7.1)** unfolds its how-to right under it, like ▾ sets: `Setup: …`, the numbered steps and the form cues, from the plan (section 4); tapping again folds it away. An exercise without one says "Your plan has no how-to for this exercise." The one-line `notes` stay on the row. Phone and PC view alike.
-- **Finish workout:** anything untouched is **auto-skipped** (19.1b-1) and the cycle advances. **Forgot to finish → it auto-finishes at midnight** the same way (R5a).
+- **Finish workout:** anything untouched is **auto-skipped** (19.1b-1). **Forgot to finish → it auto-finishes at midnight** the same way (R5a).
 - **One workout per day (DT1.1):** logging again later the same day adds to that day's workout.
-- **Taps (BLD1):** [✓] logs the exercise as targeted, and tapping it again takes it back. Taking back the day's last entry removes the workout too, finished or not, so a mistaken tap never moves the cycle on. Finish is available once something is logged. Train anyway applies to that day only. Targets in 0.1-alpha are the plan's own (repsMin at the plan's weight); suggestions come with 0.2-alpha.
+- **Taps (BLD1):** [✓] logs the exercise as targeted, and tapping it again takes it back. Taking back the day's last entry removes the workout too, finished or not, so a mistaken tap never counts as a workout. Finish is available once something is logged. Targets in 0.1-alpha are the plan's own (repsMin at the plan's weight); suggestions come with 0.2-alpha.
 - **Waiting changes (SC1.1):** while changes wait to be sent (no internet), a small, quiet "3 waiting" shows at the top; it disappears once they're sent. The 3-day "Not synced" banner stays (G9.2b).
 - Past days can be edited on the **phone for the last 7 days** (19.1f-1) and on the **PC for any day**. Edits recalculate suggestions, streaks and summaries.
 
@@ -127,19 +134,24 @@ Incline Walk  15 min                     [✓]
 - **Skipped exercises are ignored** by progression (19.1e-1).
 - Suggestions are **pre-filled** and tagged `↑new`, with Undo; logging one counts as accepting it (8.3). Suggestions are recalculated from your logged history, not stored (F10.1); an Undo is saved as a fact on that day's exercise entry.
 - **Bodyweight exercises:** reps keep rising past the range, with no weight suggestions (10.9a).
+- **An exercise on several days progresses separately on each (WD2.3):** its own rep target, weight, misses and drop-backs per day, so a lift done fresh on Monday and after 12 pressing sets on Wednesday doesn't keep missing on the tired day. "In a row" means that day's sessions. History, PRs and charts stay one per exercise. Rejected: one target, with misses on the exercise's second appearance in a week ignored.
+- **Weights and weight steps editable per exercise in the app (WD2.1):** you can set an exercise's working weight and its `incrementKg`; progression carries on from there. They're stored as facts, which needs cloud upgrade 002 (a new table, designed with 0.2-alpha).
+- **Re-import keeps your weights (WD2.2):** see section 4.
+- **Deloads (WD2.4):** about a week at **half the sets, stopping 3–4 reps short**. The app starts one by itself when **two or more compound lifts go backwards two sessions in a row**, or **by week 8** since the last deload at the latest, and you can start one by hand (say, when your joints nag). Exact details (what "backwards" measures, how half rounds, how a deload is stored) are designed with 0.2-alpha; the manual start is a stored fact, so it joins cloud upgrade 002.
 
 ## 8. Progress & stats
 - **PRs:** heaviest weight; estimated 1RM (Epley, **only from sets of 10 reps or fewer**) (16.2a); most reps at the **current weight only** (16.3a). Bodyweight exercises: most reps in one set (10.10a).
-- **Volume** (sets×reps×kg): per exercise, per workout, per week, vs last week. **Dumbbells are doubled in the combined totals only; one dumbbell is displayed everywhere** (10.4). Bodyweight exercises: total reps, kept separate (10.2).
-- **Consistency:** a weekly session target (4.1), streaks = weeks in a row hitting it, exercise completion %. Calendar: trained / rest / **missed = 3rd+ unplanned rest day in a row** (4.5 / 4.7a / 4.9a). Missed days are display-only; **the weekly target wins** for streaks (4.8a).
+- **Volume** (sets×reps×kg): per exercise, per workout, per week, vs last week. **Two-dumbbell lifts (`dumbbells: 2`) are doubled in the combined totals only; one dumbbell is displayed everywhere** (10.4, WD1.3). **Plates logged per side are doubled and the bar's or sled's weight (`barKg`) is added**, for volume and estimated 1RM alike; a lift logged as its whole load (your T-bar row's single pin) isn't doubled (WD1.3). Bodyweight exercises: total reps, kept separate (10.2).
+- **Consistency:** a weekly session target (4.1), streaks = weeks in a row hitting it, exercise completion %. Calendar: trained / rest / **missed = a workout day that ended without a workout** (WD1.1, replaces 4.9a's 3rd+ unplanned rest day); a flex day's bonus left out counts as rest. Missed days are display-only; **the weekly target wins** for streaks (4.8a).
 - Weeks run Monday–Sunday. Dates are plain calendar dates (16.4c).
 
 ## 9. Weekly summary & weight
 - **Summary:** completion, volume vs last week, PRs hit, weight change. Nutrition is added when the diet app exists (15.1).
 - **Summary also shows** total cardio minutes for the week (G9.4a). Cardio counts toward completion %.
-- **Daily steps (CA1.1):** you can enter your day's step total (what your phone's step counter shows) once a day, any day, rest days included; entering it again replaces it. It's converted at **100 steps = 1 minute** (a brisk walking pace) and added to the week's cardio, shown as e.g. `Cardio 185 min (45 gym + 140 from steps)`. Steps aren't a workout: they don't move the cycle, don't count toward completion %, the weekly workout count or streaks, and a day with only steps is still a rest day.
+- **Daily steps (CA1.1):** you can enter your day's step total (what your phone's step counter shows) once a day, any day, rest days included; entering it again replaces it. It's converted at **100 steps = 1 minute** (a brisk walking pace) and added to the week's cardio, shown as e.g. `Cardio 185 min (45 gym + 140 from steps)`. Steps aren't a workout: they don't count toward completion %, the weekly workout count or streaks, and a day with only steps is still a rest day.
 - **Weight:** a weekly weigh-in in the gym app plus a trend chart. The reminder is **Friday 07:00** (G9.1), with the text **"Time to weigh in"** (NT1.2, replaces 16.1a's "same day, morning, after toilet, before food"). **One weight per day (DT2.1):** entering it again replaces it.
 - **Past exercises** (not in the current plan) appear in Progress under "Past exercises", with full history (G10a).
+- **Optional for 0.2-alpha (WD2.5):** a daily creatine reminder (a second daily alarm in `extensions/weighInNotify`), and weigh-in math: two-week averages, the weekly rate, and the ±150 / ±250 kcal flags your Claude project suggested. The flags' thresholds and the weigh-in frequency they need are decided with 0.2-alpha.
 - **"Not synced" banner** appears after 3 days of unsynced changes (G9.2b).
 
 ## 10. Screens
@@ -200,7 +212,7 @@ Incline Walk  15 min                     [✓]
   Backup     Last backup: 12 Sep (phone) · 32 days ago
              [ Back up now ]   [ Export CSV ]
   ```
-  Import: pick the file → problems listed in plain words (G8a) → "is this the same exercise?" for likely matches (11.3) → choose the starting day (17.2c) → it takes effect. Edit opens the day laid out like Today (sets, steps, weight, or delete the workout). Backup warns at 60+ days (3.4).
+  Import: pick the file → problems listed in plain words (G8a) → "is this the same exercise?" for likely matches (11.3) → the week at a glance and Import (no starting day since WD1.1) → it takes effect. Edit opens the day laid out like Today (sets, steps, weight, or delete the workout). Backup warns at 60+ days (3.4).
 - **First launch (phone):** Sign in with Google → "Downloading your data… N rows" (14b) → if no plan exists yet: "Import your plan in the PC view", with "Import a file" as the fallback (G2b-2) → Today.
 
 ## 11. Notifications & background
@@ -224,7 +236,7 @@ Incline Walk  15 min                     [✓]
 - **Signing key:** stays on your PC, with a copy on a **second drive** (G3a). Its passwords are passed to the build through environment variables loaded from a local file outside the repo, never typed on the command line, because shell history counts as a log (F20). Made once with Java's `keytool`: a key file plus a random password, generated straight into a folder outside the repo that only you can read, and never shown. The certificate's name holds no personal details, because anyone can read it from the APK. That folder (key + password file) is what gets copied to the second drive. Checked in Flet 1.0.3: its Android build reads the signing values only from environment variables, and its logs show the build command but never the environment, so the passwords can't end up in a file or in any output. If it's ever lost: uninstall, reinstall, sign in again; only unsynced data is lost. Made 2026-10-14 with `tools/makeSigningKey.py` into `~/.local/share/usefulTrash/signing` (certificate `CN=Gym Tracker`, RSA 4096, valid until 2054); its public SHA-256 is in `apps/gym/signingCertificate.txt`. Backed up 2026-10-14 (KB1.1) to the 500 GB NVMe drive (ext4, so it stays readable only by you), checked identical to the original.
 - **Data-structure changes:** numbered upgrade scripts: you paste the cloud ones, the phone runs its own, and all are tested on your PC first. Details in 14c (G6a, UP1.1, UP2.1).
 - **Plan import:** the PC view is the normal path. **Phone file import is a fallback only** when the PC view is unavailable (G2b-2). If GitHub Pages fails, the PC features move to the phone (R1d); Koyeb is dropped (R1a).
-- **Invalid plans are rejected**, listing every error in plain words (G8a). Checks include missing fields, repsMin > repsMax, duplicate IDs, and a weeklyTarget outside 1–7 (F12.1). A target faster than the cycle's own pace (training steps ÷ cycle length × 7) isn't rejected, just flagged with a warning, because a short cycle can run more than once a week.
+- **Invalid plans are rejected**, listing every error in plain words (G8a). Checks include missing fields, repsMin > repsMax, duplicate IDs, and a weeklyTarget outside 1–7 (F12.1). A target above the week's workout days is refused, since there's no Train anyway to reach it (WD1.1; replaces F12.1's pace warning).
 
 ## 12c. Look & feel (G1)
 Dark mode that follows the phone setting, minimal screens and taps, medium-sized tap targets. **Accent (LK1.1):** white in dark mode, black in light mode, so the app is black and white either way (buttons, ✓ marks and charts included).
@@ -244,8 +256,8 @@ Every synced row has `id` (UUID), `userId`, `updatedAt` (when the edit was made,
 
 | Table | One row per | Columns besides the common ones |
 |---|---|---|
-| `plans` (gym) | plan import | `importedAt` (orders imports taking effect the same day), `effectiveDate`, `startStep`, `planJson` (the plan as imported, with matched exercise IDs), `archived` |
-| `sessions` (gym) | workout day (DT1.1) | `date`, `planImportId` + `stepIndex` (which plan step this workout was), `finishedAt` (empty until you tap Finish) |
+| `plans` (gym) | plan import | `importedAt` (orders imports taking effect the same day), `effectiveDate`, `startStep` (always 0 since WD1.1; kept because upgrades only add), `planJson` (the plan as imported, with matched exercise IDs), `archived` |
+| `sessions` (gym) | workout day (DT1.1) | `date`, `planImportId` + `stepIndex` (whose session this workout was: 0 = Monday's; on the flex day, the one it made up, or its own for the bonus), `finishedAt` (empty until you tap Finish) |
 | `exerciseLogs` (gym) | exercise per workout day | `date`, `exerciseId`, `targetReps` + `targetWeightKg` (what Today suggested), `sets` (a list of reps + kg), `minutes` (cardio), `skipped`, `declinedSuggestion` (an Undo) |
 | `bodyWeight` (shared) | day (DT2.1) | `date`, `weightKg` |
 | `dailySteps` (shared) | day (CA1.1) | `date`, `steps` |
@@ -253,8 +265,8 @@ Every synced row has `id` (UUID), `userId`, `updatedAt` (when the edit was made,
 | `cloudInfo` (cloud only) | one row in total | `schemaVersion`, `minAppSchema` (UP1.1); the apps only read it |
 
 - **IDs that can't duplicate (DT1.1 / DT2.1):** a day's workout, an exercise on a day, a day's weight and a day's steps get IDs calculated from your user ID and the date (plus the exercise), so the phone and the PC view logging the same thing produce the same row, never two. Plan imports and backups get random IDs.
-- **Only facts are stored (F10.1).** Recalculated instead: cycle position, rest-step use, auto-finish (a past day's workout counts as finished), auto-skips (an exercise with no entry in a finished workout), suggestions, PRs, streaks, and the exercise list itself: current and past names come from the plan imports, which replaces the planned `exercises` table (R8) with the same uses (11.3 matching, "Past exercises"). Cardio entries live in `exerciseLogs`, which replaces `cardioLogs`. No `cycleState` or `suggestions` tables.
-- **Each workout records its plan step**, so editing or deleting an old day never rewrites the steps of later ones.
+- **Only facts are stored (F10.1).** Recalculated instead: the day's session and what the flex day makes up, auto-finish (a past day's workout counts as finished), auto-skips (an exercise with no entry in a finished workout), suggestions, PRs, streaks, and the exercise list itself: current and past names come from the plan imports, which replaces the planned `exercises` table (R8) with the same uses (11.3 matching, "Past exercises"). Cardio entries live in `exerciseLogs`, which replaces `cardioLogs`. No `cycleState` or `suggestions` tables.
+- **Each workout records whose session it was**, so editing or deleting an old day never rewrites later ones.
 - **Dates** are the device's local calendar date when you log (16.4c); edit times are exact moments (UTC).
 - **In the cloud (F11.1 + SY1.1):** one trigger on every table ignores a change that isn't newer than the stored one, refuses a change stamped more than 5 minutes in the future (a phone with a wrong clock would otherwise win every conflict; the app then says "check your phone's clock"), and stamps `cloudUpdatedAt`. `updatedAt` always comes from the device that made the edit; the server never stamps it (unlike the Phase 0 test table). Row-level security: only your own rows, which you can read, add and change but not remove. The database enforces no links between tables, because offline changes can arrive in any order; the rules ignore leftovers.
 - **On the phone:** the same tables in SQLite, plus two local-only ones: `outbox` (changes waiting to be sent) and `syncState` (how far fetching has got).
@@ -322,13 +334,13 @@ Setup during Phase 0: create `usefulTrash/` with git (noreply email, username), 
 
 ## Staging (ST1.1)
 Decided 2026-10-14, after Phase 0 and the design round. Each release gets its tests written first and is checked on your phone before the next one starts.
-- **0.1-alpha · Log a workout:** cloud script 001 (real tables, trigger, `ping`), sign-in and session keeper, phone database + outbox + sync with the version check, the Problems page and log, plan import (PC view, phone file as the fallback), the cycle and rest rules, the Today screen (✓, sets, skip, Finish, steps line, "N waiting", the how-to on a tap), the daily ping workflow, the release script and the first signed release through Obtainium. Also: the declarative-screens check on the phone (CS1.1), the one-time setup (12b), and the privacy policy updated for daily steps.
-- **0.2-alpha · See progress:** progression suggestions (↑new, Undo), the Progress, Week and Weight tabs with charts, banners, the Friday notification.
+- **0.1-alpha · Log a workout:** cloud script 001 (real tables, trigger, `ping`), sign-in and session keeper, phone database + outbox + sync with the version check, the Problems page and log, plan import (PC view, phone file as the fallback), the weekly schedule with the flex day and its moves (WD1.1, WD1.2; replaced the cycle and rest rules before release), the plan format's load fields (WD1.3), the Today screen (✓, sets, skip, Finish, steps line, "N waiting", the how-to on a tap), the daily ping workflow, the release script and the first signed release through Obtainium. Also: the declarative-screens check on the phone (CS1.1), the one-time setup (12b), and the privacy policy updated for daily steps.
+- **0.2-alpha · See progress:** progression suggestions (↑new, Undo) with a separate target for each day (WD2.3), editable weights and weight steps (WD2.1), re-import keeping your weights (WD2.2), deloads (WD2.4), volume and 1RM with the load fields (WD1.3), the Progress, Week and Weight tabs with charts, banners, the Friday notification; optional: the creatine reminder and the weigh-in math (WD2.5). Cloud upgrade 002 (editable weights, the manual deload) comes with it.
 - **0.3-alpha · PC view and safety:** History editing, automatic Drive backups + "Back up now" (its browser Drive permission tested first), CSV export, the restore script and its test.
 
 ## Verification
 - Phase 0: each of the 12 checks recorded as pass/fail with notes. **If Google sign-in on Android fails (check 2), the fallback is an emailed code (F1.1).** Any other fail → we revisit that decision before building.
-- Later phases: automated tests for plan import/validation, cycle + rest rules, progression rules, PR/volume/streak math and sync against a fake cloud (offline → online, conflicts both ways, the 5-minute fetch overlap, refused changes, first download, the version check; 14b). End to end: airplane mode → log → reconnect → shows in the PC view.
+- Later phases: automated tests for plan import/validation, the weekly schedule, progression rules, PR/volume/streak math and sync against a fake cloud (offline → online, conflicts both ways, the 5-minute fetch overlap, refused changes, first download, the version check; 14b). End to end: airplane mode → log → reconnect → shows in the PC view.
 - **Sync against the real server (built 2026-10-14):** besides the fake cloud, the cloud calls and whole sync rounds between two devices run against PostgREST (the Data API server Supabase runs) on a local copy of the cloud built from `cloud/`, in a podman pod reachable only from this PC (`tests/cloud/testDataApi.py`). Every rule is also checked by breaking it on purpose and seeing a test fail.
 
 ---
@@ -384,3 +396,13 @@ Newest at the bottom. Every decision made after the plan was approved gets a lin
 - **2026-10-14 · PH1.1:** the Phase 0 app is uninstalled now, without waiting for the Friday 2026-10-16 reminder's arrival time. The reminder is assumed to work; you confirm it once you use Gym Tracker's own Friday notification (0.2-alpha), and it gets fixed then if needed.
 - **2026-10-14 · BT1.1:** no battery setting step for 0.1-alpha (nothing runs in the background). "Unrestricted" comes back only if 0.2-alpha's Friday notification arrives late.
 - **2026-10-15 · SC7.1:** tapping an exercise's name on Today unfolds its how-to under it (setup, steps, form cues), like ▾ sets. Your Claude project writes it in the plan file, in the new optional fields `setup`, `howTo` and `form` (section 4 and `plans/planFormat.md`). Part of 0.1-alpha. Rejected: typing it in the app (a new table and sync, and it starts empty), a built-in exercise list (common exercises only), a panel from the bottom (it covers the workout).
+- **2026-10-23 · WD1.1:** **weekdays instead of the rotating cycle**, as your Claude project's plan brief asked: each weekday has its own session and today's weekday decides; a missed day is just missed; rest days are rest. One flex day (yours: Saturday) makes up the session missed earlier that week, first in the plan's priority order, or shows its bonus workout. Plans give `week` (7 days, Monday first) instead of `cycle`; the starting day on import, Train anyway, kept rests and the pace warning are gone (replaces 13.1a, 13.3, 17.2c, 19.1c-2, R4a, KR1.2, the pace part of F12.1 and 4.9a's "missed"). Built before the first release, so no stored plan was affected. Rejected: keeping the rotating cycle for plans without weekdays (the brief said "instead"), and a "jump to today's step" button (only needed without weekdays).
+- **2026-10-23 · WD1.2:** the flex day's `moves`: in weeks it makes up certain days, an exercise leaves its `from` day and joins the end of its `to` day (the flex day means the end of the session made up). Each day decides from the days already over. Technical design; you left the details to me.
+- **2026-10-23 · WD1.3:** new exercise fields, read now and used from 0.2-alpha: `dumbbells` (1 or 2, required for dumbbells), `platesPerSide` and `barKg` (barbell or machine), `compound`. Volume and 1RM double per-side plates and add the bar or sled; two-dumbbell lifts are doubled for volume. Today shows `kg/side`.
+- **2026-10-23 · WD1.4:** an exercise may have a different number of sets on different days under one `exerciseId` (seated leg curl 4 and 3, ab machine 5, 6 and 3), so your Claude project can merge those IDs in the next plan version.
+- **2026-10-23 · ST1.2:** staging for the plan's changes: the format and the weekly schedule now, in 0.1-alpha; the logic that needs progression in 0.2-alpha. Rejected: everything in 0.1-alpha (a much later first release), only the weekdays now.
+- **2026-10-23 · WD2.1:** (0.2-alpha) weights and weight steps editable per exercise in the app, stored as facts (cloud upgrade 002).
+- **2026-10-23 · WD2.2:** (0.2-alpha) a re-import keeps your weights for exercises the app knows and lists the plan weights it didn't use; new exercises start at the plan's weight. Replaces 8.12. Rejected: asking for each one, the plan's weights winning.
+- **2026-10-23 · WD2.3:** (0.2-alpha) an exercise on several days progresses separately on each day (target, weight, misses, drop-backs); history, PRs and charts stay one. Rejected: one target with second-appearance misses ignored.
+- **2026-10-23 · WD2.4:** (0.2-alpha) deloads: about a week at half the sets, stopping 3–4 reps short; started by the app when two or more compound lifts go backwards two sessions in a row or by week 8 at the latest, or by you by hand. Details designed with 0.2-alpha.
+- **2026-10-23 · WD2.5:** (0.2-alpha, optional) a daily creatine reminder and weigh-in math (two-week averages, weekly rate, ±150 / ±250 kcal flags); details decided then.

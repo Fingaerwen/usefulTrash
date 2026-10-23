@@ -34,7 +34,6 @@ class AppBase:
         self.session = None  # usefulShared.signIn.sessionKeeper.SessionKeeper once started
         self.actions: GymActions | None = None
         self.startedIn: float | None = None  # seconds from Python starting to the first real screen (main.py)
-        self._trainAnywayOn: dt.date | None = None  # Train anyway applies to the day it was pressed
 
     def hasCloudSettings(self) -> bool:
         return all(self.config.get(name) for name in ("supabaseUrl", "supabasePublishableKey", "googleWebClientId"))
@@ -72,19 +71,11 @@ class AppBase:
         if rows is None:
             return
         self.state.load(rows)
-        today = self.localToday()
-        if self._trainAnywayOn != today:
-            self._trainAnywayOn, self.model.trainAnyway = None, False
-        self.model.today = self.state.today(today, self.model.trainAnyway)
+        self.model.today = self.state.today(self.localToday())
         self.afterRefresh()
 
     def startActions(self) -> None:
         self.actions = GymActions(self, self.state, self.session.userId(), self.clock)
-
-    def trainAnyway(self) -> None:
-        """Rest day: show the next workout instead (19.1c-2). Nothing is saved until something is logged."""
-        self._trainAnywayOn, self.model.trainAnyway = self.localToday(), True
-        self.refresh()
 
     async def check(self, line: ExerciseLine) -> None:
         await self._act(self.actions.checkExercise(self.model.today, line))
@@ -158,9 +149,9 @@ class AppBase:
     def answerPlanQuestions(self, sameAs: list[bool]) -> None:
         self.model.planImport = answerQuestions(self.model.planImport, sameAs)
 
-    async def finishPlanImport(self, startStep: int) -> None:
+    async def finishPlanImport(self) -> None:
         flow = self.model.planImport
-        row = finishImport(flow, startStep, self.session.userId(), self.clock())
+        row = finishImport(flow, self.session.userId(), self.clock())
         self.model.notice = ""
         await self._act(self.saveRows([("plans", row)]))
         if self.model.notice:  # the save failed and says why: stay on the import
