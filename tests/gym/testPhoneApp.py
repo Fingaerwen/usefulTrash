@@ -740,8 +740,9 @@ def testBannersForTheSummaryAndTheWeighIn(phone, cloud):
 
 
 def testHistoryOnThePhoneEditsTheLastSevenDays(phone, cloud):
-    """HI1.1: ⋮ → History lists the last 7 days; Edit lays a day out like Today, and what's logged there goes
-    on that day; its steps and weigh-in too; Delete this workout takes the workout away."""
+    """HI1.1, HI1.2: ⋮ → History lists every day, a month at a time; the last 7 open with Edit, laid out like
+    Today, and what's logged there goes on that day, its steps and weigh-in too; Delete this workout takes the
+    workout away. Older days open with View, read-only."""
     from screenTestKit import redraw
     planInCloud(cloud)
     signedIn(phone)
@@ -750,9 +751,12 @@ def testHistoryOnThePhoneEditsTheLastSevenDays(phone, cloud):
     app.refresh()
     menu = find(phone.screen(), "More", "PopupMenuButton")
     press(next(item for item in menu.items if item.content == "History"))
-    assert app.model.screen == "history" and len(app.model.historyDays) == 7  # Thu 8 to Wed 14
+    assert app.model.screen == "history" and len(app.model.historyDays) == 14  # every day of October so far (HI1.2)
     texts = phone.texts()
     assert "Push · missed" in texts and "before your plan" in texts  # Monday's Push; the plan began on the 12th
+    press(byTooltip(phone.screen(), "View Wed 7 Oct"))  # older than 7 days: read-only on the phone
+    assert "Older than 7 days: edit it in the PC view." in phone.texts()
+    press(find(phone.screen(), "◂ Days", "TextButton"))
     press(byTooltip(phone.screen(), "Edit Mon 12 Oct"))
     assert "Push · Mon 12 Oct" in phone.texts()
     press(find(phone.screen(), "Bench Press: done as targeted", "IconButton"))
@@ -829,6 +833,10 @@ def testTheAutomaticBackupAfterTheFirstSync(phone, cloud):
         phone.run(phone.app.syncNow())
         phone.run(phone.app.backupTask)
     assert len(backedUp(phone)) == 4 and len(phone.drive.zips()) == 3
+    (history,) = phone.drive.history()  # BK1.2: one history file beside them, never rotated out
+    archive = zipfile.ZipFile(io.BytesIO(history["content"]))
+    assert json.loads(archive.read("manifest.json"))["kind"] == "history"
+    assert {"sets.csv", "weighIns.csv", "steps.csv", "diary.csv", "plans.csv"} <= set(archive.namelist())
 
 
 def testABackupRetriesOnceWithAFreshDriveToken(phone, cloud):
@@ -849,6 +857,22 @@ def testAFailedBackupIsOnlyLogged(phone, cloud):
     phone.run(phone.app.backupTask)
     assert backedUp(phone) == [] and phone.app.model.notice == ""
     assert "The backup to Google Drive didn't work" in (phone.folder / "appLog.txt").read_text()
+
+
+def testHistorysAllTimeView(phone, cloud):
+    """DI1.2: every exercise's full chart with its PRs, then the body weight's."""
+    from gym.rules.today import SetDone
+    planInCloud(cloud)
+    signedIn(phone)
+    app = phone.app
+    phone.run(app.saveSets(app.model.today.exercises[0], [SetDone(9, 80), SetDone(8, 80)]))
+    phone.run(app.setBodyWeight(monday, 81.0))
+    app.openHistory()
+    app.showHistoryMode("all")
+    texts = phone.texts()
+    assert "Bench Press" in texts and any(text.startswith("PRs: heaviest 80 kg") for text in texts)
+    assert "Body weight" in texts and "1 weigh-in · lowest 81 kg · highest 81 kg" in texts
+    assert "Dips" not in texts  # nothing logged for it yet
 
 
 def testStartingAndStoppingADeloadByHand(phone, cloud):

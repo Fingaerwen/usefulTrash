@@ -101,6 +101,11 @@ class DriveApi:
 
     async def _send(self, method: str, url: str, accessToken: str, body: bytes | None = None,
                     contentType: str | None = None) -> Any:
+        rawAnswer = await self._sendRaw(method, url, accessToken, body, contentType)
+        return json.loads(rawAnswer) if rawAnswer else None
+
+    async def _sendRaw(self, method: str, url: str, accessToken: str, body: bytes | None = None,
+                       contentType: str | None = None) -> bytes:
         if not url.startswith(googleApisUrl):
             raise ValueError(f"Drive calls only go to {googleApisUrl}")
         headers = {"Authorization": f"Bearer {accessToken}", "Accept": "application/json"}
@@ -112,7 +117,7 @@ class DriveApi:
             raise DriveError(0, "network", err.message) from None
         if status >= 300:
             raise readDriveError(status, rawAnswer)
-        return json.loads(rawAnswer) if rawAnswer else None
+        return rawAnswer
 
     async def listFiles(self, query: str, accessToken: str) -> list[dict]:
         """Files matching a Drive search query, newest first; only this app's files are visible."""
@@ -140,6 +145,11 @@ class DriveApi:
         body, contentType = multipartBody({"name": name, "parents": [parentId]}, content, mimeType)
         return await self._send("POST", f"{driveUploadUrl}/files?uploadType=multipart&fields=id,name,size",
                                 accessToken, body, contentType)
+
+    async def downloadFile(self, fileId: str, accessToken: str) -> bytes:
+        """One of this app's files, as it is."""
+        return await self._sendRaw("GET", f"{driveApiUrl}/files/{urllib.parse.quote(fileId, safe='')}?alt=media",
+                                   accessToken)
 
     async def deleteFile(self, fileId: str, accessToken: str) -> None:
         """Deletes one of this app's files for good."""

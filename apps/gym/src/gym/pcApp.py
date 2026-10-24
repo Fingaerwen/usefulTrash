@@ -18,7 +18,6 @@ import flet as ft
 
 from gym.appBase import AppBase
 from gym.model import SyncFacts
-from gym.rules.stats import readableSets
 from gym.signInFlow import signInWithGoogle
 from gym.tables import appSchema, appTables
 from usefulShared.backup.backupFile import makeBackupZip
@@ -226,10 +225,10 @@ class PcApp(AppBase):
         return {table.name: list(self.state.rows.get(table.name, {}).values()) for table in appTables}
 
     async def exportCsv(self) -> None:
-        """Export CSV (EX1.1): the backup (one CSV per table, restorable) plus a readable sets.csv, in one zip
-        saved to this PC."""
+        """Export CSV (EX1.1): the backup (one CSV per table, restorable) plus the readable history (sets,
+        weigh-ins, steps, the diary), in one zip saved to this PC."""
         content = makeBackupZip(self._allRows(), appTables, appSchema, self.clock(), "pcView",
-                                {"sets.csv": readableSets(self.state.logs, self.state.known)})
+                                self.state.historyFiles(self.localToday()))
         name = f"GymTracker-export-{self.localToday().isoformat()}.zip"
         try:
             await self.services.filePicker.save_file(file_name=name, src_bytes=content)
@@ -265,7 +264,7 @@ class PcApp(AppBase):
                                            "over 3 minutes). Press Back up now to try again.")
                 return
             row = await makeBackup(self.drive, token, self._allRows(), appTables, appSchema, self.session.userId(),
-                                   self.clock(), "pcView")
+                                   self.clock(), "pcView", self.state.historyFiles(self.localToday()))
         except Exception as problem:
             reason = problem.reason if isinstance(problem, DriveError) else type(problem).__name__
             self.log.problem("backup", "Back up now didn't work.", f"{reason}: {problem}"[:300])

@@ -34,14 +34,24 @@ def cellText(column: Column, value: Any) -> str:
     return repr(value) if isinstance(value, float) else str(value)
 
 
-def tableCsv(table: Table, rows: Sequence[Mapping[str, Any]]) -> str:
-    """A table as CSV: a header with its columns, then its rows in ID order."""
+def rowText(table: Table, row: Mapping[str, Any]) -> dict[str, str]:
+    """A row as the text its CSV line holds, by column name."""
+    return {column.name: cellText(column, row.get(column.name)) for column in table.columns}
+
+
+def textCsv(columns: Sequence[str], rows: Sequence[Mapping[str, str]]) -> str:
+    """Rows already as text, as CSV: a header with the columns, then the rows in ID order."""
     text = io.StringIO()
     writer = csv.writer(text, lineterminator="\n")
-    writer.writerow(table.columnNames)
+    writer.writerow(columns)
     for row in sorted(rows, key=lambda row: row["id"]):
-        writer.writerow([cellText(column, row.get(column.name)) for column in table.columns])
+        writer.writerow([row.get(column, "") for column in columns])
     return text.getvalue()
+
+
+def tableCsv(table: Table, rows: Sequence[Mapping[str, Any]]) -> str:
+    """A table as CSV: a header with its columns, then its rows in ID order."""
+    return textCsv(table.columnNames, [rowText(table, row) for row in rows])
 
 
 def makeBackupZip(rowsByTable: Mapping[str, Sequence[Mapping[str, Any]]], tables: Sequence[Table],
@@ -58,6 +68,40 @@ def makeBackupZip(rowsByTable: Mapping[str, Sequence[Mapping[str, Any]]], tables
             counts[table.name] = len(rows)
         manifest = {"app": "usefulTrash", "schemaVersion": schemaVersion, "madeAt": momentText(madeAt),
                     "madeBy": madeBy, "rows": counts}
+        archive.writestr(manifestName, json.dumps(manifest, indent=2) + "\n")
+        for name, content in (extraFiles or {}).items():
+            archive.writestr(name, content)
+    return buffer.getvalue()
+
+
+def mergeHistory(previous: bytes | None, rowsByTable: Mapping[str, Sequence[Mapping[str, Any]]],
+                 tables: Sequence[Table], schemaVersion: int, madeAt: dt.datetime, madeBy: str,
+                 extraFiles: Mapping[str, str] | None = None) -> bytes:
+    """The history file (BK1.2): every row ever backed up, the earlier history file's and today's together. A
+    row that's no longer in the cloud stays in it; a row in both keeps its newer edit. Same format as a
+    backup, so it restores the same way; its manifest says "history"."""
+    merged: dict[str, dict[str, dict[str, str]]] = {}
+    oldColumns: dict[str, list[str]] = {}
+    if previous:
+        _, oldRows = readBackupZip(previous)
+        for name, rows in oldRows.items():
+            merged[name] = {row["id"]: row for row in rows}
+            oldColumns[name] = list(rows[0]) if rows else []
+    for table in tables:
+        kept = merged.setdefault(table.name, {})
+        for row in rowsByTable.get(table.name, []):
+            text = rowText(table, row)
+            if text["id"] not in kept or kept[text["id"]].get("updatedAt", "") <= text["updatedAt"]:
+                kept[text["id"]] = text
+    known = {table.name: table for table in tables}
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        for name, rows in merged.items():  # a table only an earlier version had stays as it was
+            columns = known[name].columnNames if name in known else oldColumns.get(name, [])
+            archive.writestr(f"{name}.csv", textCsv(columns, list(rows.values())))
+        manifest = {"app": "usefulTrash", "kind": "history", "schemaVersion": schemaVersion,
+                    "madeAt": momentText(madeAt), "madeBy": madeBy,
+                    "rows": {name: len(rows) for name, rows in merged.items()}}
         archive.writestr(manifestName, json.dumps(manifest, indent=2) + "\n")
         for name, content in (extraFiles or {}).items():
             archive.writestr(name, content)

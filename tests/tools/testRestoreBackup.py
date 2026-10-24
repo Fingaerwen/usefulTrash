@@ -11,7 +11,7 @@ import restoreBackup
 from usefulTestKit import exampleRow, userA
 
 from gym.tables import appSchema, appTables
-from usefulShared.backup.backupFile import makeBackupZip
+from usefulShared.backup.backupFile import makeBackupZip, mergeHistory
 
 moment = dt.datetime(2026, 10, 24, 12, 0, tzinfo=dt.UTC)
 
@@ -51,3 +51,11 @@ def testTheCommandLine(tmp_path, capsys):
     assert capsys.readouterr().out.startswith("-- Restore of a Gym Tracker backup made 2026-10-24")
     assert restoreBackup.main([]) == 2 and restoreBackup.main([str(path), "--everything"]) == 2
     assert restoreBackup.main([str(tmp_path / "missing.zip")]) == 1
+
+
+def testTheHistoryFileRestoresTheSameWay():
+    """BK1.2: GymTracker-history.zip is a backup too; its readable files are left aside."""
+    history = mergeHistory(backup(), {"bodyWeight": [exampleRow("bodyWeight", userId=userA, weightKg=80.0)]},
+                           appTables, appSchema, moment, "phone", {"sets.csv": "date\n"})
+    sql = restoreBackup.restoreSql(history)
+    assert "select 'done: 1 rows from the backup'" in sql and "80.0" in sql

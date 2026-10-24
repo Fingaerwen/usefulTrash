@@ -21,7 +21,11 @@ class DriveStandIn:
         return file
 
     def zips(self) -> list[dict]:
-        return [file for file in self.files.values() if file["mimeType"] == "application/zip"]
+        """The dated backups (the history file is apart, history())."""
+        return [file for file in self.files.values() if file["name"].startswith("GymTracker-backup-")]
+
+    def history(self) -> list[dict]:
+        return [file for file in self.files.values() if file["name"] == "GymTracker-history.zip"]
 
     async def __call__(self, method: str, url: str, headers: dict[str, str], body: bytes | None) -> tuple[int, bytes]:
         if headers.get("Authorization", "").removeprefix("Bearer ") not in self.validTokens:
@@ -44,6 +48,8 @@ class DriveStandIn:
             file = self._new(name=metadata["name"], parents=metadata["parents"], mimeType="application/zip",
                              content=content)
             return 200, json.dumps({"id": file["id"], "name": file["name"], "size": str(len(content))}).encode()
+        if method == "GET" and address.path.startswith("/drive/v3/files/") and query.get("alt") == ["media"]:
+            return 200, self.files[urllib.parse.unquote(address.path.rsplit("/", 1)[1])]["content"]
         if method == "DELETE" and address.path.startswith("/drive/v3/files/"):
             self.files.pop(urllib.parse.unquote(address.path.rsplit("/", 1)[1]))
             return 204, b""
@@ -53,7 +59,10 @@ class DriveStandIn:
 def _matches(query: str, file: dict) -> bool:
     """The two searches the backups make: the folder by name, and the zips in a folder."""
     name = re.search(r"name = '([^']*)'", query)
+    nameContains = re.search(r"name contains '([^']*)'", query)
     parent = re.search(r"'([^']*)' in parents", query)
     mimeType = re.search(r"mimeType = '([^']*)'", query)
-    return ((name is None or file["name"] == name.group(1)) and (parent is None or parent.group(1) in file["parents"])
+    return ((name is None or file["name"] == name.group(1))
+            and (nameContains is None or nameContains.group(1) in file["name"])
+            and (parent is None or parent.group(1) in file["parents"])
             and (mimeType is None or file["mimeType"] == mimeType.group(1)))

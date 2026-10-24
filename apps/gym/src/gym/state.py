@@ -27,6 +27,7 @@ from gym.rules.stats import (
     dayBanners,
     exerciseDetail,
     historyDays,
+    historyFiles,
     monthDiary,
     monthlyPoints,
     progressLines,
@@ -129,6 +130,10 @@ class GymState:
     def diary(self, month: dt.date, today: dt.date) -> MonthDiary:
         """A month of the progression diary (DI1.1)."""
         return monthDiary(self.currentPlan(today), self.known, self.logs, self.weights, month)
+
+    def historyFiles(self, date: dt.date) -> dict[str, str]:
+        """The readable history (EX1.1, BK1.2): sets, weigh-ins, steps and the diary as CSV files."""
+        return historyFiles(self.currentPlan(date), self.known, self.logs, self.weights, self.steps, date)
 
     def monthlyPoints(self, exerciseId: str) -> tuple[tuple[dt.date, float], ...]:
         """The diary's month-by-month chart for an exercise, or the body weight for "" (DI1.1)."""

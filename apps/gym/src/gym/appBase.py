@@ -186,10 +186,9 @@ class AppBase:
     # --- History: days to edit and the monthly diary (HI1.1, DI1.1) ---------------------------
 
     def historyDates(self) -> list[dt.date]:
-        """The days History lists: on the phone the last 7 (19.1f-1), in the PC view the month shown."""
+        """The days History lists: every day of the month shown, up to today (HI1.2); the phone edits only its
+        last 7 (19.1f-1) and shows older ones read-only."""
         today = self.localToday()
-        if self.stepsDaysBack is not None:
-            return [today - dt.timedelta(days=back) for back in range(self.stepsDaysBack)]
         month = self.model.historyMonth or today.replace(day=1)
         days = (month.replace(month=month.month % 12 + 1, year=month.year + month.month // 12) - month).days
         return [month + dt.timedelta(days=offset) for offset in range(days) if month + dt.timedelta(days=offset) <= today]
@@ -201,7 +200,7 @@ class AppBase:
         today = self.localToday()
         self.model.historyDays = self.state.historyDays(self.historyDates(), today)
         day = self.model.historyDay
-        self.model.historyView = self.state.today(day) if day is not None and self.canEditDay(day) else None
+        self.model.historyView = self.state.today(day) if day is not None else None
         self.model.diary = self.state.diary(self.model.historyMonth or today.replace(day=1), today)
 
     def openHistory(self) -> None:
@@ -235,7 +234,8 @@ class AppBase:
         return min([*starts, diaryFirst, thisMonth])
 
     def editDay(self, date: dt.date) -> None:
-        if self.canEditDay(date):
+        """Opens a day: to edit it, or to look at it if it's too far back to edit here (HI1.2)."""
+        if date <= self.localToday():
             self.model.historyDay = date
             self._refreshHistory()
 

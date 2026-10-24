@@ -233,8 +233,9 @@ class PhoneApp(AppBase):
                 await googleSignIn.clearDriveToken(token)
 
             rows = {table.name: self.store.rows(table.name) for table in appTables}
+            readable = self.state.historyFiles(self.localToday())
             row = await withFreshToken(getToken, dropToken, lambda token: makeBackup(
-                self.drive, token, rows, appTables, appSchema, self.session.userId(), self.clock(), "phone"))
+                self.drive, token, rows, appTables, appSchema, self.session.userId(), self.clock(), "phone", readable))
             await self.saveRows([("backups", row)])
             self.log.info("backup", f"backed up to Google Drive: {row['fileName']}, {row['sizeBytes']:,} bytes")
         except Exception as problem:  # the app works the same without it

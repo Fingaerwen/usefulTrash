@@ -517,6 +517,35 @@ def readableSets(logs: Mapping[dt.date, Mapping[str, LoggedExercise]], known: Ma
     return text.getvalue()
 
 
+def historyFiles(current: ImportedPlan | None, known: Mapping[str, PlanExercise],
+                 logs: Mapping[dt.date, Mapping[str, LoggedExercise]], weights: Mapping[dt.date, float],
+                 steps: Mapping[dt.date, int], today: dt.date) -> dict[str, str]:
+    """The readable history, for Export CSV (EX1.1) and the history file (BK1.2): every set, every weigh-in,
+    every day's steps, and the diary month by month (DI1.1), as CSV files a spreadsheet opens."""
+    import csv
+    import io
+
+    def table(header: list[str], rows: list[list[Any]]) -> str:
+        text = io.StringIO()
+        writer = csv.writer(text, lineterminator="\n")
+        writer.writerow(header)
+        writer.writerows(rows)
+        return text.getvalue()
+
+    diaryRows = []
+    month = monthDiary(current, known, logs, weights, today).firstMonth
+    while month <= monthStart(today):
+        for line in monthDiary(current, known, logs, weights, month).lines:
+            diaryRows.append([f"{month:%Y-%m}", line.name, line.change, line.detail])
+        month = (month + dt.timedelta(days=32)).replace(day=1)
+    return {
+        "sets.csv": readableSets(logs, known),
+        "weighIns.csv": table(["date", "kg"], [[date.isoformat(), kgText(kg)] for date, kg in sorted(weights.items())]),
+        "steps.csv": table(["date", "steps"], [[date.isoformat(), count] for date, count in sorted(steps.items())]),
+        "diary.csv": table(["month", "exercise", "weight", "best and sessions"], diaryRows),
+    }
+
+
 def lastBackupText(backupRows: Sequence[Mapping[str, Any]], now: dt.datetime) -> str:
     """"24 Oct 2026 (phone) · 3 days ago", or "none yet" (the Problems page, the PC view's Backup tab)."""
     live = [row for row in backupRows if not row["deleted"]]

@@ -115,9 +115,11 @@ Anything that looks wrong: ⋮ → Problems → **Copy**, and paste it to me.
     weigh in" notification; on Monday "Last week's summary is ready", which opens last week on Week and is gone.
 14. **The automatic backup (0.3-alpha):** after the update, Google asks once about Drive (allow it); then
     ⋮ → Problems shows `Last backup: … (phone) · today`, and Google Drive has the folder **Gym Tracker backups**
-    with one zip in it.
-15. **History (0.3-alpha):** ⋮ → History → Days: the last 7 days; Edit one, ✓ an exercise there, and Today
-    stays as it was; Delete this workout; then Months: your month per exercise, and a tap shows its chart.
+    with a dated backup and `GymTracker-history.zip` in it.
+15. **History (0.3-alpha):** ⋮ → History → Days: every day this month, ◂ for earlier ones; Edit one of the
+    last 7, ✓ an exercise there, and Today stays as it was; an older day opens with View, read-only; Delete
+    this workout; Months: your month per exercise, and a tap shows its chart; All time: every exercise's
+    chart with its PRs, and your weight's.
 16. **The PC view (0.3-alpha):** the History tab (any day), the Backup tab: Export CSV downloads a zip; after
     step 1c, Back up now opens Google's page in a second window, and then says "Backed up to your Google
     Drive: …". If it doesn't, ⋮ → Problems → Copy, and paste it to me.

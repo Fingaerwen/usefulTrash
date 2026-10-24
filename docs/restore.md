@@ -2,13 +2,15 @@
 
 Backups are zips: one CSV file per table, every row in it (deleted ones too), and `manifest.json` with the
 data-structure version. The phone puts one in your Google Drive (folder **Gym Tracker backups**) every 30
-days and keeps the last 3; the PC view's Backup tab makes one on request (**Back up now**) or saves one
-to your PC (**Export CSV**, which also holds a readable `sets.csv`).
+days and keeps the last 3, plus **GymTracker-history.zip**, which every backup is merged into and which
+is never rotated out (a row stays in it even if it's later gone from the cloud). The PC view's Backup tab
+makes one on request (**Back up now**) or saves one to your PC (**Export CSV**). The history file and
+Export CSV also hold the readable history: `sets.csv`, `weighIns.csv`, `steps.csv` and `diary.csv`.
 
 ## When something went missing
 
-1. Get the backup zip: from Google Drive (folder **Gym Tracker backups**, the newest file) or an Export CSV
-   zip on your PC.
+1. Get the backup zip: from Google Drive (folder **Gym Tracker backups**: the newest dated one, or
+   `GymTracker-history.zip` for everything ever backed up) or an Export CSV zip on your PC.
 2. On the PC, from the repo folder:
    `python3 tools/restoreBackup.py ~/Downloads/GymTracker-backup-….zip > restore.sql`
 3. Supabase → your project → **SQL Editor** → **New query** → paste the whole of `restore.sql` → **Run**.
