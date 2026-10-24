@@ -14,6 +14,7 @@ from cloudStandIn import CloudStandIn
 from screenTestKit import draw, find, press, type_, useLoop, visibleTexts
 from usefulTestKit import FakeClock, userA, userB
 
+from gym.model import appVersion
 from gym.phoneApp import PhoneApp
 from gym.screens.root import GymApp
 from gym.tables import appSchema, tablesByName
@@ -372,7 +373,7 @@ def testProblemsPageCopiesAReportWithoutSecrets(phone, cloud):
     press(menuItem)
     texts = phone.texts()
     assert "Problems" in texts
-    assert any(text.startswith(f"Gym Tracker 0.1-alpha · schema {appSchema}") for text in texts)
+    assert any(text.startswith(f"Gym Tracker {appVersion} · schema {appSchema}") for text in texts)
     press(find(phone.screen(), "Copy", "Button"))
     copied = phone.services.clipboard.text
     session = phone.app.session.session

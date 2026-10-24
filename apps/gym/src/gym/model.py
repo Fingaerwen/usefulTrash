@@ -15,7 +15,7 @@ from gym.rules.stats import ExerciseDetail, ProgressLine, WeekSummary
 from gym.rules.today import TodayView
 
 appName = "Gym Tracker"
-appVersion = "0.1-alpha"  # the release script checks it matches pyproject.toml (V3a)
+appVersion = "0.2-alpha"  # the release script checks it matches pyproject.toml (V3a)
 
 
 @ft.observable
@@ -109,7 +109,7 @@ class LogFacts:
 
 
 def problemsReport(schema: int, sync: SyncFacts, log: LogFacts, now: dt.datetime, unreadablePlans: int = 0,
-                   lastBackup: str = "none yet (backups come with 0.3-alpha)",
+                   lastBackup: str = "none yet (backups come with 0.4-alpha)",
                    startedIn: float | None = None) -> tuple[str, ...]:
     """The Problems page as lines of text; Copy puts exactly these on the clipboard (12d)."""
     started = f" · started in {startedIn:.1f} s" if startedIn is not None else ""  # cold start under 5 s (check 8)

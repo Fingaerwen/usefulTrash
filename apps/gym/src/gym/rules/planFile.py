@@ -36,8 +36,7 @@ howToFields = ("setup", "howTo", "form")
 maxSetupLength = 300
 maxHowToLines, maxHowToLineLength = 12, 200  # for each of howTo and form
 
-# How volume and estimated 1RM count the weight (WD1.3), and the lifts the deload trigger watches; read
-# now, used from 0.2-alpha.
+# How volume and estimated 1RM count the weight (WD1.3), and the lifts the deload trigger watches (WD3.1).
 loadFields = ("dumbbells", "platesPerSide", "barKg", "compound")
 
 # The fields each block may have.
@@ -73,7 +72,7 @@ class PlanExercise:
     dumbbells: int | None = None  # dumbbell exercises: 1 or 2 dumbbells, for volume (WD1.3)
     platesPerSide: bool = False  # weights are the plates on one side: doubled for volume and 1RM (WD1.3)
     barKg: float | None = None  # the bar's or sled's own weight, added for volume and 1RM (WD1.3)
-    compound: bool = False  # a compound lift, watched by the deload trigger (0.2-alpha)
+    compound: bool = False  # a compound lift, watched by the deload trigger (WD3.2)
     restSec: int | None = None  # shown on Today, no timer (17.3a)
     notes: str | None = None  # form cues shown on Today (17.3a)
     minutes: int | None = None  # the cardio target
