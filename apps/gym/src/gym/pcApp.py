@@ -40,7 +40,8 @@ class PcApp(AppBase):
     """PC mode: the cloud store in memory, refreshed every minute."""
 
     mode = "pc"
-    menuItems = ("problems", "signOut")  # plans are imported from the Plans tab
+    menuItems = ("problems", "deload", "signOut")  # plans are imported from the Plans tab
+    stepsDaysBack = None  # the PC view enters steps for any day (SC4.1)
 
     def __init__(self, config: dict[str, str], services: Any, log: AppLog,
                  clock: Callable[[], dt.datetime] = lambda: dt.datetime.now(dt.UTC),

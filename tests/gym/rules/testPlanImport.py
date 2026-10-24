@@ -136,3 +136,22 @@ def testNewPlanTakesEffectTodayOrTomorrow():
     today = dt.date(2026, 10, 14)
     assert effectiveDate(today, workoutLoggedToday=False) == today
     assert effectiveDate(today, workoutLoggedToday=True) == dt.date(2026, 10, 15)
+
+
+# --- Weights a re-import keeps (WD3.9) -----------------------------------------------------------
+
+def testAReImportListsThePlanWeightsItWontUse():
+    from gym.rules.facts import ImportedPlan, LoggedExercise, SetDone
+    from gym.rules.planFile import scheduleDays
+    from gym.rules.progression import training
+    from gym.rules.schedule import LoggedWorkout, PlanStart
+    from gym.rules.planImport import keptWeights
+
+    first = checked(barbell("benchPress", "Bench Press"), barbell("row", "Row"))
+    monday = dt.date(2026, 10, 12)
+    imported = ImportedPlan(PlanStart("p1", monday, dt.datetime(2026, 10, 12, 6, tzinfo=dt.UTC), scheduleDays(first),
+                                      1), first)
+    logs = {monday: {"benchPress": LoggedExercise("benchPress", (SetDone(9, 60),) * 3)}}
+    soFar = training([imported], [LoggedWorkout(monday, "p1", 0, True)], logs, [], [], [], monday)
+    revised = checked(barbell("benchPress", "Bench Press", weightKg=70), barbell("row", "Row", weightKg=50))
+    assert keptWeights(revised, soFar) == ("Bench Press (Mon): keeps 60 kg, not the plan's 70 kg",)

@@ -35,9 +35,11 @@ class _PhoneServices:
     def __init__(self):
         from nativeGoogleSignIn import NativeGoogleSignIn
         from secureStore import SecureStore
+        from weighInNotify import WeighInNotify
 
         self.googleSignIn = NativeGoogleSignIn()
         self.secretStore = SecureStore()
+        self.notifier = WeighInNotify()
         self.clipboard = ft.Clipboard()
         self.filePicker = ft.FilePicker()
 

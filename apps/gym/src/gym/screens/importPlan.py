@@ -61,6 +61,8 @@ def ReadyToImport(app, flow):
     return ft.Column([
         ft.Text(f"{plan.name} (v{plan.version}) · {plan.weeklyTarget} workouts a week"),
         *[ft.Text(day) for day in week],
+        *([ft.Text("You've trained these already, so they keep your weights:"),
+           *[quiet(f"• {line}") for line in flow.keptWeights]] if flow.keptWeights else []),
         quiet(f"It takes effect {when}."),
         ft.Button("Import", icon=ft.Icons.CHECK, on_click=finish),
     ], spacing=gap)

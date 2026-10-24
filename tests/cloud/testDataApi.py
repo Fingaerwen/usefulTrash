@@ -348,3 +348,30 @@ def testTwoDevicesSyncThroughTheRealDataApi(cloud, tmp_path, monkeypatch):
     run(phoneSync.runRound())
     assert phone.row("bodyWeight", weight["id"])["weightKg"] == 80.9
     assert phone.waiting().count == 0 and other.waiting().count == 0
+
+
+def testWeightsStepsAndDeloadsSetInTheAppSyncToo(cloud, tmp_path):
+    """Upgrade 002's tables (WD2.1, WD2.4, WD3.11): every weight change is its own row, a step keeps its
+    date, and a deload stopped on one device is stopped on the other. Numbers and dates keep their types."""
+    phone, phoneSync = device(cloud, tmp_path, "phone")
+    other, otherSync = device(cloud, tmp_path, "other")
+    first = phone.save("exerciseWeights", exampleRow("exerciseWeights", updatedAt=RealClock()(), weightKg=82.5))
+    second = phone.save("exerciseWeights", exampleRow("exerciseWeights", updatedAt=RealClock()(), weightKg=85,
+                                                      fromDate=dt.date(2026, 10, 19)))
+    step = phone.save("exerciseSteps", exampleRow("exerciseSteps", updatedAt=RealClock()(), incrementKg=1.25))
+    deload = phone.save("deloads", exampleRow("deloads", updatedAt=RealClock()()))
+    assert run(phoneSync.runRound()).status == "done" and phone.waiting().count == 0
+    assert run(otherSync.runRound()).status == "done"
+
+    weights = sorted(other.rows("exerciseWeights"), key=lambda row: row["fromDate"])
+    assert [(row["id"], row["weightKg"], row["fromDate"]) for row in weights] == [
+        (first["id"], 82.5, dt.date(2026, 10, 12)), (second["id"], 85, dt.date(2026, 10, 19))]
+    assert other.row("exerciseSteps", step["id"])["incrementKg"] == 1.25
+    assert other.row("exerciseSteps", step["id"])["fromDate"] == dt.date(2026, 10, 12)
+    assert other.row("deloads", deload["id"])["startDate"] == dt.date(2026, 10, 19)
+
+    other.save("deloads", dict(other.row("deloads", deload["id"]), deleted=True))  # stopped on the other device
+    run(otherSync.runRound())
+    run(phoneSync.runRound())
+    assert phone.row("deloads", deload["id"])["deleted"] is True
+    assert phone.waiting().count == 0 and other.waiting().count == 0

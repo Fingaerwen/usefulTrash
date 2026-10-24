@@ -46,7 +46,7 @@ class WeighInNotifyPlugin :
             )
             "scheduleInSeconds" -> {
                 val triggerAt = System.currentTimeMillis() + call.number("seconds") * 1000L
-                WeighInScheduler.setAlarm(appContext, triggerAt, WeighInScheduler.oneOffRequestCode, call.text("title"), call.text("body"), weekly = false)
+                WeighInScheduler.setAlarm(appContext, triggerAt, WeighInScheduler.oneOffRequestCode, call.text("title"), call.text("body"), WeighInScheduler.kindOneOff)
                 result.success(WeighInScheduler.formatTime(triggerAt))
             }
             "scheduleWeekly" -> {
@@ -58,11 +58,21 @@ class WeighInNotifyPlugin :
                 WeighInScheduler.cancelWeekly(appContext)
                 result.success(true)
             }
+            "scheduleDaily" -> {
+                WeighInScheduler.saveDaily(appContext, call.number("hour"), call.number("minute"), call.text("title"), call.text("body"))
+                val next = WeighInScheduler.rescheduleDailyFromPrefs(appContext)
+                result.success(next?.let { WeighInScheduler.formatTime(it) })
+            }
+            "cancelDaily" -> {
+                WeighInScheduler.cancelDaily(appContext)
+                result.success(true)
+            }
             "getStatus" -> result.success(
                 mapOf(
                     "notificationsAllowed" to WeighInScheduler.notificationsAllowed(appContext),
                     "exactAlarms" to WeighInScheduler.canUseExactAlarms(appContext),
                     "weeklyNext" to WeighInScheduler.nextWeeklyMillis(appContext)?.let { WeighInScheduler.formatTime(it) },
+                    "dailyNext" to WeighInScheduler.nextDailyMillis(appContext)?.let { WeighInScheduler.formatTime(it) },
                     "androidSdk" to Build.VERSION.SDK_INT,
                 )
             )

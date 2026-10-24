@@ -14,6 +14,7 @@ import time
 from collections.abc import Callable, Sequence
 from typing import Any
 
+from gym.tables import appSchema
 from usefulShared.cloud.supabaseApi import CloudError
 from usefulShared.tables import momentText
 
@@ -29,7 +30,7 @@ class CloudStandIn:
         self.clock = clock
         self.rows: dict[str, dict[str, dict[str, Any]]] = {}
         self.signedIn: dict[str, str] = {}  # access token -> user id
-        self.schemaVersion = 1
+        self.schemaVersion = appSchema  # upgraded to what the app is built for
         self.minAppSchema = 1
         self.offline = False
         self.loseNextAnswer = False  # the next send is stored, but its answer never arrives

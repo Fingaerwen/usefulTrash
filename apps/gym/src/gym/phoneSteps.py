@@ -54,4 +54,20 @@ phoneSteps: tuple[tuple[str, ...], ...] = (
         # Small facts about this database, such as whose data it holds.
         """create table "meta" ("key" text not null primary key, "value" text not null)""",
     ),
+    # Step 2 (cloud 002): weights and weight steps set in the app, deloads started by hand (WD2.1, WD2.4).
+    (
+        """create table "exerciseWeights" (
+            "id" text not null primary key, "userId" text not null, "updatedAt" text not null,
+            "deleted" integer not null, "cloudUpdatedAt" text,
+            "exerciseId" text not null, "weekday" integer not null, "weightKg" real not null,
+            "fromDate" text not null)""",
+        """create table "exerciseSteps" (
+            "id" text not null primary key, "userId" text not null, "updatedAt" text not null,
+            "deleted" integer not null, "cloudUpdatedAt" text,
+            "exerciseId" text not null, "incrementKg" real not null, "fromDate" text not null)""",
+        """create table "deloads" (
+            "id" text not null primary key, "userId" text not null, "updatedAt" text not null,
+            "deleted" integer not null, "cloudUpdatedAt" text,
+            "startDate" text not null)""",
+    ),
 )

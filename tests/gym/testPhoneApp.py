@@ -16,7 +16,7 @@ from usefulTestKit import FakeClock, userA, userB
 
 from gym.phoneApp import PhoneApp
 from gym.screens.root import GymApp
-from gym.tables import tablesByName
+from gym.tables import appSchema, tablesByName
 from usefulShared.platform.appLog import AppLog
 from usefulShared.signIn.sessionKeeper import MemoryStore
 from usefulShared.tables import newRowId, toCloud
@@ -63,12 +63,28 @@ class FakeClipboard:
         self.text = value
 
 
+class FakeNotifier:
+    """weighInNotify: remembers the daily reminder it was asked for."""
+
+    def __init__(self):
+        self.allowed = True
+        self.daily: tuple | None = None
+
+    async def requestPermission(self) -> bool:
+        return self.allowed
+
+    async def scheduleDaily(self, hour: int, minute: int, title: str, body: str) -> str:
+        self.daily = (hour, minute, title, body)
+        return f"2026-10-13 {hour:02d}:{minute:02d}"
+
+
 @dataclasses.dataclass
 class Services:
     googleSignIn: FakeGoogle
     secretStore: MemoryStore
     clipboard: FakeClipboard
     filePicker: FakePicker
+    notifier: FakeNotifier = dataclasses.field(default_factory=FakeNotifier)
 
 
 class Phone:
@@ -212,7 +228,7 @@ def testCheckThenFinishFromTheScreen(phone, cloud):
     assert "2 waiting" in phone.texts()  # the workout day and the exercise, until sync sends them (SC1.1)
     press(find(phone.screen(), "Finish workout", "Button"))
     texts = phone.texts()
-    assert "Workout finished ✓" in texts and "skipped (not done when finished)" in texts
+    assert "Workout finished ✓ · 2,560 kg" in texts and "skipped (not done when finished)" in texts
     assert phone.run(phone.app.syncNow()).status == "done"
     assert "2 waiting" not in phone.texts() and phone.app.model.waiting == 0
 
@@ -306,7 +322,7 @@ def testProblemsPageCopiesAReportWithoutSecrets(phone, cloud):
     press(menuItem)
     texts = phone.texts()
     assert "Problems" in texts
-    assert any(text.startswith("Gym Tracker 0.1-alpha · schema 1") for text in texts)
+    assert any(text.startswith(f"Gym Tracker 0.1-alpha · schema {appSchema}") for text in texts)
     press(find(phone.screen(), "Copy", "Button"))
     copied = phone.services.clipboard.text
     session = phone.app.session.session
@@ -434,3 +450,134 @@ def testTheLogScrubsTheSessionsOwnTokens(phone, cloud):
     phone.app.log.problem("test", "a careless line", f"{session['access_token']} {session['refresh_token']}")
     logText = (phone.folder / "appLog.txt").read_text()
     assert session["access_token"] not in logText and session["refresh_token"] not in logText
+
+
+# --- Progression, Progress, Week, deloads (plan 7, SC3.1, SC4.1, WD2.1, WD2.4) ----------------
+
+def fieldLabelled(root, text: str):
+    """A text field by its label (the kit's find goes by a filled-in field's value first)."""
+    from screenTestKit import walk
+    (field,) = [control for control in walk(root) if type(control).__name__ == "TextField" and control.label == text]
+    return field
+
+
+def testSettingAWeightFromToday(phone, cloud):
+    from screenTestKit import redraw
+    from gym.screens.today import ExerciseRow
+    planInCloud(cloud)
+    signedIn(phone)
+    bench = phone.app.model.today.exercises[0]
+    row = draw(ExerciseRow, phone.app, bench)
+    press(find(row, "✎ weight", "TextButton"))
+    redraw(row)
+    assert fieldLabelled(row, "Mondays, kg").value == "80" and fieldLabelled(row, "Step, kg").value == "2.5"
+    from gym.screens.today import WeightEditor
+    editor = draw(WeightEditor, phone.app, bench.exercise, bench.trackDay, bench.targetWeightKg, bench.stepKg,
+                  lambda: None)
+    type_(fieldLabelled(editor, "Mondays, kg"), "85")
+    type_(fieldLabelled(editor, "Step, kg"), "5")
+    redraw(editor)
+    press(find(editor, "Save", "Button"))
+    bench = phone.app.model.today.exercises[0]
+    assert (bench.targetWeightKg, bench.targetReps, bench.stepKg) == (85, 8, 5)
+    assert phone.app.store.waiting().count == 2  # the weight and the step, waiting to be sent
+
+
+def testAMistypedStepSaysWhichField(phone, cloud):
+    from screenTestKit import redraw, visibleTexts
+    from gym.screens.today import WeightEditor
+    planInCloud(cloud)
+    signedIn(phone)
+    bench = phone.app.model.today.exercises[0]
+    editor = draw(WeightEditor, phone.app, bench.exercise, bench.trackDay, bench.targetWeightKg, bench.stepKg,
+                  lambda: None)
+    type_(fieldLabelled(editor, "Step, kg"), "a lot")
+    redraw(editor)
+    press(find(editor, "Save", "Button"))
+    redraw(editor)
+    assert "Step: type a number, like 2.5." in visibleTexts(editor)
+    assert phone.app.store.waiting().count == 0  # nothing saved, the weight included
+
+
+def testProgressListAndAnExercisesPage(phone, cloud):
+    planInCloud(cloud)
+    signedIn(phone)
+    press(find(phone.screen(), "Bench Press: done as targeted", "IconButton"))  # 4×8 @ 80 kg
+    phone.app.model.tab = "progress"
+    texts = phone.texts()
+    assert "Bench Press" in texts and "now 80 kg × 9" in texts and "PR 80 kg" in texts
+    press(find(phone.screen(), "Bench Press: open", "Container"))
+    texts = phone.texts()
+    assert "PRs: heaviest 80 kg · 1RM ~101 kg · 8 reps @ 80 kg" in texts
+    assert "Now Mon 80 kg × 9" in texts and "12 Oct  4×8 @ 80 kg · 2,560 kg" in texts
+    press(find(phone.screen(), "Back", "IconButton"))
+    assert phone.app.model.detail is None
+
+
+def testWeekTabAndStepsForAnEarlierDay(phone, cloud):
+    from gym.screens.week import DaySteps
+    planInCloud(cloud)
+    signedIn(phone)
+    press(find(phone.screen(), "Bench Press: done as targeted", "IconButton"))
+    phone.app.model.tab = "week"
+    texts = phone.texts()
+    assert "Week 12–18 Oct" in texts and "1 of 3" in texts and "Mo ✓" in texts
+    phone.app.localToday = lambda: monday + dt.timedelta(days=2)
+    phone.app.refresh()
+    from screenTestKit import redraw
+    stepsEntry = draw(DaySteps, phone.app, monday, None, lambda: None)
+    type_(find(stepsEntry, "Steps on 12 Oct", "TextField"), "9,500")
+    redraw(stepsEntry)
+    press(find(stepsEntry, "Save", "Button"))
+    assert phone.app.state.steps[monday] == 9500
+    assert ("Cardio", "95 min (from steps)") in __import__("gym.rules.stats", fromlist=["weekLines"]).weekLines(
+        phone.app.model.week)
+
+
+def testStartingAndStoppingADeloadByHand(phone, cloud):
+    planInCloud(cloud)
+    signedIn(phone)
+    menu = find(phone.screen(), "More", "PopupMenuButton")
+    press(next(item for item in menu.items if item.content == "Start a deload"))
+    texts = phone.texts()
+    assert any(text.startswith("Deload week until Sun 18 Oct") for text in texts)
+    assert "2×5 @ 80 kg" in texts  # half the sets, 3 reps short
+    menu = find(phone.screen(), "More", "PopupMenuButton")
+    press(next(item for item in menu.items if item.content == "Stop the deload"))
+    assert "4×8 @ 80 kg" in phone.texts()
+
+
+def testStartUpDoesntWaitForTheNotificationQuestion(phone, cloud):
+    """Android's "allow notifications?" waits for your answer; Today shows meanwhile, and the start time
+    isn't counting your answer."""
+    planInCloud(cloud)
+    answered = asyncio.Event()
+
+    async def notAnsweredYet() -> bool:
+        await asyncio.wait_for(answered.wait(), timeout=5)  # a start-up that waited would give up here
+        return True
+
+    phone.services.notifier.requestPermission = notAnsweredYet
+    signedIn(phone)  # the first start: the first download, then Today
+    for start in ("first", "later"):  # later: this phone's data is already downloaded
+        if start == "later":
+            answered.clear()
+            phone.services.notifier.daily = None
+            phone.restart()
+        assert phone.app.model.screen == "main", start
+        assert phone.app.remindersTask is not None and not phone.app.remindersTask.done(), start
+        answered.set()
+        phone.run(phone.app.remindersTask)
+        assert phone.services.notifier.daily == (8, 0, "Creatine", "Time for your creatine"), start
+
+
+def testTheCreatineReminderIsSetForEightEveryDay(phone, cloud):
+    """WD3.8: set after sign-in (and again at every start); a no to notifications is only logged."""
+    planInCloud(cloud)
+    signedIn(phone)
+    phone.run(phone.app.remindersTask)  # it runs beside start-up, which doesn't wait for it
+    assert phone.services.notifier.daily == (8, 0, "Creatine", "Time for your creatine")
+    phone.services.notifier.daily, phone.services.notifier.allowed = None, False
+    phone.run(phone.app.scheduleReminders())
+    assert phone.services.notifier.daily is None
+    assert "no creatine reminder" in (phone.folder / "appLog.txt").read_text()

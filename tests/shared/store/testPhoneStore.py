@@ -63,7 +63,7 @@ def testStepsRunOnlyOnce(path):
 def testAFailedStepChangesNothing(store, path):
     saved = store.save("bodyWeight", exampleRow("bodyWeight"))
     brokenNextStep = phoneSteps + (('alter table "bodyWeight" add column "note" text', "this is not SQL"),)
-    with pytest.raises(PhoneDatabaseError, match="step 2"):
+    with pytest.raises(PhoneDatabaseError, match=f"step {len(phoneSteps) + 1}"):
         runPhoneSteps(path, brokenNextStep)
     db = sqlite3.connect(path)
     assert db.execute("pragma user_version").fetchone()[0] == len(phoneSteps)

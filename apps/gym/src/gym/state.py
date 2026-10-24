@@ -9,10 +9,13 @@ import datetime as dt
 from collections.abc import Iterable, Mapping
 from typing import Any
 
+from gym.rules.facts import ImportedPlan, LoggedExercise, SetDone, StepEdit, WeightEdit
 from gym.rules.planFile import Plan, PlanExercise, checkPlan, scheduleDays
 from gym.rules.planImport import knownExercises
-from gym.rules.schedule import LoggedWorkout, PlanStart
-from gym.rules.today import ImportedPlan, LoggedExercise, SetDone, TodayView, todayView
+from gym.rules.progression import Training, training
+from gym.rules.schedule import LoggedWorkout, PlanStart, planInEffect
+from gym.rules.stats import ExerciseDetail, ProgressLine, WeekSummary, exerciseDetail, progressLines, weekSummary
+from gym.rules.today import TodayView, todayView
 
 
 class GymState:
@@ -27,7 +30,11 @@ class GymState:
         self.steps: dict[dt.date, int] = {}
         self.weights: dict[dt.date, float] = {}
         self.known: dict[str, PlanExercise] = {}  # every exercise of every plan so far (R8)
+        self.weightEdits: list[WeightEdit] = []  # weights set in the app (WD2.1), oldest first
+        self.stepEdits: list[StepEdit] = []  # weight steps set in the app, oldest first
+        self.manualDeloads: dict[str, dt.date] = {}  # deloads started by hand: row id -> start (WD2.4)
         self._planCache: dict[tuple[str, dt.datetime], Plan | None] = {}
+        self._training: dict[dt.date, Training] = {}  # worked out once per day and load
 
     def load(self, rowsByTable: Mapping[str, Iterable[dict[str, Any]]]) -> None:
         """Takes in every row of every table and works out the facts again."""
@@ -51,9 +58,50 @@ class GymState:
                 row["exerciseId"], _readSets(row["sets"]), row["minutes"], row["skipped"])
         self.steps = {row["date"]: row["steps"] for row in self._live("dailySteps")}
         self.weights = {row["date"]: row["weightKg"] for row in self._live("bodyWeight")}
+        self.weightEdits = [WeightEdit(row["exerciseId"], row["weekday"], row["weightKg"], row["fromDate"])
+                            for row in _inOrder(self._live("exerciseWeights"))]
+        self.stepEdits = [StepEdit(row["exerciseId"], row["incrementKg"], row["fromDate"])
+                          for row in _inOrder(self._live("exerciseSteps"))]
+        self.manualDeloads = {row["id"]: row["startDate"] for row in self._live("deloads")}
+        self._training = {}
+
+    def training(self, date: dt.date) -> Training:
+        """Progression and deloads as of a day (progression.py)."""
+        if date not in self._training:
+            self._training[date] = training(self.plans, self.workouts, self.logs, self.weightEdits, self.stepEdits,
+                                            list(self.manualDeloads.values()), date)
+        return self._training[date]
 
     def today(self, date: dt.date) -> TodayView:
-        return todayView(self.plans, self.workouts, self.logs.get(date, {}), self.known, self.steps.get(date), date)
+        return todayView(self.plans, self.workouts, self.logs.get(date, {}), self.known, self.steps.get(date), date,
+                         self.training(date))
+
+    def currentPlan(self, date: dt.date) -> ImportedPlan | None:
+        """The plan in effect on a day."""
+        start = planInEffect([imported.start for imported in self.plans], date)
+        return next((imported for imported in self.plans if start is not None and imported.start is start), None)
+
+    def progress(self, date: dt.date) -> tuple[tuple[ProgressLine, ...], tuple[ProgressLine, ...]]:
+        """The Progress tab's list (SC3.1): the plan's exercises, then past ones."""
+        return progressLines(self.currentPlan(date), self.known, self.logs, self.training(date), date)
+
+    def exerciseDetail(self, exerciseId: str, date: dt.date, chartRange: str) -> ExerciseDetail | None:
+        """One exercise's page in Progress (SC3.1)."""
+        exercise = self.known.get(exerciseId)
+        if exercise is None:
+            return None
+        return exerciseDetail(exercise, self.currentPlan(date), self.logs, self.training(date), date, chartRange)
+
+    def week(self, monday: dt.date, date: dt.date) -> WeekSummary:
+        """The Week tab (SC4.1) for the week starting on `monday`."""
+        return weekSummary(self.plans, self.workouts, self.logs, self.known, self.steps, self.weights, monday, date)
+
+    def manualDeloadAt(self, date: dt.date) -> str | None:
+        """The row of a deload started by hand that's running or still to come on a day, if there is one."""
+        for rowId, start in self.manualDeloads.items():
+            if start + dt.timedelta(days=6) >= date:
+                return rowId
+        return None
 
     def planLines(self, today: dt.date) -> tuple[str, ...]:
         """The PC view's Plans tab (SC6.1): the active plan, any taking effect later, and earlier ones."""
@@ -89,6 +137,12 @@ class GymState:
         if key not in self._planCache:
             self._planCache[key] = checkPlan(row["planJson"], strict=False).plan
         return self._planCache[key]
+
+
+def _inOrder(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Changes set in the app, oldest first: by the day they apply from, then when they were made (the id
+    only makes exact ties come out the same everywhere)."""
+    return sorted(rows, key=lambda row: (row["fromDate"], row["updatedAt"], row["id"]))
 
 
 def _shortDate(date: dt.date) -> str:

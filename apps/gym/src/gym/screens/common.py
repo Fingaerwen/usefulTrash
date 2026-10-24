@@ -30,20 +30,32 @@ def Banners(model):
 
 
 @ft.component
-def Menu(app, items: tuple[str, ...] = ("problems", "importPlan", "signOut")):
-    """The ⋮ menu (SC2.1): Problems and Sign out; the phone also gets "Import a plan file" (G2b-2)."""
+def Menu(app, items: tuple[str, ...] = ("problems", "deload", "importPlan", "signOut")):
+    """The ⋮ menu (SC2.1): Problems and Sign out; starting or stopping a deload by hand (WD2.4), hidden while
+    an automatic one runs; the phone also gets "Import a plan file" (G2b-2)."""
     async def importPlan(e):
         await app.pickPlanFile()
 
     async def signOut(e):
         await app.signOut()
 
+    async def startDeload(e):
+        await app.startDeload()
+
+    async def stopDeload(e):
+        await app.stopDeload()
+
     entries = {
         "problems": ft.PopupMenuItem(content="Problems", on_click=lambda e: app.openProblems()),
         "importPlan": ft.PopupMenuItem(content="Import a plan file", on_click=importPlan),
         "signOut": ft.PopupMenuItem(content="Sign out", on_click=signOut),
     }
-    return ft.PopupMenuButton(icon=ft.Icons.MORE_VERT, tooltip="More", items=[entries[name] for name in items])
+    if app.model.deloadAction == "start":
+        entries["deload"] = ft.PopupMenuItem(content="Start a deload", on_click=startDeload)
+    elif app.model.deloadAction == "stop":
+        entries["deload"] = ft.PopupMenuItem(content="Stop the deload", on_click=stopDeload)
+    return ft.PopupMenuButton(icon=ft.Icons.MORE_VERT, tooltip="More",
+                              items=[entries[name] for name in items if name in entries])
 
 
 @ft.component
@@ -89,4 +101,4 @@ def DownloadingScreen(app, model):
 
 @ft.component
 def ComingSoon(what: str):
-    return ft.Column([quiet(f"{what} comes with 0.2-alpha.")], expand=True)
+    return ft.Column([quiet(f"{what} comes in a later version.")], expand=True)

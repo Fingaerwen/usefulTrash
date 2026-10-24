@@ -5,8 +5,7 @@ project it's `claude/planFormat.md`). It's written to Claude.*
 
 You write training plans for **Gym Tracker**, the user's own Android gym app. A plan is **one JSON file**
 in the exact format below. The user imports it in the app's PC view, and the app then shows each
-day's workout on the phone, logs what was done and (from version 0.2-alpha) suggests the next weights
-and reps by itself. The app checks every file strictly: anything outside this format is refused, with
+day's workout on the phone, logs what was done and suggests the next weights and reps by itself. The app checks every file strictly: anything outside this format is refused, with
 a list of problems the user pastes back to you.
 
 ## What the app does with a plan
@@ -53,34 +52,45 @@ a list of problems the user pastes back to you.
   ```
   `notes` stays the one short cue that's always visible; `form` is the full list, shown on a tap.
 - **Progression is automatic, so a plan gives only the starting point.** Give each exercise a rep
-  range and a starting weight. Don't write week-by-week weights. The app's rules (from 0.2-alpha; in
-  0.1-alpha the target is simply `repsMin` at the plan's weight):
+  range and a starting weight. Don't write week-by-week weights. The app's rules:
   - One rep target for all sets, starting at `repsMin`.
   - Every set hits the target → next time, the lowest set's reps + 1.
-  - Every set reaches `repsMax` → add the weight step (`incrementKg`) and go back to `repsMin`.
-  - Two or more sets under `repsMin` is a miss; two misses in a row → back to the last lower weight
-    that worked. After such a drop, it takes two sessions at the top of the range to go heavier again.
+  - Every set reaches `repsMax` → add the weight step (`incrementKg`, per side for a `platesPerSide`
+    lift) and go back to `repsMin`.
+  - Two or more sets under `repsMin` is a miss (a 1-set exercise: that set); two misses in a row → back
+    to the last lower weight that worked, at the reps achieved there. After such a drop, it takes two
+    sessions at the top of the range to go heavier again.
+  - A session done at another weight than the target starts afresh at that weight.
   - **An exercise on several days progresses separately on each day:** its own target, weight and
     drop-backs per day, so a lift done fresh on Monday and tired on Wednesday doesn't drag either
     down. Its history, PRs and charts stay one.
+  - **The flex day and moves:** a made-up session uses and updates the targets of the day it stands in
+    for (Saturday doing Monday's session uses Monday's targets), and a moved exercise uses and updates
+    the targets of the day it came from.
   - Bodyweight exercises progress in reps only, past `repsMax` too. Cardio has a minutes target.
-- **Deloads are the app's job (from 0.2-alpha):** about a week at half the sets, stopping 3–4 reps
-  short. It starts one by itself when two or more `compound` lifts go backwards two sessions in a row,
-  or by week 8 at the latest, and the user can start one by hand. So mark the compound lifts, and don't
-  write deload weeks into a plan.
-- **Volume and estimated 1RM (from 0.2-alpha)** count the real load: a lift logged as plates per side
-  is doubled and gets its bar or sled weight added, and a two-dumbbell lift is doubled. That's why
-  `dumbbells`, `platesPerSide` and `barKg` exist.
+  - **The user can change weights in the app:** an exercise's weight on each day (that day's target then
+    starts again at `repsMin`) and its weight step.
+- **Deloads are the app's job:** a week at the same weights, half the sets (rounded up) and a rep target
+  3 below the usual one. The app starts one by itself, from the next Monday, when two or more
+  `compound` lifts go backwards: at their target weight, the same set falls short of the rep target in
+  two sessions in a row on the same day. Otherwise week 8 is a deload at the latest, counting weeks from
+  the end of the last deload (the first time, from the week of the first workout). The user can also
+  start one by hand. Deload sessions don't count for progression: afterwards every target picks up where
+  it left off. So mark the compound lifts, and don't write deload weeks into a plan.
+- **Volume and estimated 1RM** count the real load: a lift logged as plates per side is doubled and
+  gets its `barKg` added, a `barKg` on a lift logged as its whole load is added as it is, and a
+  two-dumbbell lift is doubled. That's why `dumbbells`, `platesPerSide` and `barKg` exist.
 - **History follows the `exerciseId`.** The same ID means the same exercise on every day and in every
   later plan, so its history, PRs and charts carry on. A new ID starts a new history (the app asks if a
   new ID looks like a known exercise with a similar name).
 - **Importing a new plan:** it takes effect today, or tomorrow if a workout is already logged today.
-  From 0.2-alpha, **exercises the app already knows keep the user's current weights** (the import
-  lists the plan weights it didn't use), and only new exercises start at the plan's weight. Until then
-  the plan's weights replace the app's, so when you revise a plan before 0.2-alpha, ask the user for
-  their current working weights and put those in.
-- **Also in the app, but not part of a plan:** body weight (weekly weigh-in, Friday reminder), daily
-  step counts, PRs and estimated 1RM, volume, streaks, a weekly summary. A plan holds training only.
+  **Exercises the user has trained (or set a weight for in the app) keep their current weights**: the
+  import lists the plan weights it didn't use. An exercise that's new, or never trained, starts at the
+  plan's weight, so a corrected file still fixes starting weights. A known exercise on a day it wasn't on
+  before starts at its latest weight from any day.
+- **Also in the app, but not part of a plan:** daily step counts, PRs and estimated 1RM, volume,
+  streaks, a weekly summary and a daily creatine reminder at 08:00. A weigh-in screen comes later. A
+  plan holds training only.
 
 ## What isn't supported, and what to do instead
 
@@ -275,7 +285,8 @@ move in some weeks. The bench press and the pull-up have a how-to.
    `<planId>-v<version>.json`** if you can create files; otherwise as **one ```json code block holding
    only the plan**, for the user to save as a `.json` file. A short summary in words before it is fine.
 3. Revising a plan: keep the `planId`, raise `version` by 1, keep every `exerciseId` for the same
-   exercise (never rename one), and (before 0.2-alpha) use the user's current working weights. Keep
+   exercise (never rename one). Trained exercises keep the app's weights, so the plan's `weightKg` only
+   counts for new or never-trained ones: give those realistic starting weights. Keep
    each exercise's `setup`, `howTo` and `form` too, unless the user asks to change them: the app shows
    only what the plan in use has.
 4. If the app refuses the file, the user pastes its problem list, for example

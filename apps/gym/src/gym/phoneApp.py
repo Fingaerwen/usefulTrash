@@ -5,6 +5,7 @@ Start-up: upgrade the phone's database if needed (14c), restore the saved sessio
 first download if this phone has none yet (14b), then Today with sync running in the background.
 """
 
+import asyncio
 import datetime as dt
 import os
 import sqlite3
@@ -24,6 +25,7 @@ from usefulShared.sync.syncEngine import SyncEngine, SyncLoop, SyncOutcome
 
 databaseName = "gymTracker.sqlite3"
 notSyncedAfter = dt.timedelta(days=3)  # the "Not synced" banner (G9.2b)
+creatineAt = (8, 0)  # the daily creatine reminder (WD3.8)
 
 
 class PhoneServices(Protocol):
@@ -33,6 +35,7 @@ class PhoneServices(Protocol):
     secretStore: SecretStore  # secureStore: the session, encrypted with a phone-locked key (T1.1)
     clipboard: Any  # Flet's Clipboard: set(text)
     filePicker: Any  # Flet's FilePicker: pick_files(...)
+    notifier: Any  # weighInNotify: requestPermission(), scheduleDaily(hour, minute, title, body)
 
 
 class PhoneApp(AppBase):
@@ -49,6 +52,7 @@ class PhoneApp(AppBase):
         self.engine: SyncEngine | None = None
         self.syncLoop: SyncLoop | None = None
         self.lastOutcome = SyncOutcome("none")
+        self.remindersTask: asyncio.Task | None = None  # setting the reminders runs beside the app (it may ask you)
 
     # --- Start-up ----------------------------------------------------------------------------
 
@@ -97,6 +101,24 @@ class PhoneApp(AppBase):
             return
         self.model.screen = "main"
         self.syncLoop.start()
+        self.startReminders()
+
+    def startReminders(self) -> None:
+        """Sets the reminders in the background: Android's question about notifications waits for your
+        answer, and start-up (and its measured time) mustn't wait with it."""
+        self.remindersTask = asyncio.get_running_loop().create_task(self.scheduleReminders())
+
+    async def scheduleReminders(self) -> None:
+        """The daily creatine reminder at 08:00 (WD3.8), set again at every start (it replaces itself).
+        Android 13+ asks once whether the app may notify; a no just means no reminder, never an error."""
+        try:
+            if not await self.services.notifier.requestPermission():
+                self.log.info("reminders", "notifications aren't allowed, so there's no creatine reminder")
+                return
+            hour, minute = creatineAt
+            await self.services.notifier.scheduleDaily(hour, minute, "Creatine", "Time for your creatine")
+        except Exception as problem:  # the app works the same without it
+            self.log.problem("reminders", "The creatine reminder couldn't be set.", type(problem).__name__)
 
     async def firstDownload(self) -> None:
         """Everything is fetched before Today shows, with a running count (14b). Needs the internet."""
@@ -119,6 +141,7 @@ class PhoneApp(AppBase):
         self.refresh()
         self.model.screen = "main"
         self.syncLoop.start()
+        self.startReminders()
 
     # --- Signing in and out ------------------------------------------------------------------
 

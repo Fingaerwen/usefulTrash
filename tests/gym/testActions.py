@@ -220,3 +220,60 @@ def testAPlanThatCantBeReadIsListedNotFatal(app):
                                 "archived": False})
     app.reload()
     assert len(app.state.unreadablePlans) == 1 and app.today().title == "Push"
+
+
+# --- Progression on Today (plan 7), weights and steps set in the app (WD2.1, WD3.7) -------------
+
+def nextMonday(n: int = 1) -> dt.date:
+    return monday + dt.timedelta(days=7 * n)
+
+
+def testTodaysTargetsComeFromProgression(app):
+    view = app.today()
+    app.do(app.actions.saveSets, view, line(view, "benchPress"), [SetDone(9, 82.5), SetDone(9, 82.5),
+                                                                  SetDone(10, 82.5), SetDone(9, 82.5)])
+    nextWeek = line(app.today(nextMonday()), "benchPress")
+    assert (nextWeek.targetSets, nextWeek.targetReps, nextWeek.targetWeightKg) == (4, 10, 82.5)
+    assert nextWeek.trackDay == 0 and nextWeek.stepKg == 2.5
+
+
+def testSettingAWeightRestartsThatDayAtRepsMin(app):
+    app.do(app.actions.setWeight, "benchPress", 0, 90, monday, False)
+    bench = line(app.today(), "benchPress")
+    assert (bench.targetReps, bench.targetWeightKg) == (8, 90)
+    (row,) = app.database.rows("exerciseWeights")
+    assert (row["weekday"], row["fromDate"]) == (0, monday)
+    app.do(app.actions.setWeight, "benchPress", 0, 92.5, monday, True)  # done today: from tomorrow on
+    rows = sorted(app.database.rows("exerciseWeights"), key=lambda row: row["fromDate"])
+    assert [(row["weightKg"], row["fromDate"]) for row in rows] == [(90, monday), (92.5, monday + dt.timedelta(days=1))]
+    assert line(app.today(), "benchPress").targetWeightKg == 90  # each change is kept, from its own day
+    assert line(app.today(nextMonday()), "benchPress").targetWeightKg == 92.5
+    with pytest.raises(ActionRefused, match="Weight must be"):
+        app.do(app.actions.setWeight, "benchPress", 0, 82.555, monday, False)
+
+
+def testSettingAWeightStep(app):
+    app.do(app.actions.setStep, "benchPress", 1.25, monday)
+    app.clock.advance(minutes=1)
+    app.do(app.actions.setStep, "benchPress", 5, monday)
+    assert line(app.today(), "benchPress").stepKg == 5  # the later change on a day wins
+    assert sorted(row["incrementKg"] for row in app.database.rows("exerciseSteps")) == [1.25, 5]
+    assert {row["fromDate"] for row in app.database.rows("exerciseSteps")} == {monday}
+    with pytest.raises(ActionRefused, match="weight step"):
+        app.do(app.actions.setStep, "benchPress", 0, monday)
+
+
+# --- Deloads by hand (WD2.4, WD3.4) ---------------------------------------------------------------
+
+def testADeloadByHandStartsTodayOrTomorrow(app):
+    app.do(app.actions.startDeload, monday, False)
+    view = app.today()
+    assert view.deload is not None and view.deload.reason == "manual"
+    bench = line(view, "benchPress")
+    assert (bench.targetSets, bench.targetReps) == (2, 5)  # half of 4, 3 short of 8
+    with pytest.raises(ActionRefused, match="already"):
+        app.do(app.actions.startDeload, monday, False)
+    app.do(app.actions.stopDeload, monday)
+    assert app.today().deload is None
+    app.do(app.actions.startDeload, monday, True)  # a workout is logged today: from tomorrow
+    assert app.today().nextDeload.start == monday + dt.timedelta(days=1)

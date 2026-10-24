@@ -1,5 +1,6 @@
 """The whole app: one screen at a time, chosen by the model (sign-in, first download, the tabs,
-Problems, plan import). The phone's tabs are Today · Progress · Week · Weight (18.1)."""
+Problems, plan import). The phone's tabs are Today · Progress · Week · Weight (18.1); the PC view has
+Today · Progress · Week · Plans (SC6.1). The Weight tab comes in a later version."""
 
 import flet as ft
 
@@ -13,11 +14,15 @@ from gym.screens.common import (
 from gym.screens.importPlan import ImportPlanScreen
 from gym.screens.plans import PlansTab
 from gym.screens.problems import ProblemsScreen
+from gym.screens.progress import ProgressTab
 from gym.screens.today import TodayTab
+from gym.screens.week import WeekTab
 
 phoneTabs = (("today", "Today", ft.Icons.TODAY), ("progress", "Progress", ft.Icons.SHOW_CHART),
              ("week", "Week", ft.Icons.CALENDAR_VIEW_WEEK), ("weight", "Weight", ft.Icons.MONITOR_WEIGHT))
-pcTabs = (("today", "Today", ft.Icons.TODAY), ("plans", "Plans", ft.Icons.LIST_ALT))  # more tabs come later
+pcTabs = (("today", "Today", ft.Icons.TODAY), ("progress", "Progress", ft.Icons.SHOW_CHART),
+          ("week", "Week", ft.Icons.CALENDAR_VIEW_WEEK), ("plans", "Plans", ft.Icons.LIST_ALT))
+tabScreens = {"today": TodayTab, "progress": ProgressTab, "week": WeekTab, "plans": PlansTab}
 
 
 @ft.component
@@ -38,7 +43,7 @@ def PhoneMain(app, model):
 
 @ft.component
 def PcMain(app, model):
-    """The PC view's tabs: Today and Plans for now (SC6.1)."""
+    """The PC view's tabs (SC6.1)."""
     return Tabbed(app, model, pcTabs)
 
 
@@ -51,8 +56,8 @@ def Tabbed(app, model, tabs):
         app.model.tab = names[int(e.control.selected_index)]
 
     name = names[selected]
-    body = (TodayTab(app, model) if name == "today" else PlansTab(app, model) if name == "plans"
-            else ComingSoon(tabs[selected][1]))
+    screen = tabScreens.get(name)
+    body = screen(app, model) if screen else ComingSoon(tabs[selected][1])
     bar = ft.NavigationBar(destinations=[ft.NavigationBarDestination(icon=icon, label=label)
                                          for _, label, icon in tabs],
                            selected_index=selected, on_change=switch)

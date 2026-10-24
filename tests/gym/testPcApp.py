@@ -171,6 +171,16 @@ def testSigningOutForgetsEverything(browser, cloud):
     assert browser.app.store.rows("plans") == []
 
 
+def testProgressAndWeekTabsAreThereToo(browser, cloud):
+    planInCloud(cloud)
+    signedIn(browser)
+    browser.app.model.tab = "progress"
+    assert "Bench Press" in browser.texts() and "now 80 kg × 8" in browser.texts()
+    browser.app.model.tab = "week"
+    assert "Week 12–18 Oct" in browser.texts() and "0 of 3" in browser.texts()
+    assert browser.app.canEnterStepsOn(monday - dt.timedelta(days=30))  # the PC view takes any day (SC4.1)
+
+
 def testTheWebsitesCodeNeverNeedsSQLite():
     """The PC view runs Python in the browser, which may have no SQLite: none of its code may import it."""
     script = (

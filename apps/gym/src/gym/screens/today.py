@@ -9,12 +9,15 @@
 
 A rest day shows "Rest day · next: Upper". No plan yet: "Import your plan in the PC view", with "Import a
 file" as the fallback (G2b-2). Tapping an exercise's name unfolds the plan's how-to under it: Setup, the
-steps and the form cues (SC7.1).
+steps and the form cues (SC7.1). ✎ weight sets the exercise's weight on this day and its weight step
+(WD2.1). A deload week, or one starting within a week, shows a line under the header (WD2.4).
 """
 
 import flet as ft
 
-from gym.rules.today import ExerciseLine, SetDone, headerText, kilogramsUnit, targetText
+from gym.rules.schedule import weekdayNames
+from gym.rules.stats import kgText, setsText, thousands
+from gym.rules.today import ExerciseLine, SetDone, deloadText, headerText, kilogramsUnit, targetText
 from gym.screens.common import Banners, Menu, Notice
 from gym.screens.look import gap, quiet, tapSize
 
@@ -29,6 +32,7 @@ def TodayTab(app, model):
         quiet(f"{model.waiting} waiting") if model.waiting else ft.Container(visible=False),  # SC1.1
         Menu(app, app.menuItems),
     ])
+    deload = deloadText(view)
     if not view.hasPlan:
         body = [NoPlan(app)]
     elif view.isRestDay:
@@ -36,7 +40,8 @@ def TodayTab(app, model):
     else:
         body = [ExerciseRow(app, line, key=line.exercise.exerciseId) for line in view.exercises]
         body.append(FinishLine(app, view))
-    return ft.Column([header, Banners(model), Notice(app, model), ft.Divider(), *body, ft.Divider(),
+    return ft.Column([header, Banners(model), Notice(app, model),
+                      ft.Text(deload) if deload else ft.Container(visible=False), ft.Divider(), *body, ft.Divider(),
                       StepsLine(app, view.stepsToday, key=f"steps{view.date}")],
                      spacing=gap, scroll=ft.ScrollMode.AUTO, expand=True)
 
@@ -63,7 +68,9 @@ def ExerciseRow(app, line: ExerciseLine):
     the name unfolds its how-to (SC7.1)."""
     editing, setEditing = ft.use_state(False)
     showingHowTo, setShowingHowTo = ft.use_state(False)
+    settingWeight, setSettingWeight = ft.use_state(False)
     exercise = line.exercise
+    weighted = not exercise.isCardio and exercise.equipment != "bodyweight" and line.trackDay is not None
     done, skipped = line.status == "done", line.status in ("skipped", "autoSkipped")
 
     async def check(e):
@@ -96,13 +103,54 @@ def ExerciseRow(app, line: ExerciseLine):
         *details,
         ft.TextButton("▾ sets" if not exercise.isCardio else "▾ minutes", on_click=lambda e: setEditing(not editing)),
         ft.TextButton("unskip" if line.status == "skipped" else "skip", on_click=skip),
+        ft.TextButton("✎ weight", on_click=lambda e: setSettingWeight(not settingWeight)) if weighted
+        else ft.Container(visible=False),
     ], spacing=4, wrap=True)
     parts = [top, under]
     if showingHowTo:
         parts.append(HowTo(exercise))
     if editing:
         parts.append(SetsEditor(app, line, lambda: setEditing(False)))
+    if settingWeight:
+        parts.append(WeightEditor(app, exercise, line.trackDay, line.targetWeightKg, line.stepKg,
+                                  lambda: setSettingWeight(False)))
     return ft.Column(parts, spacing=0)
+
+
+@ft.component
+def WeightEditor(app, exercise, weekday: int, weightKg, stepKg, close):
+    """✎ weight (WD2.1): the exercise's weight on this day (its target restarts there at repsMin, WD3.7)
+    and its weight step on every day. Shared with the Progress tab's exercise page."""
+    unit = kilogramsUnit(exercise)
+    typedWeight, setTypedWeight = ft.use_state("" if weightKg is None else kgText(weightKg))
+    typedStep, setTypedStep = ft.use_state("" if stepKg is None else kgText(stepKg))
+    problem, setProblem = ft.use_state("")
+    dayName = weekdayNames[weekday].capitalize()
+
+    async def save(e):
+        try:
+            weight, step = _kilograms(typedWeight), _kilograms(typedStep, "Step")
+        except ValueError as refused:
+            setProblem(str(refused))
+            return
+        app.model.notice = ""
+        if weightKg is None or abs(weight - weightKg) > 0.001:
+            await app.setWeight(exercise.exerciseId, weekday, weight)
+        if not app.model.notice and (stepKg is None or abs(step - stepKg) > 0.001):
+            await app.setStep(exercise.exerciseId, step)
+        if not app.model.notice:  # a refused value shows why and keeps the editor open
+            close()
+
+    return ft.Container(ft.Column([
+        ft.Row([ft.TextField(label=f"{dayName}s, {unit}", value=typedWeight, keyboard_type=ft.KeyboardType.NUMBER,
+                             width=140, on_change=lambda e: setTypedWeight(e.control.value)),
+                ft.TextField(label=f"Step, {unit}", value=typedStep, keyboard_type=ft.KeyboardType.NUMBER, width=120,
+                             on_change=lambda e: setTypedStep(e.control.value))], spacing=gap, wrap=True),
+        quiet(f"A new weight starts {dayName}'s target again at {exercise.repsMin} reps. The step counts on every "
+              "day."),
+        quiet(problem) if problem else ft.Container(visible=False),
+        ft.Row([ft.Button("Save", on_click=save), ft.TextButton("Cancel", on_click=lambda e: close())]),
+    ], spacing=gap), padding=ft.Padding.only(left=12, bottom=8))
 
 
 @ft.component
@@ -189,7 +237,8 @@ def FinishLine(app, view):
         await app.finish()
 
     if view.finished:
-        return ft.Row([quiet("Workout finished ✓")], alignment=ft.MainAxisAlignment.CENTER)
+        volume = f" · {thousands(view.volumeKg)} kg" if view.volumeKg else ""
+        return ft.Row([quiet(f"Workout finished ✓{volume}")], alignment=ft.MainAxisAlignment.CENTER)
     return ft.Row([ft.Button("Finish workout", on_click=finish, disabled=not view.workoutExists, height=tapSize)],
                   alignment=ft.MainAxisAlignment.CENTER)
 
@@ -231,19 +280,7 @@ def StepsLine(app, stepsToday: int | None):
 def _loggedText(line: ExerciseLine) -> str:
     """What was logged, written like the target: "4×9 @ 82.5 kg", or each set when they differ."""
     logged = line.logged
-    if logged is None:
-        return ""
-    if logged.minutes is not None and not logged.sets:
-        return f"{logged.minutes} min"
-    if not logged.sets:
-        return ""
-    if len(set(logged.sets)) == 1:
-        first = logged.sets[0]
-        text = f"{len(logged.sets)}×{first.reps}"
-        return text + (f" @ {_kgText(first.weightKg)} {kilogramsUnit(line.exercise)}" if first.weightKg is not None
-                       else "")
-    return " · ".join(f"{done.reps}" + (f"@{_kgText(done.weightKg)}" if done.weightKg is not None else "")
-                      for done in logged.sets)
+    return setsText(line.exercise, logged.sets, logged.minutes) if logged is not None else ""
 
 
 def _kgText(weightKg: float | None) -> str:
@@ -263,9 +300,9 @@ def _steps(text: str) -> int:
     return _whole(text.replace(",", "").replace(".", "").replace(" ", ""), "Steps")
 
 
-def _kilograms(text: str) -> float:
-    """A typed weight; a comma works as the decimal point too ("82,5")."""
+def _kilograms(text: str, what: str = "Weight") -> float:
+    """A typed weight or weight step; a comma works as the decimal point too ("82,5")."""
     try:
         return float(text.strip().replace(",", "."))
     except ValueError:
-        raise ValueError("Weight: type a number, like 82.5.") from None
+        raise ValueError(f"{what}: type a number, like {'82.5' if what == 'Weight' else '2.5'}.") from None

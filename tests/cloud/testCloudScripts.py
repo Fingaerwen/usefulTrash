@@ -26,7 +26,8 @@ postgresImage = (
     "docker.io/library/postgres@sha256:aa90e97ee862e558111d34cfb8b2c4bec768c2b039fb791341686928560263b3"
 )
 
-syncedTables = ["plans", "sessions", "exerciseLogs", "bodyWeight", "dailySteps", "backups"]
+syncedTables = ["plans", "sessions", "exerciseLogs", "bodyWeight", "dailySteps", "backups", "exerciseWeights",
+                "exerciseSteps", "deloads"]
 userA = str(uuid.UUID(int=1))
 userB = str(uuid.UUID(int=2))
 
@@ -131,6 +132,10 @@ def newRow(table: str, userId: str = userA, updatedAt: str = "now()", **columns)
         "bodyWeight": {"date": "'2026-10-12'", "weightKg": "81.2"},
         "dailySteps": {"date": "'2026-10-12'", "steps": "14000"},
         "backups": {"madeAt": "now()", "fileName": "'backup.zip'", "schemaVersion": "1", "madeBy": "'phone'"},
+        "exerciseWeights": {"exerciseId": "'benchPress'", "weekday": "0", "weightKg": "82.5",
+                            "fromDate": "'2026-10-12'"},
+        "exerciseSteps": {"exerciseId": "'benchPress'", "incrementKg": "2.5", "fromDate": "'2026-10-12'"},
+        "deloads": {"startDate": "'2026-10-19'"},
     }[table]
     values = {"id": f"'{uuid.uuid4()}'", "userId": f"'{userId}'", "updatedAt": updatedAt, **defaults, **columns}
     names = ", ".join(f'"{name}"' for name in values)
@@ -156,6 +161,16 @@ def testScriptsRunOnAFreshDatabase(emptyDatabase):
 def testRunningAnUpgradeTwiceIsRefused(database):
     database.fails(cloudScripts[0].read_text(encoding="utf-8"), "has already been run")
     assert database.ok('select count(*) from public."cloudInfo";') == ["1"]
+    database.fails(cloudScripts[1].read_text(encoding="utf-8"), "has already been run")
+
+
+def testUpgrade002NeedsUpgrade001First(emptyDatabase):
+    emptyDatabase.fails(cloudScripts[1].read_text(encoding="utf-8"), "Upgrade 001 has to be run first")
+
+
+def testUpgrade002LetsAppsBuiltFor001KeepSyncing(database):
+    """It only adds tables (UP1.1), so minAppSchema stays 1."""
+    assert database.ok('select "schemaVersion", "minAppSchema" from public."cloudInfo";') == ["2|1"]
 
 
 def testAFailedUpgradeChangesNothing(emptyDatabase):
@@ -273,6 +288,13 @@ def testOneRowPerDay(database, table, sameDayColumns):
     database.ok(newRow(table, **sameDayColumns), asUser=userA)
     database.fails(newRow(table, **sameDayColumns), "duplicate key", asUser=userA)
     database.ok(newRow(table, userId=userB, **sameDayColumns), asUser=userB)  # another user's same day is fine
+
+
+@pytest.mark.parametrize("table", ["exerciseWeights", "exerciseSteps"])
+def testEveryChangeSetInTheAppIsItsOwnRow(database, table):
+    """WD2.1: setting a weight or a step again adds a row, so the earlier change is kept."""
+    database.ok(newRow(table), asUser=userA)
+    database.ok(newRow(table), asUser=userA)
 
 
 def testTwoExercisesOnTheSameDayAreFine(database):

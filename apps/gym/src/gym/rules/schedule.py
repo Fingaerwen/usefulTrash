@@ -80,6 +80,13 @@ def daySchedule(plans: Iterable[PlanStart], workouts: Iterable[LoggedWorkout], t
     return _day(list(plans), _oneWorkoutPerDay(workouts), today, today)
 
 
+def daySchedules(plans: Iterable[PlanStart], workouts: Iterable[LoggedWorkout],
+                 dates: Iterable[dt.date]) -> dict[dt.date, DaySchedule]:
+    """daySchedule for several days, each as that day saw it, with the workouts sorted only once."""
+    plans, workoutsByDate = list(plans), _oneWorkoutPerDay(workouts)
+    return {date: _day(plans, workoutsByDate, date, date) for date in dates}
+
+
 def replay(
     plans: Iterable[PlanStart], workouts: Iterable[LoggedWorkout], today: dt.date
 ) -> dict[dt.date, DaySchedule]:

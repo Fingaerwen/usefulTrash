@@ -17,16 +17,28 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-/** All alarm + notification logic, shared by the plugin and the broadcast receivers. */
+/**
+ * All alarm + notification logic, shared by the plugin and the broadcast receivers.
+ * Two repeating reminders, each in its own alarm slot: the weekly weigh-in and a daily one (the creatine
+ * reminder, WD3.8). Each slot's settings are saved separately, so one never disturbs the other.
+ */
 object WeighInScheduler {
     private const val channelId = "weighIn"
+    private const val channelName = "Weigh-in reminder"
+    const val dailyChannelId = "daily"
+    const val dailyChannelName = "Daily reminder"
     private const val prefsName = "weighInNotify"
+    private const val dailyPrefsName = "weighInNotifyDaily"
     const val weeklyRequestCode = 5001
     const val oneOffRequestCode = 5002
     const val showNowNotificationId = 5003
+    const val dailyRequestCode = 5004
     const val extraTitle = "title"
     const val extraBody = "body"
-    const val extraWeekly = "weekly"
+    const val extraKind = "kind"
+    const val kindWeekly = "weekly"
+    const val kindDaily = "daily"
+    const val kindOneOff = "oneOff"
 
     /** First moment matching the weekday/hour/minute that is strictly after [afterMillis] (local time, DST-safe). */
     fun nextWeeklyTrigger(isoWeekday: Int, hour: Int, minute: Int, afterMillis: Long): Calendar {
@@ -44,9 +56,25 @@ object WeighInScheduler {
         return target
     }
 
-    /** Records that the weekly alarm planned for [nextMillis] has just gone off (it must never fire twice). */
-    fun markWeeklyFired(context: Context) {
-        val prefs = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+    /** First moment at hour:minute that is strictly after [afterMillis] (local time, DST-safe). */
+    fun nextDailyTrigger(hour: Int, minute: Int, afterMillis: Long): Calendar {
+        val after = Calendar.getInstance().apply { timeInMillis = afterMillis }
+        val target = (after.clone() as Calendar).apply {
+            set(Calendar.HOUR_OF_DAY, hour)
+            set(Calendar.MINUTE, minute)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        if (!target.after(after)) target.add(Calendar.DAY_OF_YEAR, 1)
+        return target
+    }
+
+    private fun prefsFor(context: Context, kind: String) =
+        context.getSharedPreferences(if (kind == kindDaily) dailyPrefsName else prefsName, Context.MODE_PRIVATE)
+
+    /** Records that the alarm planned for "nextMillis" has just gone off (it must never fire twice). */
+    fun markFired(context: Context, kind: String) {
+        val prefs = prefsFor(context, kind)
         prefs.edit().putLong("lastFiredMillis", prefs.getLong("nextMillis", 0L)).apply()
     }
 
@@ -60,11 +88,11 @@ object WeighInScheduler {
     }
 
     /** The PendingIntent the alarm fires; the same requestCode always refers to the same alarm slot. */
-    private fun alarmIntent(context: Context, requestCode: Int, title: String, body: String, weekly: Boolean): PendingIntent {
+    private fun alarmIntent(context: Context, requestCode: Int, title: String, body: String, kind: String): PendingIntent {
         val intent = Intent(context, AlarmReceiver::class.java).apply {
             putExtra(extraTitle, title)
             putExtra(extraBody, body)
-            putExtra(extraWeekly, weekly)
+            putExtra(extraKind, kind)
         }
         return PendingIntent.getBroadcast(
             context, requestCode, intent,
@@ -83,15 +111,15 @@ object WeighInScheduler {
 
     /**
      * Sets an alarm that still fires in Doze mode.
-     * Weekly reminder: alarm-clock mode (review F21.2). OnePlus stretched normal exact alarms into a 1-hour
-     * window even with battery "Unrestricted", while alarm-clock alarms (like the Clock app's) stay on the dot.
-     * Side effect: Android shows an alarm icon and lists it as the next alarm.
+     * Weekly and daily reminders: alarm-clock mode (review F21.2). OnePlus stretched normal exact alarms into a
+     * 1-hour window even with battery "Unrestricted", while alarm-clock alarms (like the Clock app's) stay on
+     * the dot. Side effect: Android shows an alarm icon and lists it as the next alarm.
      * Other alarms: exact if allowed, otherwise Android may delay them a little.
      */
-    fun setAlarm(context: Context, triggerAtMillis: Long, requestCode: Int, title: String, body: String, weekly: Boolean) {
+    fun setAlarm(context: Context, triggerAtMillis: Long, requestCode: Int, title: String, body: String, kind: String) {
         val alarmManager = context.getSystemService(AlarmManager::class.java)
-        val pending = alarmIntent(context, requestCode, title, body, weekly)
-        if (weekly && canUseExactAlarms(context)) {
+        val pending = alarmIntent(context, requestCode, title, body, kind)
+        if (kind != kindOneOff && canUseExactAlarms(context)) {
             alarmManager.setAlarmClock(AlarmManager.AlarmClockInfo(triggerAtMillis, openAppIntent(context)), pending)
         } else if (canUseExactAlarms(context)) {
             alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pending)
@@ -124,17 +152,55 @@ object WeighInScheduler {
         val next = nextWeeklyTrigger(prefs.getInt("isoWeekday", 5), prefs.getInt("hour", 7), prefs.getInt("minute", 0), afterMillis)
         setAlarm(
             context, next.timeInMillis, weeklyRequestCode,
-            prefs.getString("title", "") ?: "", prefs.getString("body", "") ?: "", weekly = true,
+            prefs.getString("title", "") ?: "", prefs.getString("body", "") ?: "", kindWeekly,
         )
         prefs.edit().putLong("nextMillis", next.timeInMillis).apply()
         return next.timeInMillis
     }
 
-    /** Cancels the weekly alarm and forgets its settings. */
+    /** Cancels the weekly alarm and forgets its settings (the daily one keeps its own). */
     fun cancelWeekly(context: Context) {
         val alarmManager = context.getSystemService(AlarmManager::class.java)
-        alarmManager.cancel(alarmIntent(context, weeklyRequestCode, "", "", true))
+        alarmManager.cancel(alarmIntent(context, weeklyRequestCode, "", "", kindWeekly))
         context.getSharedPreferences(prefsName, Context.MODE_PRIVATE).edit().clear().apply()
+    }
+
+    /** Remembers the daily schedule so it can be restored after reboot/update. */
+    fun saveDaily(context: Context, hour: Int, minute: Int, title: String, body: String) {
+        prefsFor(context, kindDaily).edit()
+            .putBoolean("enabled", true)
+            .putInt("hour", hour)
+            .putInt("minute", minute)
+            .putString("title", title)
+            .putString("body", body)
+            .apply()
+    }
+
+    /** Schedules the next daily alarm from the saved settings, after now and after the one that last fired. */
+    fun rescheduleDailyFromPrefs(context: Context): Long? {
+        val prefs = prefsFor(context, kindDaily)
+        if (!prefs.getBoolean("enabled", false)) return null
+        val afterMillis = maxOf(System.currentTimeMillis(), prefs.getLong("lastFiredMillis", 0L))
+        val next = nextDailyTrigger(prefs.getInt("hour", 8), prefs.getInt("minute", 0), afterMillis)
+        setAlarm(
+            context, next.timeInMillis, dailyRequestCode,
+            prefs.getString("title", "") ?: "", prefs.getString("body", "") ?: "", kindDaily,
+        )
+        prefs.edit().putLong("nextMillis", next.timeInMillis).apply()
+        return next.timeInMillis
+    }
+
+    /** Cancels the daily alarm and forgets its settings. */
+    fun cancelDaily(context: Context) {
+        val alarmManager = context.getSystemService(AlarmManager::class.java)
+        alarmManager.cancel(alarmIntent(context, dailyRequestCode, "", "", kindDaily))
+        prefsFor(context, kindDaily).edit().clear().apply()
+    }
+
+    /** Next planned daily time, or null. */
+    fun nextDailyMillis(context: Context): Long? {
+        val prefs = prefsFor(context, kindDaily)
+        return if (prefs.getBoolean("enabled", false)) prefs.getLong("nextMillis", 0L) else null
     }
 
     /** Next planned weekly time, or null. */
@@ -151,15 +217,21 @@ object WeighInScheduler {
         return NotificationManagerCompat.from(context).areNotificationsEnabled()
     }
 
-    /** Shows a notification now. Tapping it opens the app. Returns false if notifications aren't allowed. */
-    fun showNotification(context: Context, title: String, body: String, notificationId: Int): Boolean {
+    /**
+     * Shows a notification now. Tapping it opens the app. Returns false if notifications aren't allowed.
+     * Each reminder has its own channel, so either can be muted in Android's settings without the other.
+     */
+    fun showNotification(
+        context: Context, title: String, body: String, notificationId: Int,
+        channel: String = channelId, name: String = channelName,
+    ): Boolean {
         if (!notificationsAllowed(context)) return false
         if (Build.VERSION.SDK_INT >= 26) {
-            val channel = NotificationChannel(channelId, "Weigh-in reminder", NotificationManager.IMPORTANCE_DEFAULT)
-            context.getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+            val notificationChannel = NotificationChannel(channel, name, NotificationManager.IMPORTANCE_DEFAULT)
+            context.getSystemService(NotificationManager::class.java).createNotificationChannel(notificationChannel)
         }
         val contentIntent = openAppIntent(context)
-        val notification = NotificationCompat.Builder(context, channelId)
+        val notification = NotificationCompat.Builder(context, channel)
             .setSmallIcon(R.drawable.weigh_in_notify_ic_stat) // single-colour shape; the full-colour app icon showed as a grey blob
             .setContentTitle(title)
             .setContentText(body)

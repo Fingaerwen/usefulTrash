@@ -39,6 +39,16 @@ class WeighInNotify(ft.Service):
         """Stops the weekly notification."""
         return await self._invoke_method(method_name="cancelWeekly")
 
+    async def scheduleDaily(self, hour: int, minute: int, title: str, body: str) -> str:
+        """Repeats a notification every day at hour:minute (its own slot, apart from the weekly one).
+        Survives app restarts, phone reboots and app updates. Returns the next planned time."""
+        return await self._invoke_method(
+            method_name="scheduleDaily", arguments={"hour": hour, "minute": minute, "title": title, "body": body})
+
+    async def cancelDaily(self) -> bool:
+        """Stops the daily notification."""
+        return await self._invoke_method(method_name="cancelDaily")
+
     async def getStatus(self) -> dict:
         """Returns permission state, exact-alarm ability and the next planned weekly time (for debugging)."""
         return await self._invoke_method(method_name="getStatus")

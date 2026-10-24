@@ -13,7 +13,8 @@ from dataclasses import dataclass, replace
 from typing import Any
 
 from gym.rules.planFile import Plan, PlanCheck, PlanExercise, checkPlan, readPlanFile
-from gym.rules.planImport import SameExerciseQuestion, effectiveDate, renameExercises, sameExerciseQuestions
+from gym.rules.planImport import SameExerciseQuestion, effectiveDate, keptWeights, renameExercises, sameExerciseQuestions
+from gym.rules.progression import Training
 from usefulShared.tables import newRowId
 
 
@@ -29,20 +30,22 @@ class PlanImport:
     planJson: Any = None  # the file as read, with matched IDs once the questions are answered
     plan: Plan | None = None
     takesEffect: dt.date | None = None
+    keptWeights: tuple[str, ...] = ()  # plan weights it won't use: you've trained those already (WD3.9)
 
 
 def startImport(fileName: str, content: bytes, known: Mapping[str, PlanExercise], today: dt.date,
-                workoutLoggedToday: bool) -> PlanImport:
+                workoutLoggedToday: bool, training: Training | None = None) -> PlanImport:
     """Reads and checks the picked file; asks about likely matches if there are any."""
     check = readPlanFile(content)
     if check.plan is None:
         return PlanImport("problems", fileName, check.errors, check.warnings)
     questions = sameExerciseQuestions(check.plan, known)
     return PlanImport("questions" if questions else "ready", fileName, (), check.warnings, tuple(questions),
-                      check.planJson, check.plan, effectiveDate(today, workoutLoggedToday))
+                      check.planJson, check.plan, effectiveDate(today, workoutLoggedToday),
+                      keptWeights(check.plan, training) if training and not questions else ())
 
 
-def answerQuestions(flow: PlanImport, sameAs: Sequence[bool]) -> PlanImport:
+def answerQuestions(flow: PlanImport, sameAs: Sequence[bool], training: Training | None = None) -> PlanImport:
     """Your answers, one per question: True = the same exercise, so it keeps the known ID and its history."""
     if len(sameAs) != len(flow.questions):
         raise ValueError("one answer per question")
@@ -51,7 +54,8 @@ def answerQuestions(flow: PlanImport, sameAs: Sequence[bool]) -> PlanImport:
     check: PlanCheck = checkPlan(planJson)
     if check.plan is None:  # matched IDs can clash, say two settings for one exercise
         return replace(flow, step="problems", errors=check.errors)
-    return replace(flow, step="ready", planJson=planJson, plan=check.plan)
+    return replace(flow, step="ready", planJson=planJson, plan=check.plan,
+                   keptWeights=keptWeights(check.plan, training) if training else ())
 
 
 def finishImport(flow: PlanImport, userId: str, now: dt.datetime) -> dict[str, Any]:

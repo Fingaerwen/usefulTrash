@@ -12,6 +12,7 @@ dependencies = [
     "usefulTrashShared",
     "usefulTrashNativeGoogleSignIn",
     "usefulTrashSecureStore",
+    "usefulTrashWeighInNotify",
 ]
 
 # Local packages: paths are relative to this folder, so the repo builds from wherever it's cloned.
@@ -20,6 +21,7 @@ dependencies = [
 usefulTrashShared = "../../shared"
 usefulTrashNativeGoogleSignIn = "../../extensions/nativeGoogleSignIn"
 usefulTrashSecureStore = "../../extensions/secureStore"
+usefulTrashWeighInNotify = "../../extensions/weighInNotify"
 
 [tool.flet]
 product = "Gym Tracker"  # the name on the phone and the PC view's title (RL1.3)

@@ -20,7 +20,8 @@ class AppBase:
     """The shared part of both controllers."""
 
     mode = "phone"  # or "pc": which main screen and ⋮ menu the screens show
-    menuItems: tuple[str, ...] = ("problems", "importPlan", "signOut")
+    menuItems: tuple[str, ...] = ("problems", "deload", "importPlan", "signOut")
+    stepsDaysBack: int | None = 7  # Week's calendar: how far back steps can be entered (SC4.1); None = any day
 
     def __init__(self, config: dict[str, str], services: Any, log: AppLog, clock: Callable[[], dt.datetime],
                  localToday: Callable[[], dt.date]):
@@ -71,8 +72,24 @@ class AppBase:
         if rows is None:
             return
         self.state.load(rows)
-        self.model.today = self.state.today(self.localToday())
+        today = self.localToday()
+        self.model.today = self.state.today(today)
+        running = self.state.training(today).deloadOn(today) is not None
+        self.model.deloadAction = ("stop" if self.state.manualDeloadAt(today) else "" if running else "start")
+        self.model.progress, self.model.pastProgress = self.state.progress(today)
+        self._refreshDetail()
+        self._refreshWeek()
         self.afterRefresh()
+
+    def _refreshDetail(self) -> None:
+        self.model.detail = (self.state.exerciseDetail(self.model.progressOpen, self.localToday(),
+                                                       self.model.progressRange)
+                             if self.model.progressOpen else None)
+
+    def _refreshWeek(self) -> None:
+        today = self.localToday()
+        monday = today - dt.timedelta(days=today.weekday() + 7 * self.model.weekOffset)
+        self.model.week = self.state.week(monday, today)
 
     def startActions(self) -> None:
         self.actions = GymActions(self, self.state, self.session.userId(), self.clock)
@@ -91,6 +108,55 @@ class AppBase:
 
     async def setSteps(self, steps: int | None) -> None:
         await self._act(self.actions.setSteps(self.localToday(), steps))
+
+    async def setStepsOn(self, date: dt.date, steps: int | None) -> None:
+        """Steps for a day in Week's calendar (SC4.1): on the phone for the last 7 days, on the PC any day."""
+        today = self.localToday()
+        if date > today or (self.stepsDaysBack is not None and (today - date).days >= self.stepsDaysBack):
+            self.model.notice = "Steps can be entered here for the last 7 days; the PC view takes any day."
+            return
+        await self._act(self.actions.setSteps(date, steps))
+
+    def canEnterStepsOn(self, date: dt.date) -> bool:
+        today = self.localToday()
+        return date <= today and (self.stepsDaysBack is None or (today - date).days < self.stepsDaysBack)
+
+    # --- Progress and Week (SC3.1, SC4.1) ---------------------------------------------------
+
+    def openExercise(self, exerciseId: str) -> None:
+        self.model.progressOpen = exerciseId
+        self._refreshDetail()
+
+    def closeExercise(self) -> None:
+        self.model.progressOpen, self.model.detail = "", None
+
+    def showRange(self, chartRange: str) -> None:
+        self.model.progressRange = chartRange
+        self._refreshDetail()
+
+    def showWeek(self, offset: int) -> None:
+        """◂ ▸: earlier weeks, never past this one."""
+        self.model.weekOffset = max(0, offset)
+        self._refreshWeek()
+
+    async def setWeight(self, exerciseId: str, weekday: int, weightKg: float) -> None:
+        """A weight for one exercise on one day (WD2.1). If that day's session has it logged today, it applies
+        from tomorrow (WD3.7)."""
+        today = self.model.today
+        doneToday = today is not None and any(
+            line.exercise.exerciseId == exerciseId and line.trackDay == weekday and line.status == "done"
+            for line in today.exercises)
+        await self._act(self.actions.setWeight(exerciseId, weekday, weightKg, self.localToday(), doneToday))
+
+    async def setStep(self, exerciseId: str, incrementKg: float) -> None:
+        await self._act(self.actions.setStep(exerciseId, incrementKg, self.localToday()))
+
+    async def startDeload(self) -> None:
+        workoutToday = self.model.today is not None and self.model.today.workoutExists
+        await self._act(self.actions.startDeload(self.localToday(), workoutToday))
+
+    async def stopDeload(self) -> None:
+        await self._act(self.actions.stopDeload(self.localToday()))
 
     async def _act(self, action) -> None:
         """Runs an action; a refused entry shows why, anything unexpected goes to the log."""
@@ -143,11 +209,12 @@ class AppBase:
         picked = files[0]
         workoutToday = self.model.today is not None and self.model.today.workoutExists
         self.model.planImport = startImport(picked.name, picked.bytes or b"", self.state.known, self.localToday(),
+                                            training=self.state.training(self.localToday()),
                                             workoutLoggedToday=workoutToday)
         self.model.screen = "importPlan"
 
     def answerPlanQuestions(self, sameAs: list[bool]) -> None:
-        self.model.planImport = answerQuestions(self.model.planImport, sameAs)
+        self.model.planImport = answerQuestions(self.model.planImport, sameAs, self.state.training(self.localToday()))
 
     async def finishPlanImport(self) -> None:
         flow = self.model.planImport

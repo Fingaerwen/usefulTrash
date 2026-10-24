@@ -4,7 +4,8 @@ never write rows themselves, and the store stamps every edit's time.
 
 A day's workout, an exercise on a day and a day's steps have IDs worked out from your user ID and the
 date (DT1.1), so the phone and the PC view always change the same rows. Taking something back marks
-its row deleted, which syncs like any edit.
+its row deleted, which syncs like any edit. A weight or weight step set in the app is a new row each
+time, dated from when it applies, so it never rewrites earlier progression.
 """
 
 import datetime as dt
@@ -15,7 +16,7 @@ from typing import Any, Protocol
 from gym.rules.today import ExerciseLine, SetDone, TodayView
 from gym.state import GymState
 from gym.tables import exerciseLogs, sessions
-from usefulShared.tables import dailySteps, dayRowId
+from usefulShared.tables import dailySteps, dayRowId, newRowId
 
 
 class RowStore(Protocol):
@@ -101,6 +102,47 @@ class GymActions:
         _checkWhole(steps, 0, 200_000, "Steps")
         await self.store.saveRows([("dailySteps", {**(existing or {}), "id": rowId, "userId": self.userId,
                                                    "deleted": False, "date": date, "steps": steps})])
+
+    # --- Weights and weight steps (WD2.1, WD3.7) ----------------------------------------------
+
+    async def setWeight(self, exerciseId: str, weekday: int, weightKg: float, today: dt.date,
+                        doneToday: bool) -> None:
+        """An exercise's weight on one day: its target there starts again from it, at repsMin. It applies
+        from today, or from tomorrow if that day's session already has it logged today (doneToday)."""
+        if not _isKilograms(weightKg):
+            raise ActionRefused("Weight must be a number from 0 to 1000 kg, with at most 2 decimals.")
+        if not 0 <= weekday <= 6:
+            raise ActionRefused("That isn't a day of the week.")
+        fromDate = today + dt.timedelta(days=1) if doneToday else today
+        await self.store.saveRows([("exerciseWeights", {
+            "id": newRowId(), "userId": self.userId, "deleted": False, "exerciseId": exerciseId,
+            "weekday": weekday, "weightKg": float(weightKg), "fromDate": fromDate})])
+
+    async def setStep(self, exerciseId: str, incrementKg: float, today: dt.date) -> None:
+        """An exercise's weight step, on every day (per side for a plates-per-side lift), from today on:
+        today's session already uses it for what comes next."""
+        if not _isKilograms(incrementKg) or not 0.01 <= incrementKg <= 100:
+            raise ActionRefused("The weight step must be a number from 0.01 to 100 kg, with at most 2 decimals.")
+        await self.store.saveRows([("exerciseSteps", {
+            "id": newRowId(), "userId": self.userId, "deleted": False, "exerciseId": exerciseId,
+            "incrementKg": float(incrementKg), "fromDate": today})])
+
+    # --- Deloads by hand (WD2.4, WD3.4) -------------------------------------------------------
+
+    async def startDeload(self, today: dt.date, workoutToday: bool) -> None:
+        """Starts a deload: today, or tomorrow if a workout is already logged today; 7 days."""
+        if self.state.training(today).deloadOn(today) is not None or self.state.manualDeloadAt(today):
+            raise ActionRefused("A deload is already running or about to start.")
+        start = today + dt.timedelta(days=1) if workoutToday else today
+        await self.store.saveRows([("deloads", {"id": newRowId(), "userId": self.userId, "deleted": False,
+                                                "startDate": start})])
+
+    async def stopDeload(self, today: dt.date) -> None:
+        """Stops the deload you started by hand (running or still to come)."""
+        rowId = self.state.manualDeloadAt(today)
+        row = self.state.row("deloads", rowId) if rowId else None
+        if row is not None and not row["deleted"]:
+            await self.store.saveRows([("deloads", dict(row, deleted=True))])
 
     # --- Building the rows -------------------------------------------------------------------
 
