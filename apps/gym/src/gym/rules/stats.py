@@ -138,15 +138,18 @@ def targetText(exercise: PlanExercise, target: Target, needsWeight: bool = False
 
 
 def setsText(exercise: PlanExercise, sets: Sequence[SetDone], minutes: int | None = None) -> str:
-    """What was done, written like a target: "4×9 @ 82.5 kg", or each set when they differ."""
+    """What was done, written like a target: "4×9 @ 82.5 kg"; reps that differ as "10 · 9 · 8 @ 82.5 kg", the
+    weight once, so it fits next to the name on a phone; each set's weight only when those differ."""
     if minutes is not None and not sets:
         return f"{minutes} min"
     if not sets:
         return ""
-    if len(set(sets)) == 1:
-        first = sets[0]
-        text = f"{len(sets)}×{first.reps}"
-        return text + (f" @ {kgText(first.weightKg)} {unit(exercise)}" if first.weightKg is not None else "")
+    weights = {done.weightKg for done in sets}
+    if len(weights) == 1:
+        (weightKg,) = weights
+        reps = {done.reps for done in sets}
+        text = f"{len(sets)}×{sets[0].reps}" if len(reps) == 1 else " · ".join(f"{done.reps}" for done in sets)
+        return text + (f" @ {kgText(weightKg)} {unit(exercise)}" if weightKg is not None else "")
     return " · ".join(f"{done.reps}" + (f"@{kgText(done.weightKg)}" if done.weightKg is not None else "")
                       for done in sets)
 

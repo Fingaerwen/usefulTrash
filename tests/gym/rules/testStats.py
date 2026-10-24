@@ -108,7 +108,11 @@ def testHistoryAndRecords():
 
 def testHowSetsAreWritten():
     assert setsText(bench, (SetDone(8, 25),) * 3) == "3×8 @ 25 kg/side"
-    assert setsText(press, (SetDone(8, 40), SetDone(7, 40))) == "8@40 · 7@40"
+    assert setsText(press, (SetDone(8, 40), SetDone(7, 40))) == "8 · 7 @ 40 kg"  # the weight once, so it fits
+    assert setsText(bench, [SetDone(reps, 36.25) for reps in (15, 15, 14, 13, 12, 12)]) == (
+        "15 · 15 · 14 · 13 · 12 · 12 @ 36.25 kg/side")
+    assert setsText(press, (SetDone(8, 40), SetDone(6, 45))) == "8@40 · 6@45"  # each set's weight when they differ
+    assert setsText(pullUp, (SetDone(10), SetDone(8))) == "10 · 8"
     assert setsText(pullUp, (SetDone(10),) * 2) == "2×10"
     assert setsText(strength("walk"), (), 15) == "15 min"
 
@@ -158,7 +162,7 @@ def testExerciseDetail():
     assert detail.recordsText == f"PRs: heaviest 26.25 kg/side · 1RM ~{round(loadKg(bench, 26.25) * 4 / 3)} kg · 10 reps @ 26.25 kg/side"
     assert [day.text for day in detail.days] == ["Mon 26.25 kg/side × 10", "Wed 26.25 kg/side × 6"]
     assert detail.stepKg == 1.25
-    assert detail.lines[0] == f"19 Oct  10@26.25 · 9@26.25 · {round(loadKg(bench, 26.25) * 19):,} kg"
+    assert detail.lines[0] == f"19 Oct  10 · 9 @ 26.25 kg/side · {round(loadKg(bench, 26.25) * 19):,} kg"
 
 
 def testAnExerciseStillAtThePlansOneKiloAsksForItsWeight():

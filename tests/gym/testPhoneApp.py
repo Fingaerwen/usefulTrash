@@ -273,6 +273,23 @@ def testTappingAnExercisesNameShowsItsHowTo(phone, cloud):
     assert "Your plan has no how-to for this exercise." in visibleTexts(dipsRow)
 
 
+def testALongEntrySharesTheRowWithTheName(phone, cloud):
+    """Sets that differ are written with the weight once, and an exercise's name and entry share the row
+    equally: a long entry (an ab machine's 6 sets) wraps instead of pushing [✓] off a phone's screen."""
+    import flet as ft
+
+    from gym.rules.today import SetDone
+    from gym.screens.today import ExerciseRow
+    planInCloud(cloud)
+    signedIn(phone)
+    bench = phone.app.model.today.exercises[0]
+    phone.run(phone.app.saveSets(bench, [SetDone(reps, 80) for reps in (8, 8, 7, 6)]))
+    row = draw(ExerciseRow, phone.app, phone.app.model.today.exercises[0])
+    entry, name = find(row, "8 · 8 · 7 · 6 @ 80 kg", "Text"), find(row, "Bench Press", "Text")
+    assert entry.expand and entry.text_align == ft.TextAlign.RIGHT
+    assert name.max_lines == 2 and name.overflow == ft.TextOverflow.ELLIPSIS
+
+
 def testStepsEditing(phone, cloud):
     from gym.screens.today import StepsLine
     planInCloud(cloud)

@@ -84,13 +84,15 @@ def ExerciseRow(app, line: ExerciseLine):
         await app.skip(line)
 
     shown = _loggedText(line) if done else targetText(line)
+    # The name and what's shown share the width equally, so a long entry wraps instead of pushing [✓] off the
+    # screen, and every [✓] stays at the right edge.
     top = ft.Row([
-        ft.Container(ft.Text(exercise.name, size=16, weight=ft.FontWeight.W_500,
-                             color=ft.Colors.GREY_500 if skipped else None),
+        ft.Container(ft.Text(exercise.name, size=16, weight=ft.FontWeight.W_500, max_lines=2,
+                             overflow=ft.TextOverflow.ELLIPSIS, color=ft.Colors.GREY_500 if skipped else None),
                      expand=True, height=tapSize, alignment=ft.Alignment.CENTER_LEFT, ink=True,
                      tooltip=f"{exercise.name}: {'hide how to' if showingHowTo else 'how to'}",
                      on_click=lambda e: setShowingHowTo(not showingHowTo)),
-        ft.Text(shown, color=ft.Colors.GREY_500 if skipped else None),
+        ft.Text(shown, color=ft.Colors.GREY_500 if skipped else None, expand=True, text_align=ft.TextAlign.RIGHT),
         ft.IconButton(ft.Icons.CHECK_CIRCLE if done else ft.Icons.RADIO_BUTTON_UNCHECKED,
                       tooltip=f"{exercise.name}: take back" if done else
                       f"{exercise.name}: enter the weight" if line.needsWeight else f"{exercise.name}: done as targeted",

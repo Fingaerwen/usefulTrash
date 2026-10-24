@@ -43,7 +43,8 @@ def ProgressTab(app, model):
 def ProgressRow(app, line):
     """One exercise: name, what comes next, its PR, ▸ to open it."""
     return ft.Container(
-        ft.Row([ft.Text(line.exercise.name, expand=True, weight=ft.FontWeight.W_500), quiet(line.now),
+        ft.Row([ft.Text(line.exercise.name, expand=True, weight=ft.FontWeight.W_500, max_lines=2,
+                        overflow=ft.TextOverflow.ELLIPSIS), quiet(line.now),
                 ft.Text(line.record), ft.Text("▸")], spacing=gap),
         height=tapSize, ink=True, tooltip=f"{line.exercise.name}: open",
         on_click=lambda e: app.openExercise(line.exercise.exerciseId))
