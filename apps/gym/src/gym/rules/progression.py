@@ -15,7 +15,9 @@ day; sessions.py says which day a logged exercise belongs to):
 - A session at another weight than the target starts afresh at that weight: judged against repsMin.
 - Bodyweight exercises: reps only, past repsMax too (10.9a). Cardio: the plan's minutes, no progression.
 - Where a track starts (WD3.9): a weight set in the app (WD3.7, reps back to repsMin), else the
-  exercise's latest weight on any day, else the plan's weight.
+  exercise's latest weight on any day, else the latest weight set in the app on any other day (PF6), else
+  the plan's weight. A plan's 1 kg is only a placeholder (PF2): until one of the others exists, the
+  exercise needs its weight (PF3), and Today asks for it instead of offering 1 kg.
 - Weights and weight steps set in the app count from their dates on: sessions before one keep what
   they had, so a change never rewrites earlier progression or deloads.
 
@@ -30,7 +32,7 @@ Deloads (WD2.4, WD3.2–WD3.5):
   scheduled.
 - In a deload: the same weight, half the sets rounded up, the rep target 3 lower (at least 1). Deload
   sessions don't count for progression or for going backwards: afterwards everything picks up where it
-  left off.
+  left off. A deload session doesn't start a track either.
 """
 
 import datetime as dt
@@ -40,7 +42,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 from gym.rules.facts import ImportedPlan, LoggedExercise, SetDone, StepEdit, WeightEdit
-from gym.rules.planFile import PlanExercise, planExercises
+from gym.rules.planFile import PlanExercise, placeholderKg, planExercises
 from gym.rules.schedule import LoggedWorkout, daySchedules, planInEffect
 from gym.rules.sessions import sessionExercises
 
@@ -76,12 +78,18 @@ class Deload:
 
 @dataclass(frozen=True, slots=True)
 class _Snapshot:
-    """Every track's target at one moment, with weights set for days that have no session yet, and each
-    exercise's latest weight on any day."""
+    """Every track's target at one moment, with weights set for days that have no session yet, each
+    exercise's latest weight on any day, and its latest weight set in the app on any day."""
 
     targets: Mapping[tuple[str, int], Target]
     edits: Mapping[tuple[str, int], float]
     latest: Mapping[str, float]
+    latestSet: Mapping[str, float]
+
+    def startKg(self, exerciseId: str) -> float | None:
+        """Where a day with no session yet starts, if not from the plan: the latest weight lifted on any
+        day, else the latest set in the app on any day (PF6)."""
+        return self.latest.get(exerciseId, self.latestSet.get(exerciseId))
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,11 +125,21 @@ class Training:
             return snapshot.targets[key]
         if key in snapshot.edits and exercise.equipment != "bodyweight" and not exercise.isCardio:
             return Target(snapshot.edits[key], exercise.repsMin or 0)
-        return startingTarget(exercise, snapshot.latest.get(exercise.exerciseId))
+        return startingTarget(exercise, snapshot.startKg(exercise.exerciseId))
+
+    def needsWeight(self, exercise: PlanExercise, trackDay: int, now: bool = False) -> bool:
+        """True while a weighted exercise's target is the plan's 1 kg placeholder (PF2, PF3): no session on
+        that day, and no weight lifted or set in the app on any day."""
+        if exercise.equipment == "bodyweight" or exercise.isCardio or exercise.weightKg != placeholderKg:
+            return False
+        snapshot = self.now if now else self.today
+        key = (exercise.exerciseId, trackDay)
+        return key not in snapshot.targets and key not in snapshot.edits and snapshot.startKg(key[0]) is None
 
 
 def startingTarget(exercise: PlanExercise, latestKg: float | None) -> Target:
-    """A track with no history (WD3.9): the exercise's latest weight on any day, else the plan's; repsMin."""
+    """A track with no history (WD3.9): the exercise's latest weight on any day (or the latest set in the
+    app, PF6), else the plan's; repsMin."""
     if exercise.equipment == "bodyweight" or exercise.isCardio:
         return Target(None, exercise.repsMin or 0)
     return Target(latestKg if latestKg is not None else exercise.weightKg, exercise.repsMin or 0)
@@ -269,6 +287,7 @@ class _Replay:
         self.tracks: dict[tuple[str, int], _Track] = {}
         self.pendingEdits: dict[tuple[str, int], float] = {}  # weights set for days with no session yet
         self.latest: dict[str, float] = {}  # each exercise's weight in its latest session on any day (WD3.9)
+        self.latestSet: dict[str, float] = {}  # each exercise's latest weight set in the app on any day (PF6)
         self.deloads: list[Deload] = []
         self.active: Deload | None = None
         self.scheduled: Deload | None = None
@@ -276,7 +295,7 @@ class _Replay:
 
     def snapshot(self) -> _Snapshot:
         return _Snapshot({key: Target(track.weightKg, track.reps) for key, track in self.tracks.items()},
-                         dict(self.pendingEdits), dict(self.latest))
+                         dict(self.pendingEdits), dict(self.latest), dict(self.latestSet))
 
     # --- Days and deloads --------------------------------------------------------------------
 
@@ -332,7 +351,9 @@ class _Replay:
     # --- Tracks ------------------------------------------------------------------------------
 
     def edit(self, edit: WeightEdit) -> None:
-        """A weight set in the app (WD3.7). A day with no session yet starts from it when it gets one."""
+        """A weight set in the app (WD3.7). A day with no session yet starts from it when it gets one, and
+        so do the exercise's other days with no weight of yours yet (PF6)."""
+        self.latestSet[edit.exerciseId] = edit.weightKg
         track = self.tracks.get((edit.exerciseId, edit.weekday))
         if track is None:
             self.pendingEdits[(edit.exerciseId, edit.weekday)] = edit.weightKg
@@ -346,7 +367,9 @@ class _Replay:
         key = (exercise.exerciseId, trackDay)
         track = self.tracks.get(key)
         if track is None:
-            start = startingTarget(exercise, self.latest.get(exercise.exerciseId))
+            if self.active is not None:
+                return  # a deload session doesn't start a track: the day still starts where it would have
+            start = startingTarget(exercise, self.latest.get(key[0], self.latestSet.get(key[0])))
             track = self.tracks[key] = _Track(exercise, start.weightKg, start.reps)
             if key in self.pendingEdits:
                 track.restart(self.pendingEdits.pop(key))

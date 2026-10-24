@@ -1,5 +1,5 @@
-"""Tests for progression (plan 7, WD2.3, WD3.7, WD3.9, WD3.10) and deloads (WD2.4, WD3.2–WD3.5), written
-before the code. Days are counted from Monday 12 Oct 2026."""
+"""Tests for progression (plan 7, WD2.3, WD3.7, WD3.9, WD3.10), the plan's 1 kg placeholder (PF2, PF3, PF6)
+and deloads (WD2.4, WD3.2–WD3.5), written before the code. Days are counted from Monday 12 Oct 2026."""
 
 import datetime as dt
 
@@ -270,6 +270,50 @@ def testTodaysTargetIsBeforeTodaysSession():
     history = History().log(0, bench=sets([8, 8, 8]))
     assert history.target(0, "bench", mon) == Target(25, 6)
     assert history.target(0, "bench", mon, now=True) == Target(25, 9)
+
+
+# --- The plan's 1 kg placeholder (PF2, PF3, PF6) ------------------------------------------------
+
+onPlaceholders = imported(extensionKg=1)  # the overhead extension, on Monday and Wednesday, at the plan's 1 kg
+extensionAt1 = planExercises(onPlaceholders.plan)["extension"]
+
+
+def testThePlansOneKiloAsksForYourWeight():
+    training = History([onPlaceholders]).training(0)
+    assert training.needsWeight(extensionAt1, mon) and training.needsWeight(extensionAt1, wed)
+    assert not training.needsWeight(exercises["bench"], mon)  # a plan weight other than 1 kg is a weight
+    assert not training.needsWeight(exercises["pullUp"], mon)  # bodyweight has no weight to ask for
+
+
+def testYourFirstSessionReplacesThePlaceholderOnEveryDay():
+    """Monday at 20 kg: Monday goes on from there, and Wednesday, with no session yet, starts at 20 too."""
+    training = History([onPlaceholders]).log(0, extension=sets([12, 11, 11], 20)).training(7)
+    assert not training.needsWeight(extensionAt1, mon) and not training.needsWeight(extensionAt1, wed)
+    assert training.target(extensionAt1, mon) == Target(20, 12)
+    assert training.target(extensionAt1, wed) == Target(20, 10)
+
+
+def testAWeightSetOnOneDayStartsTheDaysStillAtThePlaceholder():
+    history = History([onPlaceholders])
+    history.edits.append(WeightEdit("extension", mon, 20, day(0)))
+    training = history.training(0)
+    assert training.target(extensionAt1, mon) == Target(20, 10)
+    assert training.target(extensionAt1, wed) == Target(20, 10) and not training.needsWeight(extensionAt1, wed)
+
+
+def testAWeightSetOnOneDayLeavesADayWithItsOwnSessionsAlone():
+    history = History([onPlaceholders]).log(2, extension=sets([10, 10, 10, 10], 18))
+    history.edits.append(WeightEdit("extension", mon, 20, day(7)))
+    assert history.target(7, "extension", wed) == Target(18, 11)
+    assert history.training(7).target(extensionAt1, mon) == Target(20, 10)
+
+
+def testADeloadSessionDoesntReplaceThePlaceholder():
+    """Deload sessions don't count (WD3.5): an exercise first done in a deload still asks afterwards."""
+    history = History([onPlaceholders])
+    history.deloads.append(day(0))
+    history.log(0, extension=sets([8, 8], 20))
+    assert history.training(7).needsWeight(extensionAt1, mon)
 
 
 # --- Deloads (WD2.4, WD3.2–WD3.5) ---------------------------------------------------------------

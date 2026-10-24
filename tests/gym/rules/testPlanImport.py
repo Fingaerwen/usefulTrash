@@ -155,3 +155,6 @@ def testAReImportListsThePlanWeightsItWontUse():
     soFar = training([imported], [LoggedWorkout(monday, "p1", 0, True)], logs, [], [], [], monday)
     revised = checked(barbell("benchPress", "Bench Press", weightKg=70), barbell("row", "Row", weightKg=50))
     assert keptWeights(revised, soFar) == ("Bench Press (Mon): keeps 60 kg, not the plan's 70 kg",)
+    # Your plans give every weight as 1 kg, a placeholder (PF2): listing those would list everything (PF5)
+    assert keptWeights(checked(barbell("benchPress", "Bench Press", weightKg=1), barbell("row", "Row", weightKg=1)),
+                       soFar) == ()

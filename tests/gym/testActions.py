@@ -2,6 +2,7 @@
 database: ✓, sets, skip, Finish and steps, and what each does to the week."""
 
 import asyncio
+import dataclasses
 import datetime as dt
 
 import pytest
@@ -89,6 +90,15 @@ def testCheckLogsTheTargetAndStartsTheWorkout(app):
     (session,) = app.database.rows("sessions")
     assert (session["planImportId"], session["stepIndex"], session["date"]) == (view.planImportId, 0, monday)
     assert app.database.waiting().count == 3  # the plan, the workout day and the exercise
+
+
+def testCheckWontLogThePlansOneKiloPlaceholder(app):
+    """Today opens ▾ sets instead (PF3); the action refuses too, so 1 kg never lands in your history."""
+    view = app.today()
+    placeholder = dataclasses.replace(line(view, "benchPress"), targetWeightKg=None, needsWeight=True)
+    with pytest.raises(ActionRefused, match="▾ sets"):
+        app.do(app.actions.checkExercise, view, placeholder)
+    assert app.database.rows("exerciseLogs") == []
 
 
 def testCheckingAgainTakesItBackAndTheWorkoutWithIt(app):

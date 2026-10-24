@@ -103,10 +103,13 @@ def unit(exercise: PlanExercise) -> str:
     return "kg/side" if exercise.platesPerSide else "kg"
 
 
-def targetText(exercise: PlanExercise, target: Target) -> str:
-    """"82.5 kg × 9", "25 kg/side × 6", "12 reps" (bodyweight) or "15 min" (cardio)."""
+def targetText(exercise: PlanExercise, target: Target, needsWeight: bool = False) -> str:
+    """"82.5 kg × 9", "25 kg/side × 6", "? kg × 6" (no weight of yours yet, PF3), "12 reps" (bodyweight) or
+    "15 min" (cardio)."""
     if exercise.isCardio:
         return f"{exercise.minutes} min"
+    if needsWeight:
+        return f"? {unit(exercise)} × {target.reps}"
     if target.weightKg is None:
         return f"{target.reps} reps"
     return f"{kgText(target.weightKg)} {unit(exercise)} × {target.reps}"
@@ -208,7 +211,8 @@ def progressLines(current: ImportedPlan | None, known: Mapping[str, PlanExercise
     for exerciseId, exercise in inPlan.items():
         sessions = history(logs, exerciseId)
         nextDay = _nextDay(planDays(current, exerciseId), today, loggedToday=bool(sessions) and sessions[-1].date == today)
-        now = targetText(exercise, training.target(exercise, nextDay, now=True)) if nextDay is not None else ""
+        now = (targetText(exercise, training.target(exercise, nextDay, now=True),
+                          training.needsWeight(exercise, nextDay, now=True)) if nextDay is not None else "")
         lines.append(ProgressLine(exercise, f"now {now}" if now else "", recordText(exercise, records(exercise, sessions))))
     past = []
     for exerciseId, exercise in sorted(known.items(), key=lambda item: item[1].name.casefold()):
@@ -261,8 +265,10 @@ def exerciseDetail(exercise: PlanExercise, current: ImportedPlan | None,
     if not exercise.isCardio:
         for weekday in planDays(current, exercise.exerciseId):
             target = training.target(exercise, weekday, now=True)
-            dayTargets.append(DayTarget(weekday, target, f"{weekdayNames[weekday][:3].capitalize()} "
-                                                         f"{targetText(exercise, target)}"))
+            needsWeight = training.needsWeight(exercise, weekday, now=True)
+            dayTargets.append(DayTarget(weekday, Target(None, target.reps) if needsWeight else target,
+                                        f"{weekdayNames[weekday][:3].capitalize()} "
+                                        f"{targetText(exercise, target, needsWeight)}"))
     weighted = not exercise.isCardio and exercise.equipment != "bodyweight"
     lines = []
     for session in reversed(sessions):

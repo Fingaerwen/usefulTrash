@@ -2,6 +2,7 @@
 exercises, rest days, the flex day and its moves, the week's count and the header line."""
 
 import datetime as dt
+import json
 
 from gym.rules.planFile import checkPlan, planExercises, scheduleDays
 from gym.rules.schedule import LoggedWorkout, PlanStart
@@ -197,3 +198,17 @@ def testTargetsWithoutWeight():
 
 def testWholeKilogramsHaveNoDecimals():
     assert targetText(view(day(2)).exercises[0]) == "3×6 @ 40 kg"
+
+
+def testThePlansOneKiloAsksForYourWeight():
+    """Your plans give every weight as 1 kg, a placeholder (PF2): until you lift or set one, Today shows
+    "? kg" and offers no weight (PF3)."""
+    from gym.rules.progression import training
+    placeholders = json.loads(json.dumps(planFile))
+    placeholders["week"][2]["exercises"][0]["weightKg"] = 1  # Wednesday's overhead press
+    onPlaceholders = checkPlan(placeholders).plan
+    plans = [ImportedPlan(imported.start, onPlaceholders)]
+    soFar = training(plans, [], {}, [], [], [], day(2))
+    (overheadPress,) = todayView(plans, [], {}, planExercises(onPlaceholders), None, day(2), soFar).exercises
+    assert (overheadPress.needsWeight, overheadPress.targetWeightKg) == (True, None)
+    assert targetText(overheadPress) == "3×6 @ ? kg"

@@ -29,6 +29,7 @@ plateLoaded = ("barbell", "machine")  # what platesPerSide and barKg are for (WD
 bodyParts = ("upper", "lower")
 exerciseKinds = ("strength", "cardio")
 defaultIncrementKg = {"upper": 2.5, "lower": 5.0}  # used when the plan gives no incrementKg (9.1)
+placeholderKg = 1.0  # the weight your plans give every weighted exercise: a placeholder, set in the app (PF2)
 
 # The how-to shown when you tap an exercise on Today (SC7.1): what you need, the steps, form cues.
 howToFields = ("setup", "howTo", "form")

@@ -10,7 +10,8 @@
 A rest day shows "Rest day · next: Upper". No plan yet: "Import your plan in the PC view", with "Import a
 file" as the fallback (G2b-2). Tapping an exercise's name unfolds the plan's how-to under it: Setup, the
 steps and the form cues (SC7.1). ✎ weight sets the exercise's weight on this day and its weight step
-(WD2.1). A deload week, or one starting within a week, shows a line under the header (WD2.4).
+(WD2.1). A deload week, or one starting within a week, shows a line under the header (WD2.4). An
+exercise with no weight of yours yet shows "@ ? kg", and its ✓ opens ▾ sets (PF3).
 """
 
 import flet as ft
@@ -74,6 +75,9 @@ def ExerciseRow(app, line: ExerciseLine):
     done, skipped = line.status == "done", line.status in ("skipped", "autoSkipped")
 
     async def check(e):
+        if line.needsWeight and not done:
+            setEditing(True)  # the plan's weight is only a placeholder: type the real one (PF3)
+            return
         await app.check(line)
 
     async def skip(e):
@@ -88,7 +92,8 @@ def ExerciseRow(app, line: ExerciseLine):
                      on_click=lambda e: setShowingHowTo(not showingHowTo)),
         ft.Text(shown, color=ft.Colors.GREY_500 if skipped else None),
         ft.IconButton(ft.Icons.CHECK_CIRCLE if done else ft.Icons.RADIO_BUTTON_UNCHECKED,
-                      tooltip=f"{exercise.name}: done as targeted" if not done else f"{exercise.name}: take back",
+                      tooltip=f"{exercise.name}: take back" if done else
+                      f"{exercise.name}: enter the weight" if line.needsWeight else f"{exercise.name}: done as targeted",
                       on_click=check,
                       width=tapSize, height=tapSize),
     ])
@@ -179,7 +184,8 @@ def HowTo(exercise):
 
 @ft.component
 def SetsEditor(app, line: ExerciseLine, close):
-    """▾ sets: one row per set, pre-filled with what's logged or the target (19.1a-1). Cardio: minutes."""
+    """▾ sets: one row per set, pre-filled with what's logged or the target (19.1a-1); with no weight of
+    yours yet, the kg fields start empty, and one left empty takes the set above's (PF4). Cardio: minutes."""
     exercise = line.exercise
     weighted = not exercise.isCardio and exercise.equipment != "bodyweight"
     startSets = line.logged.sets if line.logged and line.logged.sets else (
@@ -198,7 +204,8 @@ def SetsEditor(app, line: ExerciseLine, close):
             if exercise.isCardio:
                 await app.saveSets(line, [], _whole(minutes, "Minutes"))
             else:
-                sets = [SetDone(_whole(reps, "Reps"), _kilograms(kg) if weighted else None) for reps, kg in rows]
+                weights = _setWeights([kg for _, kg in rows]) if weighted else [None] * len(rows)
+                sets = [SetDone(_whole(reps, "Reps"), weightKg) for (reps, _), weightKg in zip(rows, weights)]
                 await app.saveSets(line, sets)
         except ValueError as refused:
             setProblem(str(refused))
@@ -298,6 +305,14 @@ def _whole(text: str, what: str) -> int:
 def _steps(text: str) -> int:
     """A typed step total; "14,000", "14.000" and "14 000" all mean 14000."""
     return _whole(text.replace(",", "").replace(".", "").replace(" ", ""), "Steps")
+
+
+def _setWeights(typed: list[str]) -> list[float]:
+    """Each set's kg as typed; one left empty takes the set above's (PF4), so a weight is typed once."""
+    weights: list[float] = []
+    for text in typed:
+        weights.append(weights[-1] if weights and not text.strip() else _kilograms(text))
+    return weights
 
 
 def _kilograms(text: str, what: str = "Weight") -> float:

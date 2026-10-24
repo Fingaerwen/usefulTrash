@@ -37,6 +37,7 @@ class ExerciseLine:
     logged: LoggedExercise | None
     trackDay: int | None = None  # the day whose targets it uses and updates (WD2.3); None if it has none
     stepKg: float | None = None  # its weight step: set in the app, else the plan's (WD2.1)
+    needsWeight: bool = False  # only the plan's 1 kg placeholder (PF3): "@ ? kg", no target weight, ✓ opens ▾ sets
 
 
 @dataclass(frozen=True, slots=True)
@@ -130,27 +131,33 @@ def _line(entry: SessionExercise, logged: LoggedExercise | None, finished: bool,
         status = "autoSkipped" if finished else "todo"
     if exercise.isCardio:
         return ExerciseLine(exercise, None, None, None, exercise.minutes, status, logged, entry.trackDay)
+    needsWeight = False
     if training is not None:
         target = training.target(exercise, entry.trackDay)
         weightKg, reps, stepKg = target.weightKg, target.reps, training.stepKg(exercise)
+        needsWeight = training.needsWeight(exercise, entry.trackDay)
     else:
         weightKg, reps, stepKg = exercise.weightKg, exercise.repsMin, exercise.incrementKg
+    if needsWeight:
+        weightKg = None  # the plan's weight is only a placeholder (PF2)
     sets = exercise.sets
     if inDeload and sets is not None and reps is not None:
         sets, reps = deloadSets(sets), deloadReps(reps)
     if exercise.equipment == "bodyweight":
         weightKg, stepKg = None, None
-    return ExerciseLine(exercise, sets, reps, weightKg, None, status, logged, entry.trackDay, stepKg)
+    return ExerciseLine(exercise, sets, reps, weightKg, None, status, logged, entry.trackDay, stepKg, needsWeight)
 
 
 def targetText(line: ExerciseLine) -> str:
-    """The target as Today writes it: "4×8 @ 80 kg", "4×8 @ 20 kg/side" (plates per side, WD1.3), "3×8"
-    (bodyweight) or "15 min"."""
+    """The target as Today writes it: "4×8 @ 80 kg", "4×8 @ 20 kg/side" (plates per side, WD1.3), "4×8 @ ? kg"
+    (no weight of yours yet, PF3), "3×8" (bodyweight) or "15 min"."""
     if line.targetMinutes is not None:
         return f"{line.targetMinutes} min"
     if line.targetSets is None or line.targetReps is None:
         return ""
     text = f"{line.targetSets}×{line.targetReps}"
+    if line.needsWeight:
+        return text + f" @ ? {unit(line.exercise)}"
     if line.targetWeightKg is None:
         return text
     return text + f" @ {kgText(line.targetWeightKg)} {unit(line.exercise)}"

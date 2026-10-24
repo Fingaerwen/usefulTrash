@@ -136,9 +136,9 @@ def phone(tmp_path, cloud):
     device.close()
 
 
-def planInCloud(cloud: CloudStandIn, userId: str = userA) -> None:
+def planInCloud(cloud: CloudStandIn, userId: str = userA, planJson: dict | None = None) -> None:
     """A plan imported earlier on the PC: Push Pull Legs from the example file, starting today."""
-    planJson = json.loads((repoRoot / "plans" / "examplePlan.json").read_text())
+    planJson = planJson or json.loads((repoRoot / "plans" / "examplePlan.json").read_text())
     row = {"id": newRowId(), "userId": userId, "updatedAt": dt.datetime(2026, 10, 12, 15, 0, tzinfo=dt.UTC),
            "deleted": False, "cloudUpdatedAt": None, "importedAt": dt.datetime(2026, 10, 12, 15, 0, tzinfo=dt.UTC),
            "effectiveDate": monday, "startStep": 0, "planJson": planJson, "archived": False}
@@ -481,6 +481,37 @@ def testSettingAWeightFromToday(phone, cloud):
     bench = phone.app.model.today.exercises[0]
     assert (bench.targetWeightKg, bench.targetReps, bench.stepKg) == (85, 8, 5)
     assert phone.app.store.waiting().count == 2  # the weight and the step, waiting to be sent
+
+
+def testAnExerciseStillAtThePlansOneKiloAsksForItsWeight(phone, cloud):
+    """Your plans give every weight as 1 kg, a placeholder (PF2): Today shows "? kg", ✓ opens ▾ sets with the
+    kg empty (PF3), and the weight typed in set 1 counts for the sets below (PF4)."""
+    from screenTestKit import redraw, walk
+    from gym.rules.today import SetDone
+    from gym.screens.today import ExerciseRow, SetsEditor
+
+    def kgFields(root):
+        return [control for control in walk(root) if type(control).__name__ == "TextField" and control.label == "kg"]
+
+    planJson = json.loads((repoRoot / "plans" / "examplePlan.json").read_text())
+    planJson["week"][0]["exercises"][0]["weightKg"] = 1  # Monday's bench press
+    planInCloud(cloud, planJson=planJson)
+    signedIn(phone)
+    bench = phone.app.model.today.exercises[0]
+    row = draw(ExerciseRow, phone.app, bench)
+    assert "4×8 @ ? kg" in visibleTexts(row)
+    press(find(row, "Bench Press: enter the weight", "IconButton"))
+    redraw(row)
+    assert [field.value for field in kgFields(row)] == [""] * 4 and phone.app.store.waiting().count == 0
+    editor = draw(SetsEditor, phone.app, bench, lambda: None)  # on its own: a redrawn row starts it afresh
+    press(find(editor, "Save", "Button"))
+    redraw(editor)
+    assert "Weight: type a number, like 82.5." in visibleTexts(editor)  # set 1 needs one
+    type_(kgFields(editor)[0], "60")
+    redraw(editor)
+    press(find(editor, "Save", "Button"))
+    assert phone.app.model.today.exercises[0].logged.sets == (SetDone(8, 60),) * 4
+    assert not phone.app.state.training(monday).needsWeight(bench.exercise, 0, now=True)  # next time: 60 kg
 
 
 def testAMistypedStepSaysWhichField(phone, cloud):

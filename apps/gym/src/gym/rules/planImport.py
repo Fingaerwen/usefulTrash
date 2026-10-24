@@ -12,7 +12,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from gym.rules.planFile import Plan, PlanExercise, planExercises
+from gym.rules.planFile import Plan, PlanExercise, placeholderKg, planExercises
 from gym.rules.progression import Training
 from gym.rules.schedule import weekdayNames
 from gym.rules.stats import kgText, unit
@@ -100,17 +100,14 @@ def renameExercises(planJson: Mapping[str, Any], sameAs: Mapping[str, str]) -> d
 def keptWeights(plan: Plan, training: Training) -> tuple[str, ...]:
     """The plan weights an import won't use (WD3.9): exercises you've trained or set a weight for keep
     theirs on each day, so where the plan says otherwise, the import says so. "Bench Press (Mon): keeps
-    82.5 kg, not the plan's 80 kg"."""
+    82.5 kg, not the plan's 80 kg". The 1 kg placeholder your plans give every weight isn't listed (PF5)."""
     kept = []
     for weekday, step in enumerate(plan.steps):
         for exercise in step.exercises:
-            if exercise.isCardio or exercise.equipment == "bodyweight" or exercise.weightKg is None:
-                continue
-            key = (exercise.exerciseId, weekday)
-            known = (key in training.now.targets or key in training.now.edits
-                     or exercise.exerciseId in training.now.latest)
+            if exercise.isCardio or exercise.equipment == "bodyweight" or exercise.weightKg in (None, placeholderKg):
+                continue  # no weight to keep, or only the 1 kg placeholder (PF5)
             weightKg = training.target(exercise, weekday, now=True).weightKg
-            if known and weightKg is not None and abs(weightKg - exercise.weightKg) > 0.001:
+            if weightKg is not None and abs(weightKg - exercise.weightKg) > 0.001:
                 kept.append(f"{exercise.name} ({weekdayNames[weekday][:3].capitalize()}): keeps {kgText(weightKg)} "
                             f"{unit(exercise)}, not the plan's {kgText(exercise.weightKg)} {unit(exercise)}")
     return tuple(kept)

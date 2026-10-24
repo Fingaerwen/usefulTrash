@@ -2,6 +2,7 @@
 1RM, PRs, history and the week's summary. Days are counted from Monday 12 Oct 2026."""
 
 import datetime as dt
+import json
 
 from gym.rules.facts import ImportedPlan, LoggedExercise, SetDone
 from gym.rules.planFile import PlanExercise, checkPlan, planExercises, scheduleDays
@@ -138,6 +139,22 @@ def testExerciseDetail():
     assert [day.text for day in detail.days] == ["Mon 26.25 kg/side × 10", "Wed 26.25 kg/side × 6"]
     assert detail.stepKg == 1.25
     assert detail.lines[0] == f"19 Oct  10@26.25 · 9@26.25 · {round(loadKg(bench, 26.25) * 19):,} kg"
+
+
+def testAnExerciseStillAtThePlansOneKiloAsksForItsWeight():
+    """"? kg" in Progress too, and the page's ✎ starts empty (PF3)."""
+    placeholders = json.loads(json.dumps(planFile))
+    for weekday in (0, 2):
+        placeholders["week"][weekday]["exercises"][0]["weightKg"] = 1  # the bench press, Monday and Wednesday
+    onPlaceholders = checkPlan(placeholders).plan
+    plans = ImportedPlan(imported.start, onPlaceholders)
+    exercisesAt1 = planExercises(onPlaceholders)
+    soFar = training([plans], [], {}, [], [], [], day(0))
+    lines, _ = progressLines(plans, exercisesAt1, {}, soFar, day(0))
+    assert lines[0].now == "now ? kg/side × 6"
+    detail = exerciseDetail(exercisesAt1["bench"], plans, {}, soFar, day(0), "All")
+    assert [(day.text, day.target.weightKg) for day in detail.days] == [("Mon ? kg/side × 6", None),
+                                                                         ("Wed ? kg/side × 6", None)]
 
 
 # --- The Week tab (SC4.1) ------------------------------------------------------------------------

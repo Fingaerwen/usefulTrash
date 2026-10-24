@@ -77,8 +77,9 @@ Anything that looks wrong: ⋮ → Problems → **Copy**, and paste it to me.
    you like). It takes effect today, or tomorrow if you've logged today.
 3. **Today:** the header (`Upper · Monday · week 0/5`); [✓] an exercise and tap it again to take it back; ▾ sets
    with another weight; skip; tap a name for its how-to; ✎ weight; Finish (`Workout finished ✓ · … kg`); the steps
-   line. On the first sessions your plan's weights are placeholders: use ▾ sets with what you really lifted (the
-   target starts again from there), or ✎ weight before you start.
+   line. On the first sessions your plan's 1 kg weights show as `? kg`: [✓] opens ▾ sets, where the weight typed in
+   set 1 counts for the sets below (the target starts from there), or use ✎ weight before you start, which also
+   fills the exercise's other days still at `? kg`.
 4. **The gym's dead zone:** airplane mode → log a few → `N waiting` at the top → airplane mode off → it disappears
    within about a minute, and the PC view shows the entries a minute later.
 5. **Progress:** each exercise with `now …` and its PR; open one: chart, PRs, `Now Mon …` with ✎, the history.

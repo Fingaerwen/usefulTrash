@@ -46,6 +46,8 @@ class GymActions:
             await self._takeBack(view, line)
         elif line.exercise.isCardio and line.targetMinutes is not None:
             await self._log(view, line, (), line.targetMinutes, skipped=False)
+        elif line.needsWeight:  # Today opens ▾ sets instead (PF3)
+            raise ActionRefused("Enter the weight you lifted with ▾ sets: your plan's weight is only a placeholder.")
         elif line.targetReps is not None and line.targetSets:
             await self._log(view, line, (SetDone(line.targetReps, line.targetWeightKg),) * line.targetSets, None,
                             skipped=False)
