@@ -18,12 +18,17 @@ from gym.rules.sessions import withCounts
 from gym.rules.stats import (
     ChartView,
     ExerciseDetail,
+    HistoryDay,
+    MonthDiary,
     ProgressLine,
     WeekSummary,
     WeightView,
     chartView,
     dayBanners,
     exerciseDetail,
+    historyDays,
+    monthDiary,
+    monthlyPoints,
     progressLines,
     weekSummary,
     weightView,
@@ -116,6 +121,18 @@ class GymState:
     def weightView(self, date: dt.date, chartRange: str) -> WeightView:
         """The Weight tab (SC5.1)."""
         return weightView(self.weights, date, chartRange)
+
+    def historyDays(self, dates: list[dt.date], today: dt.date) -> tuple[HistoryDay, ...]:
+        """History's days (SC6.1, HI1.1)."""
+        return historyDays(self.plans, self.workouts, self.logs, self.steps, self.weights, dates, today)
+
+    def diary(self, month: dt.date, today: dt.date) -> MonthDiary:
+        """A month of the progression diary (DI1.1)."""
+        return monthDiary(self.currentPlan(today), self.known, self.logs, self.weights, month)
+
+    def monthlyPoints(self, exerciseId: str) -> tuple[tuple[dt.date, float], ...]:
+        """The diary's month-by-month chart for an exercise, or the body weight for "" (DI1.1)."""
+        return monthlyPoints(self.known.get(exerciseId) if exerciseId else None, self.logs, self.weights)
 
     def banners(self, date: dt.date, summarySeenFor: dt.date | None) -> tuple[str, ...]:
         """The banners of the day (18.4a): last week's summary on Mondays, the weigh-in on Fridays."""

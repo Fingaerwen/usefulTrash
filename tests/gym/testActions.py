@@ -328,3 +328,16 @@ def testWeighInsReplaceAndClear(app):
         app.do(app.actions.setBodyWeight, saturday + dt.timedelta(days=1), saturday, 80.0)
     with pytest.raises(ActionRefused, match="at most 2 decimals"):
         app.do(app.actions.setBodyWeight, friday, saturday, 81.255)
+
+
+def testDeletingADaysWorkoutKeepsItsStepsAndWeighIn(app):
+    """HI1.1: History's Delete this workout removes the workout and every entry; steps and weigh-in stay."""
+    view = app.today()
+    app.do(app.actions.checkExercise, view, line(view, "benchPress"))
+    app.do(app.actions.skipExercise, app.today(), line(app.today(), "dips"))
+    app.do(app.actions.setSteps, monday, 9500)
+    app.do(app.actions.setBodyWeight, monday, monday, 81.0)
+    app.do(app.actions.deleteWorkout, monday)
+    view = app.today()
+    assert not view.workoutExists and all(entry.status == "todo" for entry in view.exercises)
+    assert app.state.steps == {monday: 9500} and app.state.weights == {monday: 81.0}

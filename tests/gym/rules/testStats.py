@@ -11,6 +11,9 @@ from gym.rules.schedule import LoggedWorkout, PlanStart
 from gym.rules.stats import (
     chartView,
     dayBanners,
+    historyDays,
+    monthDiary,
+    monthlyPoints,
     exerciseDetail,
     summaryBanner,
     weighInBanner,
@@ -287,3 +290,33 @@ def testFridaysWeighInBannerUntilWeighedIn():
     friday = day(4)
     assert dayBanners(friday, {}, hadPlanLastWeek=True, summarySeenFor=None) == (weighInBanner,)
     assert dayBanners(friday, {friday: 81.0}, hadPlanLastWeek=True, summarySeenFor=None) == ()
+
+
+# --- History: days and the monthly diary (HI1.1, DI1.1) ------------------------------------------
+
+def testHistoryDaysSayWhatEachDayHeld():
+    days = historyDays([imported], workouts, weekLogs, {day(1): 9500}, {day(2): 81.4}, [day(n) for n in range(4)], day(3))
+    assert [(d.date, d.text) for d in days] == [
+        (day(3), "Rest"), (day(2), "Push · 1 exercise · finished · 81.4 kg"), (day(1), "Rest · 9,500 steps"),
+        (day(0), "Upper · 2 exercises · finished")]
+
+
+def testTheDiaryGivesEachExercisesMonthThenTheBodyWeight():
+    october = {**weekLogs, day(14): {"bench": LoggedExercise("bench", (SetDone(10, 26.25), SetDone(10, 26.25)))}}
+    diary = monthDiary(imported, known, october, {day(4): 82.0, day(18): 81.2}, day(0))
+    assert [(line.name, line.change, line.detail) for line in diary.lines] == [
+        ("Bench Press", "25 → 26.25 kg/side  ↑1.25", "best 2×10 @ 26.25 kg/side · 3 sessions"),
+        ("Pull-up", "8 → 10 reps  ↑2", "best 10 · 9 · 2 sessions"),
+        ("Oldrow", "50 kg", "best 1×10 @ 50 kg · 1 session"),
+        ("Body weight", "82 → 81.2 kg  ↓0.8", "2 weigh-ins")]
+    assert diary.firstMonth == dt.date(2026, 10, 1)
+    assert monthDiary(imported, known, october, {}, dt.date(2026, 11, 5)).lines == ()
+
+
+def testTheDiarysChartIsOnePointAMonth():
+    logs2 = {dt.date(2026, 9, 3): {"bench": LoggedExercise("bench", (SetDone(8, 22.5),))},
+             dt.date(2026, 9, 24): {"bench": LoggedExercise("bench", (SetDone(8, 23.75),))},
+             day(0): {"bench": LoggedExercise("bench", (SetDone(8, 25),))}}
+    assert monthlyPoints(known["bench"], logs2, {}) == ((dt.date(2026, 9, 1), 23.75), (dt.date(2026, 10, 1), 25))
+    assert monthlyPoints(None, {}, {day(0): 82.0, day(7): 81.0, day(30): 80.5}) == (
+        (dt.date(2026, 10, 1), 81.5), (dt.date(2026, 11, 1), 80.5))

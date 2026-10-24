@@ -11,10 +11,12 @@ from pathlib import Path
 
 import pytest
 from cloudStandIn import CloudStandIn
+from driveStandIn import DriveStandIn
 from screenTestKit import draw, find, press, type_, useLoop, visibleTexts
 from usefulTestKit import FakeClock, userA, userB
 
 from gym.model import appVersion
+from usefulShared.backup.driveApi import DriveApi
 from gym.phoneApp import PhoneApp
 from gym.screens.root import GymApp
 from gym.tables import appSchema, tablesByName
@@ -29,11 +31,21 @@ config = {"supabaseUrl": "https://example.supabase.co", "supabasePublishableKey"
 
 
 class FakeGoogle:
-    """Google's account picker: hands out an ID token carrying the hashed nonce, like the real one."""
+    """Google's account picker: hands out an ID token carrying the hashed nonce, like the real one; and Google
+    Play services' Drive permission (F14.1), with a token that expires when the test says so."""
 
     def __init__(self, account: str = userA):
         self.account = account
         self.answer: dict | None = None  # set to act out "cancelled" or an error
+        self.driveToken = "driveToken1"
+        self.driveAnswer: dict | None = None  # set to act out a refusal
+
+    async def getDriveAccess(self, interactive: bool, accountEmail: str = "") -> dict:
+        return self.driveAnswer or {"status": "ok", "accessToken": self.driveToken}
+
+    async def clearDriveToken(self, accessToken: str) -> dict:
+        self.driveToken = "driveToken2"  # Play services hands out a new one next time
+        return {"status": "ok"}
 
     async def getIdToken(self, serverClientId: str, hashedNonce: str) -> dict:
         return self.answer or {"status": "ok", "idToken": f"googleIdToken:{self.account}:{hashedNonce}"}
@@ -100,6 +112,7 @@ class Phone:
         self.folder = folder
         self.cloud = cloud
         self.services = Services(FakeGoogle(), MemoryStore(), FakeClipboard(), FakePicker())
+        self.drive = DriveStandIn()
         self.clock = FakeClock(dt.datetime(2026, 10, 12, 17, 0, tzinfo=dt.UTC))
         self.loop = asyncio.new_event_loop()
         useLoop(self.loop)
@@ -107,7 +120,7 @@ class Phone:
 
     def restart(self) -> PhoneApp:
         self.app = PhoneApp(config, str(self.folder), self.services, AppLog(str(self.folder), self.clock), self.clock,
-                            lambda: monday, cloud=self.cloud)
+                            lambda: monday, cloud=self.cloud, drive=DriveApi(self.drive))
         self.run(self.app.start())
         return self.app
 
@@ -242,7 +255,10 @@ def testCheckThenFinishFromTheScreen(phone, cloud):
     texts = phone.texts()
     assert "Workout finished ✓ · 2,560 kg" in texts and "skipped (not done when finished)" in texts
     assert phone.run(phone.app.syncNow()).status == "done"
-    assert "2 waiting" not in phone.texts() and phone.app.model.waiting == 0
+    assert "2 waiting" not in phone.texts()
+    phone.run(phone.app.backupTask)  # the first sync of a start brings the backup (F14.1): its row is sent next
+    phone.run(phone.app.syncNow())
+    assert phone.app.model.waiting == 0
 
 
 def testTappingCheckAgainTakesItBack(phone, cloud):
@@ -638,6 +654,13 @@ def testWeekTabAndStepsForAnEarlierDay(phone, cloud):
         "gym.rules.stats", fromlist=["weekLines"]).weekLines(phone.app.model.week)
 
 
+def byTooltip(root, text: str):
+    """The one control with this tooltip (for buttons whose words, like "Save", repeat)."""
+    from screenTestKit import walk
+    (control,) = [control for control in walk(root) if getattr(control, "tooltip", None) == text]
+    return control
+
+
 def banner(root, text: str):
     """The banner showing this text (the tappable box around it)."""
     from screenTestKit import walk
@@ -714,6 +737,118 @@ def testBannersForTheSummaryAndTheWeighIn(phone, cloud):
     assert phone.app.model.tab == "weight"
     phone.run(phone.app.setBodyWeight(monday + dt.timedelta(days=11), 81.0))
     assert weighInBanner not in phone.texts()
+
+
+def testHistoryOnThePhoneEditsTheLastSevenDays(phone, cloud):
+    """HI1.1: ⋮ → History lists the last 7 days; Edit lays a day out like Today, and what's logged there goes
+    on that day; its steps and weigh-in too; Delete this workout takes the workout away."""
+    from screenTestKit import redraw
+    planInCloud(cloud)
+    signedIn(phone)
+    app = phone.app
+    app.localToday = lambda: monday + dt.timedelta(days=2)  # Wednesday
+    app.refresh()
+    menu = find(phone.screen(), "More", "PopupMenuButton")
+    press(next(item for item in menu.items if item.content == "History"))
+    assert app.model.screen == "history" and len(app.model.historyDays) == 7  # Thu 8 to Wed 14
+    texts = phone.texts()
+    assert "Push · missed" in texts and "before your plan" in texts  # Monday's Push; the plan began on the 12th
+    press(byTooltip(phone.screen(), "Edit Mon 12 Oct"))
+    assert "Push · Mon 12 Oct" in phone.texts()
+    press(find(phone.screen(), "Bench Press: done as targeted", "IconButton"))
+    assert monday in app.state.logs and app.state.logs[monday]["benchPress"].done
+    assert app.model.today.date == monday + dt.timedelta(days=2) and not app.model.today.workoutExists  # today untouched
+    from gym.screens.history import DayEditor
+    editor = draw(DayEditor, app, app.model, app.model.historyView)
+    type_(fieldLabelled(editor, "Steps"), "9,500")
+    type_(fieldLabelled(editor, "Weight, kg"), "81,6")
+    redraw(editor)
+    press(byTooltip(editor, "Save the steps"))
+    press(byTooltip(editor, "Save the weigh-in"))
+    assert app.state.steps[monday] == 9500 and app.state.weights[monday] == 81.6
+    press(find(phone.screen(), "Delete this workout", "OutlinedButton"))
+    assert monday not in {workout.date for workout in app.state.workouts}
+    press(find(phone.screen(), "◂ Days", "TextButton"))
+    press(find(phone.screen(), "Back", "IconButton"))
+    assert app.model.screen == "main"
+
+
+def testTheDiaryOnThePhone(phone, cloud):
+    """DI1.1: History → Months: each exercise's month and the body weight; a tap unfolds its monthly chart."""
+    from gym.rules.today import SetDone
+    planInCloud(cloud)
+    signedIn(phone)
+    app = phone.app
+    phone.run(app.saveSets(app.model.today.exercises[0], [SetDone(9, 80), SetDone(8, 80)]))
+    phone.run(app.setBodyWeight(monday, 81.0))
+    app.openHistory()
+    app.showHistoryMode("months")
+    texts = phone.texts()
+    assert "October 2026" in texts and "Bench Press" in texts and "80 kg" in texts
+    assert "best 9 · 8 @ 80 kg · 1 session" in texts and "Body weight" in texts and "1 weigh-in" in texts
+    from screenTestKit import walk
+    (entry,) = [control for control in walk(phone.screen()) if getattr(control, "tooltip", None) == "Bench Press: show its months"]
+    press(entry)
+    from gym.screens.history import DiaryEntry
+    assert app.state.monthlyPoints("benchPress") == ((dt.date(2026, 10, 1), 80),)
+
+
+def backedUp(phone) -> list[dict]:
+    return [row for row in phone.app.store.rows("backups") if not row["deleted"]]
+
+
+def testTheAutomaticBackupAfterTheFirstSync(phone, cloud):
+    """F14.1: after a start's first sync, when the last backup is 30+ days old: every table zipped to the
+    app's Drive folder, a backups row, and the last 3 kept; within 30 days nothing happens."""
+    import io
+    import zipfile
+    planInCloud(cloud)
+    signedIn(phone)
+    phone.run(phone.app.syncNow())
+    phone.run(phone.app.backupTask)
+    (row,) = backedUp(phone)
+    (file,) = phone.drive.zips()
+    assert row["driveFileId"] == file["id"] and row["madeBy"] == "phone" and row["sizeBytes"] == len(file["content"])
+    names = zipfile.ZipFile(io.BytesIO(file["content"])).namelist()
+    assert "manifest.json" in names and "plans.csv" in names and "exerciseLogs.csv" in names
+    folder = phone.drive.files[file["parents"][0]]
+    assert folder["name"] == "Gym Tracker backups"
+    phone.app.openProblems()
+    assert "Last backup: 12 Oct 2026 (phone) · today" in phone.texts()
+
+    phone.restart()  # a new start within 30 days: no backup
+    phone.app.syncLoop.stop()
+    phone.run(phone.app.syncNow())
+    phone.run(phone.app.backupTask)
+    assert len(phone.drive.zips()) == 1
+    for month in range(1, 4):  # 31 days on, three more times: the last 3 stay
+        phone.clock.advance(days=31)
+        cloud.clock.advance(days=31)
+        phone.restart()
+        phone.app.syncLoop.stop()
+        phone.run(phone.app.syncNow())
+        phone.run(phone.app.backupTask)
+    assert len(backedUp(phone)) == 4 and len(phone.drive.zips()) == 3
+
+
+def testABackupRetriesOnceWithAFreshDriveToken(phone, cloud):
+    """Phase 0 check 7's rule: Drive refuses an expired token, Play services hands out a new one."""
+    planInCloud(cloud)
+    signedIn(phone)
+    phone.drive.validTokens = {"driveToken2"}  # the first token has expired
+    phone.run(phone.app.syncNow())
+    phone.run(phone.app.backupTask)
+    assert len(backedUp(phone)) == 1
+
+
+def testAFailedBackupIsOnlyLogged(phone, cloud):
+    planInCloud(cloud)
+    signedIn(phone)
+    phone.services.googleSignIn.driveAnswer = {"status": "cancelled"}  # you didn't allow Drive
+    phone.run(phone.app.syncNow())
+    phone.run(phone.app.backupTask)
+    assert backedUp(phone) == [] and phone.app.model.notice == ""
+    assert "The backup to Google Drive didn't work" in (phone.folder / "appLog.txt").read_text()
 
 
 def testStartingAndStoppingADeloadByHand(phone, cloud):

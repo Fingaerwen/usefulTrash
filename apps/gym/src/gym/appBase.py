@@ -10,8 +10,8 @@ import flet as ft
 from gym.actions import ActionRefused, GymActions
 from gym.model import AppModel, LogFacts, SyncFacts, problemsReport
 from gym.planImporter import answerQuestions, finishImport, startImport
-from gym.rules.stats import summaryBanner, weighInBanner
-from gym.rules.today import ExerciseLine, SetDone
+from gym.rules.stats import lastBackupText, summaryBanner, weighInBanner
+from gym.rules.today import ExerciseLine, SetDone, TodayView
 from gym.state import GymState
 from gym.tables import appSchema
 from usefulShared.platform.appLog import AppLog
@@ -21,7 +21,7 @@ class AppBase:
     """The shared part of both controllers."""
 
     mode = "phone"  # or "pc": which main screen and ⋮ menu the screens show
-    menuItems: tuple[str, ...] = ("problems", "deload", "importPlan", "signOut")
+    menuItems: tuple[str, ...] = ("problems", "history", "deload", "importPlan", "signOut")
     stepsDaysBack: int | None = 7  # Week's calendar: how far back steps can be entered (SC4.1); None = any day
 
     def __init__(self, config: dict[str, str], services: Any, log: AppLog, clock: Callable[[], dt.datetime],
@@ -83,6 +83,7 @@ class AppBase:
         self._refreshWeek()
         self._refreshChart()
         self.model.weight = self.state.weightView(today, self.model.weightRange)
+        self._refreshHistory()
         self.afterRefresh()
         self.model.banners = (*self.model.banners, *self.state.banners(today, self.summarySeenFor()))
 
@@ -99,14 +100,17 @@ class AppBase:
     def startActions(self) -> None:
         self.actions = GymActions(self, self.state, self.session.userId(), self.clock)
 
-    async def check(self, line: ExerciseLine) -> None:
-        await self._act(self.actions.checkExercise(self.model.today, line))
+    # Today's actions; History's day editor passes its own day's view (HI1.1).
 
-    async def saveSets(self, line: ExerciseLine, sets: list[SetDone], minutes: int | None = None) -> None:
-        await self._act(self.actions.saveSets(self.model.today, line, sets, minutes))
+    async def check(self, line: ExerciseLine, view: TodayView | None = None) -> None:
+        await self._act(self.actions.checkExercise(view or self.model.today, line))
 
-    async def skip(self, line: ExerciseLine) -> None:
-        await self._act(self.actions.skipExercise(self.model.today, line))
+    async def saveSets(self, line: ExerciseLine, sets: list[SetDone], minutes: int | None = None,
+                       view: TodayView | None = None) -> None:
+        await self._act(self.actions.saveSets(view or self.model.today, line, sets, minutes))
+
+    async def skip(self, line: ExerciseLine, view: TodayView | None = None) -> None:
+        await self._act(self.actions.skipExercise(view or self.model.today, line))
 
     async def declineSuggestion(self, line: ExerciseLine, declined: bool) -> None:
         await self._act(self.actions.declineSuggestion(self.model.today, line, declined))
@@ -179,6 +183,72 @@ class AppBase:
     def markSummarySeen(self, monday: dt.date) -> None:
         self._summarySeen = monday
 
+    # --- History: days to edit and the monthly diary (HI1.1, DI1.1) ---------------------------
+
+    def historyDates(self) -> list[dt.date]:
+        """The days History lists: on the phone the last 7 (19.1f-1), in the PC view the month shown."""
+        today = self.localToday()
+        if self.stepsDaysBack is not None:
+            return [today - dt.timedelta(days=back) for back in range(self.stepsDaysBack)]
+        month = self.model.historyMonth or today.replace(day=1)
+        days = (month.replace(month=month.month % 12 + 1, year=month.year + month.month // 12) - month).days
+        return [month + dt.timedelta(days=offset) for offset in range(days) if month + dt.timedelta(days=offset) <= today]
+
+    def canEditDay(self, date: dt.date) -> bool:
+        return self.canEnterStepsOn(date)
+
+    def _refreshHistory(self) -> None:
+        today = self.localToday()
+        self.model.historyDays = self.state.historyDays(self.historyDates(), today)
+        day = self.model.historyDay
+        self.model.historyView = self.state.today(day) if day is not None and self.canEditDay(day) else None
+        self.model.diary = self.state.diary(self.model.historyMonth or today.replace(day=1), today)
+
+    def openHistory(self) -> None:
+        """The phone's ⋮ → History (HI1.1)."""
+        self.model.historyDay = None
+        self._refreshHistory()
+        self.model.screen = "history"
+
+    def closeHistory(self) -> None:
+        self.model.historyDay, self.model.historyView = None, None
+        self.model.screen = "main"
+
+    def showHistoryMode(self, mode: str) -> None:
+        self.model.historyMode = mode
+        self.model.historyDay, self.model.historyView = None, None
+
+    def showHistoryMonth(self, months: int) -> None:
+        """◂ ▸: another month, never past this one nor before the first with a plan or anything logged."""
+        thisMonth = self.localToday().replace(day=1)
+        month = self.model.historyMonth or thisMonth
+        index = month.year * 12 + month.month - 1 + months
+        chosen = dt.date(index // 12, index % 12 + 1, 1)
+        self.model.historyMonth = max(min(chosen, thisMonth), self.firstHistoryMonth())
+        self._refreshHistory()
+
+    def firstHistoryMonth(self) -> dt.date:
+        """The earliest month History goes back to: the first plan's, or the first with anything logged."""
+        thisMonth = self.localToday().replace(day=1)
+        starts = [imported.start.effectiveDate.replace(day=1) for imported in self.state.plans]
+        diaryFirst = self.model.diary.firstMonth if self.model.diary else thisMonth
+        return min([*starts, diaryFirst, thisMonth])
+
+    def editDay(self, date: dt.date) -> None:
+        if self.canEditDay(date):
+            self.model.historyDay = date
+            self._refreshHistory()
+
+    def closeDay(self) -> None:
+        self.model.historyDay, self.model.historyView = None, None
+        self._refreshHistory()
+
+    async def deleteWorkout(self, date: dt.date) -> None:
+        await self._act(self.actions.deleteWorkout(date))
+
+    def _live(self, tableName: str) -> list[dict[str, Any]]:
+        return [row for row in self.state.rows.get(tableName, {}).values() if not row["deleted"]]
+
     def openBanner(self, banner: str) -> None:
         """A banner tapped: the summary opens last week on Week, the weigh-in the Weight tab (18.4a)."""
         if banner == summaryBanner:
@@ -245,7 +315,8 @@ class AppBase:
         recent = tuple((entry.at, entry.area, entry.plainWords, entry.technical) for entry in self.log.entries(limit=20))
         return problemsReport(appSchema, self.syncFacts(), LogFacts(check.lines, check.tokenShapedStrings,
                                                                      check.knownSecretsFound, recent),
-                              self.clock(), len(self.state.unreadablePlans), startedIn=self.startedIn)
+                              self.clock(), len(self.state.unreadablePlans),
+                              lastBackup=lastBackupText(self._live("backups"), self.clock()), startedIn=self.startedIn)
 
     # --- Plan import (PC view; the phone's fallback, G2b-2) -----------------------------------
 

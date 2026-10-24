@@ -64,24 +64,26 @@ def RestDay(app, view):
 
 
 @ft.component
-def ExerciseRow(app, line: ExerciseLine):
+def ExerciseRow(app, line: ExerciseLine, view=None):
     """One exercise: name, target, [✓]; underneath rest time, form cues, ▾ sets and skip (19.1). Tapping
-    the name unfolds its how-to (SC7.1)."""
+    the name unfolds its how-to (SC7.1). History's day editor passes its day's view (HI1.1): a past day has no
+    ✎ weight or Undo, which both work from today."""
     editing, setEditing = ft.use_state(False)
     showingHowTo, setShowingHowTo = ft.use_state(False)
     settingWeight, setSettingWeight = ft.use_state(False)
     exercise = line.exercise
-    weighted = not exercise.isCardio and exercise.equipment != "bodyweight" and line.trackDay is not None
+    weighted = (not exercise.isCardio and exercise.equipment != "bodyweight" and line.trackDay is not None
+                and view is None)
     done, skipped = line.status == "done", line.status in ("skipped", "autoSkipped")
 
     async def check(e):
         if line.needsWeight and not done:
             setEditing(True)  # the plan's weight is only a placeholder: type the real one (PF3)
             return
-        await app.check(line)
+        await app.check(line, view)
 
     async def skip(e):
-        await app.skip(line)
+        await app.skip(line, view)
 
     async def undo(e):
         await app.declineSuggestion(line, not line.declined)
@@ -116,13 +118,13 @@ def ExerciseRow(app, line: ExerciseLine):
         ft.TextButton("✎ weight", on_click=lambda e: setSettingWeight(not settingWeight)) if weighted
         else ft.Container(visible=False),
         ft.TextButton("redo ↑" if line.declined else "undo ↑", on_click=undo)  # ↑new: not today (UN1.1)
-        if (line.isNew or line.declined) and line.status == "todo" else ft.Container(visible=False),
+        if (line.isNew or line.declined) and line.status == "todo" and view is None else ft.Container(visible=False),
     ], spacing=4, wrap=True)
     parts = [top, under]
     if showingHowTo:
         parts.append(HowTo(exercise))
     if editing:
-        parts.append(SetsEditor(app, line, lambda: setEditing(False)))
+        parts.append(SetsEditor(app, line, lambda: setEditing(False), view))
     if settingWeight:
         parts.append(WeightEditor(app, exercise, line.trackDay, line.targetWeightKg, line.stepKg,
                                   lambda: setSettingWeight(False)))
@@ -190,7 +192,7 @@ def HowTo(exercise):
 
 
 @ft.component
-def SetsEditor(app, line: ExerciseLine, close):
+def SetsEditor(app, line: ExerciseLine, close, view=None):
     """▾ sets: one row per set, pre-filled with what's logged or the target (19.1a-1); with no weight of
     yours yet, the kg fields start empty, and one left empty takes the set above's (PF4). Cardio: minutes."""
     exercise = line.exercise
@@ -209,11 +211,11 @@ def SetsEditor(app, line: ExerciseLine, close):
     async def save(e):
         try:
             if exercise.isCardio:
-                await app.saveSets(line, [], _whole(minutes, "Minutes"))
+                await app.saveSets(line, [], _whole(minutes, "Minutes"), view=view)
             else:
                 weights = _setWeights([kg for _, kg in rows]) if weighted else [None] * len(rows)
                 sets = [SetDone(_whole(reps, "Reps"), weightKg) for (reps, _), weightKg in zip(rows, weights)]
-                await app.saveSets(line, sets)
+                await app.saveSets(line, sets, view=view)
         except ValueError as refused:
             setProblem(str(refused))
             return

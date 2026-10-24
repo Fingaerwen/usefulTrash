@@ -23,6 +23,15 @@ The same way: New query → paste the whole of
 set in the app and for deloads you start by hand (WD2.1, WD2.4). It only adds tables, and it refuses to run
 twice or before 001.
 
+### 1c. Back up now's page (you, in Google Cloud; added 2026-10-24)
+Only for the PC view's **Back up now** (BK1.1); the phone's automatic backups don't need it.
+Google Cloud console → **APIs & Services** → **Credentials** → the **Web** client (the one whose ID the app
+uses) →
+- **Authorized JavaScript origins:** add `https://fingaerwen.github.io` if it isn't there.
+- **Authorized redirect URIs:** add `https://fingaerwen.github.io/usefulTrash/driveToken.html`.
+
+→ **Save**. It can take a few minutes to apply. Nothing secret is involved: both addresses are public.
+
 ## 2. Two Android sign-in clients (you, in Google Cloud)
 Google Play services only hands a sign-in token to an app whose package and signing key it knows.
 Gym Tracker is a new package, so it needs its own clients, in the same project as the Web client.
@@ -66,7 +75,9 @@ to uninstall, reinstall and sign in again (only changes not yet synced would be 
 ## 6. On the phone
 1. **Obtainium** → **+** (Add App) → source URL `https://github.com/Fingaerwen/usefulTrash` → **Add**,
    then install Gym Tracker. Later releases come as updates in Obtainium.
-2. Open it → **Sign in with Google** → it downloads your data → Today.
+2. Open it → **Sign in with Google** → it downloads your data → Today. From 0.3-alpha, the first time
+   it opens after its first sync, Google asks once whether Gym Tracker may keep files in your Drive (the
+   automatic backup, every 30 days): **Allow**.
 3. No battery setting up front (BT1.1). Only if a reminder arrives late (the 08:00 creatine reminder, or the
    Friday 07:00 weigh-in from 0.3-alpha): Settings → Apps → Gym Tracker → Battery → **Unrestricted**.
 4. The Phase 0 app was uninstalled on 2026-10-14 (PH1.1).
@@ -102,3 +113,11 @@ Anything that looks wrong: ⋮ → Problems → **Copy**, and paste it to me.
 12. **Weight (0.3-alpha):** Friday preselected, ◂ ▸ for another day, Save; the text bars and `Last 4: …` below.
 13. **Banners (0.3-alpha):** on Friday "Weigh-in due" until you've weighed in, and at 07:00 the "Weigh-in · Time to
     weigh in" notification; on Monday "Last week's summary is ready", which opens last week on Week and is gone.
+14. **The automatic backup (0.3-alpha):** after the update, Google asks once about Drive (allow it); then
+    ⋮ → Problems shows `Last backup: … (phone) · today`, and Google Drive has the folder **Gym Tracker backups**
+    with one zip in it.
+15. **History (0.3-alpha):** ⋮ → History → Days: the last 7 days; Edit one, ✓ an exercise there, and Today
+    stays as it was; Delete this workout; then Months: your month per exercise, and a tap shows its chart.
+16. **The PC view (0.3-alpha):** the History tab (any day), the Backup tab: Export CSV downloads a zip; after
+    step 1c, Back up now opens Google's page in a second window, and then says "Backed up to your Google
+    Drive: …". If it doesn't, ⋮ → Problems → Copy, and paste it to me.

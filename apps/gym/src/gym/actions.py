@@ -101,6 +101,20 @@ class GymActions:
             "targetReps": None, "targetWeightKg": None, "sets": [], "minutes": None, "skipped": False}
         await self.store.saveRows([("exerciseLogs", {**row, "deleted": False, "declinedSuggestion": declined})])
 
+    async def deleteWorkout(self, date: dt.date) -> None:
+        """History's "Delete this workout" (HI1.1): the day's workout and every entry in it; its steps and
+        weigh-in stay."""
+        edits: list[tuple[str, dict[str, Any]]] = []
+        session = self._liveSession(date)
+        if session is not None:
+            edits.append(("sessions", dict(session, deleted=True)))
+        for exerciseId in self.state.logs.get(date, {}):
+            row = self.state.row("exerciseLogs", dayRowId(exerciseLogs, self.userId, date=date, exerciseId=exerciseId))
+            if row is not None and not row["deleted"]:
+                edits.append(("exerciseLogs", dict(row, deleted=True)))
+        if edits:
+            await self.store.saveRows(edits)
+
     async def finishWorkout(self, view: TodayView) -> None:
         """Finish: the workout is done; anything untouched counts as skipped (19.1b-1)."""
         session = self._liveSession(view.date)

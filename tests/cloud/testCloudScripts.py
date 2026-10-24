@@ -354,3 +354,54 @@ def testTheAppIsBuiltForTheLatestUpgrade(database):
     """Raising appSchema with each new cloud script can't be forgotten (version check, 14b)."""
     assert database.ok('select "schemaVersion" from public."cloudInfo";') == [str(appSchema)]
     assert appSchema == len(cloudScripts)
+
+
+
+# --- Restoring a backup (F13.1): tools/restoreBackup.py on a throwaway copy, never live data ------
+
+def backupOfEveryTable(updatedAt=None):
+    """A backup holding a row of every table, as the phone writes it, plus a deleted row and awkward text."""
+    import datetime as dt
+
+    from usefulTestKit import exampleRow
+
+    from usefulShared.backup.backupFile import makeBackupZip
+    moment = updatedAt or dt.datetime(2026, 10, 12, 17, 0, 0, 123456, tzinfo=dt.UTC)
+    rows = {table.name: [exampleRow(table.name, userId=userA, updatedAt=moment)] for table in appTables}
+    rows["plans"][0]["planJson"] = {"name": "Tom's \"plan\"", "week": [1, 2]}
+    rows["dailySteps"].append(exampleRow("dailySteps", userId=userA, updatedAt=moment, date=dt.date(2026, 10, 13),
+                                         steps=9500, deleted=True))
+    return rows, makeBackupZip(rows, appTables, appSchema, moment, "phone")
+
+
+def testARestoreFillsAnEmptyCloudExactly(database):
+    import restoreBackup
+    rows, content = backupOfEveryTable()
+    total = sum(len(tableRows) for tableRows in rows.values())
+    assert database.ok(restoreBackup.restoreSql(content))[-1] == f"done: {total} rows from the backup"
+    for name, tableRows in rows.items():
+        assert database.ok(f'select count(*) from public."{name}";') == [str(len(tableRows))], name
+    assert database.ok("""select "planJson"->>'name' from public."plans";""") == ['Tom\'s "plan"']
+    assert database.ok("""select "deleted", "steps" from public."dailySteps" order by "date";""") == [
+        "f|14000", "t|9500"]
+    assert database.ok("""select "sets"::text, "updatedAt" = '2026-10-12 17:00:00.123456+00' from public."exerciseLogs";""") == [
+        '[{"reps": 9, "weightKg": 82.5}]|t']  # the edit time is the backup's, not the restore's
+
+
+def testARestoreKeepsNewerEditsUnlessTheBackupWins(database):
+    import restoreBackup
+    rows, content = backupOfEveryTable()
+    weight = rows["bodyWeight"][0]
+    database.ok(f"""insert into public."bodyWeight" ("id", "userId", "updatedAt", "deleted", "date", "weightKg")
+                    values ('{weight["id"]}', '{userA}', now(), false, '2026-10-16', 79.9);""")
+    database.ok(restoreBackup.restoreSql(content))
+    assert database.ok('select "weightKg" from public."bodyWeight";') == ["79.90"]  # the newer edit stays
+    database.ok(restoreBackup.restoreSql(content, backupWins=True))
+    assert database.ok('select "weightKg" from public."bodyWeight";') == ["81.20"]  # the backup's
+
+
+def testARestoreWaitsForTheCloudUpgradeItNeeds(emptyDatabase):
+    import restoreBackup
+    emptyDatabase.ok(cloudScripts[0].read_text(encoding="utf-8"))  # the cloud is still at upgrade 001
+    _, content = backupOfEveryTable()
+    emptyDatabase.fails(restoreBackup.restoreSql(content), f"run cloud upgrade {appSchema:03d} first")

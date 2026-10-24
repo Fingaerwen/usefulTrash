@@ -1,9 +1,10 @@
 """The whole app: one screen at a time, chosen by the model (sign-in, first download, the tabs,
 Problems, plan import). The phone's tabs are Today · Progress · Charts · Week · Weight (18.1, SC8.1); the PC
-view has the same and Plans (SC6.1)."""
+view has the same and History, Plans and Backup (SC6.1)."""
 
 import flet as ft
 
+from gym.screens.backup import BackupTab
 from gym.screens.charts import ChartsTab
 from gym.screens.common import (
     ComingSoon,
@@ -12,6 +13,7 @@ from gym.screens.common import (
     SignInScreen,
     StartingScreen,
 )
+from gym.screens.history import HistoryScreen, HistoryTab
 from gym.screens.importPlan import ImportPlanScreen
 from gym.screens.plans import PlansTab
 from gym.screens.problems import ProblemsScreen
@@ -23,9 +25,10 @@ from gym.screens.weight import WeightTab
 phoneTabs = (("today", "Today", ft.Icons.TODAY), ("progress", "Progress", ft.Icons.TRENDING_UP),
              ("charts", "Charts", ft.Icons.SHOW_CHART), ("week", "Week", ft.Icons.CALENDAR_VIEW_WEEK),
              ("weight", "Weight", ft.Icons.MONITOR_WEIGHT))
-pcTabs = (*phoneTabs, ("plans", "Plans", ft.Icons.LIST_ALT))
+pcTabs = (*phoneTabs, ("history", "History", ft.Icons.HISTORY), ("plans", "Plans", ft.Icons.LIST_ALT),
+          ("backup", "Backup", ft.Icons.BACKUP))
 tabScreens = {"today": TodayTab, "progress": ProgressTab, "charts": ChartsTab, "week": WeekTab, "weight": WeightTab,
-              "plans": PlansTab}
+              "history": HistoryTab, "plans": PlansTab, "backup": BackupTab}
 
 
 @ft.component
@@ -33,7 +36,7 @@ def GymApp(app, model):
     """The root: model is passed in so every change to it redraws what it touches."""
     screens = {"starting": StartingScreen, "failed": FailedScreen, "signIn": SignInScreen,
                "downloading": DownloadingScreen, "main": PcMain if app.mode == "pc" else PhoneMain,
-               "problems": ProblemsScreen, "importPlan": ImportPlanScreen}
+               "problems": ProblemsScreen, "importPlan": ImportPlanScreen, "history": HistoryScreen}
     screen = screens.get(model.screen, StartingScreen)
     return ft.SafeArea(ft.Container(screen(app, model), padding=12, expand=True), expand=True)
 

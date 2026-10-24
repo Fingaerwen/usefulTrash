@@ -8,6 +8,9 @@ tab signs you out, and the log is memory only too (12d).
 
 import asyncio
 import datetime as dt
+import json
+import secrets
+import urllib.parse
 from collections.abc import Callable, Sequence
 from typing import Any
 
@@ -15,18 +18,27 @@ import flet as ft
 
 from gym.appBase import AppBase
 from gym.model import SyncFacts
+from gym.rules.stats import readableSets
 from gym.signInFlow import signInWithGoogle
 from gym.tables import appSchema, appTables
+from usefulShared.backup.backupFile import makeBackupZip
+from usefulShared.backup.backupJob import lastBackup, makeBackup, warnAfter
+from usefulShared.backup.driveApi import DriveApi, DriveError, browserTransport
 from usefulShared.cloud.supabaseApi import CloudError, SupabaseApi
 from usefulShared.platform.appLog import AppLog
 from usefulShared.signIn.sessionKeeper import MemoryStore, SessionKeeper
 from usefulShared.store.cloudStore import CloudStore, VersionMismatch, describeCloudError
 
 refreshEverySec = 60
+pcViewAddress = "https://fingaerwen.github.io/usefulTrash/"  # where the release script publishes the PC view
+driveHandoverKey = "driveToken"  # what site/driveToken.html leaves for Flet's SharedPreferences (BK1.1)
+handoverWaitSec = 180  # how long Back up now waits for Google's answer
+backupWarning = "Your last backup is over 60 days old: see the Backup tab."  # 3.4
 
 
 class PcServices:
-    """The browser's abilities: Google's button (our extension's web half), Flet's clipboard and file picker."""
+    """The browser's abilities: Google's button (our extension's web half), Flet's clipboard, file picker,
+    second window (for Google's Drive permission page, BK1.1) and this site's local storage."""
 
     def __init__(self):
         from nativeGoogleSignIn import NativeGoogleSignIn
@@ -34,6 +46,8 @@ class PcServices:
         self.googleSignIn = NativeGoogleSignIn()
         self.clipboard = ft.Clipboard()
         self.filePicker = ft.FilePicker()
+        self.urlLauncher = ft.UrlLauncher()
+        self.prefs = ft.SharedPreferences()
 
 
 class PcApp(AppBase):
@@ -45,9 +59,10 @@ class PcApp(AppBase):
 
     def __init__(self, config: dict[str, str], services: Any, log: AppLog,
                  clock: Callable[[], dt.datetime] = lambda: dt.datetime.now(dt.UTC),
-                 localToday: Callable[[], dt.date] = dt.date.today, cloud: Any = None):
+                 localToday: Callable[[], dt.date] = dt.date.today, cloud: Any = None, drive: Any = None):
         super().__init__(config, services, log, clock, localToday)
         self.injectedCloud = cloud
+        self.drive = drive or DriveApi(browserTransport)  # Back up now (BK1.1); tests pass a stand-in
         self.cloud: Any = None
         self.store: CloudStore | None = None
         self.lastFetch = ("none", "")  # (status, problem) of the latest fetch, for Problems and banners
@@ -194,7 +209,91 @@ class PcApp(AppBase):
     def afterRefresh(self) -> None:
         self.model.planLines = self.state.planLines(self.localToday())
         status, problem = self.lastFetch
-        self.model.banners = (problem,) if status == "versions" else ()
+        last = lastBackup(self._live("backups"))
+        old = last is not None and self.clock() - last["madeAt"] >= warnAfter
+        self.model.banners = ((problem,) if status == "versions" else ()) + ((backupWarning,) if old else ())
+
+    def openBanner(self, banner: str) -> None:
+        if banner == backupWarning:
+            self.model.tab = "backup"
+        else:
+            super().openBanner(banner)
+
+    # --- Backup: Export CSV and Back up now (EX1.1, BK1.1) ------------------------------------
+
+    def _allRows(self) -> dict[str, list[dict[str, Any]]]:
+        """Every row as loaded, deleted ones included, so the file restores exactly (14b)."""
+        return {table.name: list(self.state.rows.get(table.name, {}).values()) for table in appTables}
+
+    async def exportCsv(self) -> None:
+        """Export CSV (EX1.1): the backup (one CSV per table, restorable) plus a readable sets.csv, in one zip
+        saved to this PC."""
+        content = makeBackupZip(self._allRows(), appTables, appSchema, self.clock(), "pcView",
+                                {"sets.csv": readableSets(self.state.logs, self.state.known)})
+        name = f"GymTracker-export-{self.localToday().isoformat()}.zip"
+        try:
+            await self.services.filePicker.save_file(file_name=name, src_bytes=content)
+        except Exception as problem:
+            self.log.problem("backup", "Export CSV didn't work.", f"{type(problem).__name__}: {problem}"[:300])
+            self.model.backupStatus = "Export CSV didn't work. Details are on the Problems page."
+            return
+        self.model.backupStatus = f"Exported {name} ({len(content):,} bytes)."
+
+    def driveConsentUrl(self, state: str) -> str:
+        """Google's Drive permission page (files this app created only); it answers to site/driveToken.html."""
+        account = str((self.session.session.get("user") or {}).get("email", "")) if self.session else ""
+        query = {"client_id": self.config["googleWebClientId"], "redirect_uri": f"{pcViewAddress}driveToken.html",
+                 "response_type": "token", "scope": "https://www.googleapis.com/auth/drive.file", "state": state,
+                 "include_granted_scopes": "true", "prompt": "select_account"}
+        if account:
+            query["login_hint"] = account
+        return "https://accounts.google.com/o/oauth2/v2/auth?" + urllib.parse.urlencode(query)
+
+    async def backUpNow(self) -> None:
+        """Back up now (F14.1, BK1.1): Google's permission page opens in a second window; its answer, a Drive
+        token that lasts about an hour, comes back through this site's local storage (driveToken.html), is
+        removed from there at once and kept in memory only. Then the backup goes to your Drive as the
+        phone's does, and its row is saved."""
+        state = secrets.token_urlsafe(24)
+        try:
+            await self.services.prefs.remove(driveHandoverKey)  # nothing old can be taken for the answer
+            self.model.backupStatus = "Waiting for Google's permission in the other window…"
+            await self.services.urlLauncher.launch_url(self.driveConsentUrl(state), web_only_window_name="gymTrackerDrive")
+            token = await self._awaitDriveToken(state)
+            if token is None:
+                self.model.backupStatus = ("No permission came back from Google (the window was closed, or it took "
+                                           "over 3 minutes). Press Back up now to try again.")
+                return
+            row = await makeBackup(self.drive, token, self._allRows(), appTables, appSchema, self.session.userId(),
+                                   self.clock(), "pcView")
+        except Exception as problem:
+            reason = problem.reason if isinstance(problem, DriveError) else type(problem).__name__
+            self.log.problem("backup", "Back up now didn't work.", f"{reason}: {problem}"[:300])
+            self.model.backupStatus = "Back up now didn't work. Details are on the Problems page."
+            return
+        self.model.notice = ""
+        await self._act(self.saveRows([("backups", row)]))
+        if not self.model.notice:
+            self.model.backupStatus = f"Backed up to your Google Drive: {row['fileName']}."
+
+    async def _awaitDriveToken(self, state: str) -> str | None:
+        """Google's answer from driveToken.html, if it's for this request; None if it doesn't come."""
+        for _ in range(handoverWaitSec):
+            raw = await self.services.prefs.get(driveHandoverKey)
+            if raw:
+                await self.services.prefs.remove(driveHandoverKey)
+                try:
+                    handover = json.loads(raw)
+                except (TypeError, ValueError):
+                    return None
+                if not isinstance(handover, dict) or handover.get("state") != state:
+                    return None  # not the answer to this request
+                if handover.get("error"):
+                    self.log.info("backup", f"Google answered: {str(handover['error'])[:60]}")
+                    return None
+                return str(handover.get("accessToken") or "") or None
+            await asyncio.sleep(1)
+        return None
 
     def syncFacts(self) -> SyncFacts:
         status, problem = self.lastFetch

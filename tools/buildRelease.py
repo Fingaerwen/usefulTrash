@@ -180,7 +180,7 @@ def publishPcView(tag: str) -> None:
     with tempfile.TemporaryDirectory() as folder:
         site = Path(folder) / "site"
         shutil.copytree(appFolder / "build" / "web", site)
-        for page in ("about.html", "privacy.html"):
+        for page in ("about.html", "privacy.html", "driveToken.html"):  # the last for Back up now (BK1.1)
             shutil.copy(repoRoot / "site" / page, site / page)
         (site / ".nojekyll").write_text("")
         (site / ".pre-commit-config.yaml").write_text(git("show", "origin/gh-pages:.pre-commit-config.yaml") + "\n")
@@ -194,7 +194,8 @@ def publishPcView(tag: str) -> None:
             raise ReleaseStopped("Preparing the website commit failed.")
         tree = run(["git", "write-tree"], env=environment, capture_output=True).stdout.strip()
         message = (f"Publish the PC view ({tag})\n\nBuilt with flet build web (base /usefulTrash/, no CDNs); "
-                   "about.html and privacy.html come from site/ on main. This branch is replaced on every update.\n")
+                   "about.html, privacy.html and driveToken.html come from site/ on main. This branch is replaced "
+                   "on every update.\n")
         commit = run(["git", "commit-tree", tree, "-m", message], capture_output=True).stdout.strip()
         if not commit:
             raise ReleaseStopped("Making the website commit failed.")

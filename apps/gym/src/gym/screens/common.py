@@ -32,9 +32,9 @@ def Banners(app, model):
 
 
 @ft.component
-def Menu(app, items: tuple[str, ...] = ("problems", "deload", "importPlan", "signOut")):
+def Menu(app, items: tuple[str, ...] = ("problems", "history", "deload", "importPlan", "signOut")):
     """The ⋮ menu (SC2.1): Problems and Sign out; starting or stopping a deload by hand (WD2.4), hidden while
-    an automatic one runs; the phone also gets "Import a plan file" (G2b-2)."""
+    an automatic one runs; the phone also gets History (HI1.1) and "Import a plan file" (G2b-2)."""
     async def importPlan(e):
         await app.pickPlanFile()
 
@@ -49,6 +49,7 @@ def Menu(app, items: tuple[str, ...] = ("problems", "deload", "importPlan", "sig
 
     entries = {
         "problems": ft.PopupMenuItem(content="Problems", on_click=lambda e: app.openProblems()),
+        "history": ft.PopupMenuItem(content="History", on_click=lambda e: app.openHistory()),
         "importPlan": ft.PopupMenuItem(content="Import a plan file", on_click=importPlan),
         "signOut": ft.PopupMenuItem(content="Sign out", on_click=signOut),
     }

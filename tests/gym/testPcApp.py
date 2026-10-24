@@ -5,19 +5,24 @@ after a fetch, and the website's code never needs SQLite."""
 import asyncio
 import dataclasses
 import datetime as dt
+import io
 import json
 import subprocess
 import sys
+import urllib.parse
+import zipfile
 from pathlib import Path
 
 import pytest
 from cloudStandIn import CloudStandIn
+from driveStandIn import DriveStandIn
 from screenTestKit import draw, find, press, useLoop, visibleTexts
 from usefulTestKit import FakeClock, exampleRow, userA
 
 from gym.pcApp import PcApp
 from gym.screens.root import GymApp
 from gym.tables import appSchema, tablesByName
+from usefulShared.backup.driveApi import DriveApi
 from usefulShared.platform.appLog import AppLog
 from usefulShared.tables import newRowId, toCloud
 
@@ -44,9 +49,46 @@ class PickedFile:
 class FakePicker:
     def __init__(self):
         self.files = []
+        self.saved: tuple[str, bytes] | None = None
 
     async def pick_files(self, **options):
         return self.files
+
+    async def save_file(self, file_name=None, src_bytes=None, **options):
+        self.saved = (file_name, src_bytes)  # in the browser: a download
+
+
+class FakePrefs:
+    """This site's local storage, as Flet's SharedPreferences sees it."""
+
+    def __init__(self):
+        self.values: dict[str, str] = {}
+
+    async def get(self, key):
+        return self.values.get(key)
+
+    async def set(self, key, value):
+        self.values[key] = value
+        return True
+
+    async def remove(self, key):
+        self.values.pop(key, None)
+        return True
+
+
+class FakeGoogleWindow:
+    """The second window with Google's Drive permission page: answers like driveToken.html would."""
+
+    def __init__(self, prefs: FakePrefs):
+        self.prefs = prefs
+        self.opened: list[str] = []
+        self.answer: dict | None = None  # None: allow, with the request's state
+
+    async def launch_url(self, url, web_only_window_name=None, **options):
+        self.opened.append(url)
+        state = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)["state"][0]
+        self.prefs.values["driveToken"] = json.dumps(self.answer or {"state": state, "accessToken": "driveToken1",
+                                                                      "expiresIn": 3599, "error": ""})
 
 
 class FakeClipboard:
@@ -59,16 +101,21 @@ class Services:
     googleSignIn: FakeGoogle
     clipboard: FakeClipboard
     filePicker: FakePicker
+    prefs: FakePrefs
+    urlLauncher: FakeGoogleWindow
 
 
 class Browser:
     def __init__(self, cloud):
         self.cloud = cloud
-        self.services = Services(FakeGoogle(), FakeClipboard(), FakePicker())
+        prefs = FakePrefs()
+        self.services = Services(FakeGoogle(), FakeClipboard(), FakePicker(), prefs, FakeGoogleWindow(prefs))
+        self.drive = DriveStandIn()
         self.clock = FakeClock(dt.datetime(2026, 10, 12, 17, 0, tzinfo=dt.UTC))
         self.loop = asyncio.new_event_loop()
         useLoop(self.loop)
-        self.app = PcApp(config, self.services, AppLog(None, self.clock), self.clock, lambda: monday, cloud=cloud)
+        self.app = PcApp(config, self.services, AppLog(None, self.clock), self.clock, lambda: monday, cloud=cloud,
+                         drive=DriveApi(self.drive))
         self.run(self.app.start())
 
     def run(self, coroutine):
@@ -200,3 +247,80 @@ def testTheWebsitesCodeNeverNeedsSQLite():
     result = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, timeout=60,
                             env={"PYTHONPATH": f"{repoRoot / 'apps/gym/src'}:{repoRoot / 'shared/src'}"})
     assert result.stdout.strip() == "ok", result.stderr[-2000:]
+
+
+def testThePcViewsHistoryTabEditsAnyDay(browser, cloud):
+    """HI1.1, SC6.1: a month at a time, any day; Edit lays the day out like Today."""
+    planInCloud(cloud)
+    signedIn(browser)
+    app = browser.app
+    app.localToday = lambda: monday + dt.timedelta(days=40)  # 21 Nov
+    app.refresh()
+    app.model.tab = "history"
+    assert "November 2026" in browser.texts() and len(app.model.historyDays) == 21
+    app.showHistoryMonth(-1)
+    assert "October 2026" in browser.texts() and len(app.model.historyDays) == 31
+    app.showHistoryMonth(-1)
+    assert app.model.historyMonth == dt.date(2026, 10, 1)  # not before the plan's first month
+    app.editDay(monday)
+    assert app.model.historyView is not None and app.model.historyView.date == monday
+
+
+# --- Backup (F14.1, EX1.1, BK1.1) ----------------------------------------------------------------
+
+def testExportCsvSavesTheBackupAndReadableSets(browser, cloud):
+    planInCloud(cloud)
+    signedIn(browser)
+    press(find(browser.screen(), "Bench Press: done as targeted", "IconButton"))
+    browser.run(browser.app.exportCsv())
+    name, content = browser.services.filePicker.saved
+    assert name == "GymTracker-export-2026-10-12.zip"
+    archive = zipfile.ZipFile(io.BytesIO(content))
+    assert {"manifest.json", "plans.csv", "exerciseLogs.csv", "sets.csv"} <= set(archive.namelist())
+    sets = archive.read("sets.csv").decode().splitlines()
+    assert sets[0] == "date,exercise,exerciseId,set,reps,kg,unit,minutes"
+    assert sets[1:] == [f"2026-10-12,Bench Press,benchPress,{n},8,80,kg," for n in range(1, 5)]
+    assert "Exported GymTracker-export-2026-10-12.zip" in browser.app.model.backupStatus
+
+
+def testBackUpNowWithGooglesPermissionFromTheSecondWindow(browser, cloud):
+    planInCloud(cloud)
+    signedIn(browser)
+    browser.app.model.tab = "backup"
+    assert "Last backup: none yet" in browser.texts()
+    press(find(browser.screen(), "Back up now", "Button"))
+    (url,) = browser.services.urlLauncher.opened
+    query = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
+    assert url.startswith("https://accounts.google.com/o/oauth2/v2/auth?")
+    assert (query["redirect_uri"], query["response_type"], query["scope"], query["client_id"]) == (
+        ["https://fingaerwen.github.io/usefulTrash/driveToken.html"], ["token"],
+        ["https://www.googleapis.com/auth/drive.file"], ["testClientId"])
+    (row,) = [row for row in cloud.rows["backups"].values()]
+    assert row["madeBy"] == "pcView" and len(browser.drive.zips()) == 1
+    assert browser.services.prefs.values == {}  # the handed-over token is gone from the site's storage
+    texts = browser.texts()
+    assert any(text.startswith("Backed up to your Google Drive: GymTracker-backup-") for text in texts)
+    assert any(text.startswith("Last backup: 12 Oct 2026 (PC view)") for text in texts)
+    assert "driveToken1" not in "\n".join(browser.app.problemsLines())
+
+
+def testBackUpNowIgnoresAnAnswerForAnotherRequest(browser, cloud):
+    planInCloud(cloud)
+    signedIn(browser)
+    browser.services.urlLauncher.answer = {"state": "someoneElses", "accessToken": "driveToken1"}
+    browser.run(browser.app.backUpNow())
+    assert not cloud.rows.get("backups") and browser.drive.zips() == []
+    assert browser.app.model.backupStatus.startswith("No permission came back from Google")
+
+
+def testAWarningAfter60DaysWithoutABackup(browser, cloud):
+    planInCloud(cloud)
+    signedIn(browser)
+    browser.run(browser.app.backUpNow())
+    browser.clock.advance(days=61)
+    cloud.clock.advance(days=61)
+    browser.app.refresh()
+    from gym.pcApp import backupWarning
+    assert backupWarning in browser.texts()
+    browser.app.openBanner(backupWarning)
+    assert browser.app.model.tab == "backup"

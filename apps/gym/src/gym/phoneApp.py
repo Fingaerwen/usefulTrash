@@ -17,6 +17,8 @@ from gym.model import SyncFacts
 from gym.phoneSteps import phoneSteps
 from gym.signInFlow import signInWithGoogle
 from gym.tables import appSchema, appTables
+from usefulShared.backup.backupJob import backupDue, makeBackup, withFreshToken
+from usefulShared.backup.driveApi import DriveApi, DriveError
 from usefulShared.cloud.supabaseApi import CloudError, SupabaseApi
 from usefulShared.platform.appLog import AppLog
 from usefulShared.signIn.sessionKeeper import SecretStore, SessionKeeper
@@ -44,10 +46,12 @@ class PhoneApp(AppBase):
 
     def __init__(self, config: dict[str, str], folder: str, services: PhoneServices, log: AppLog,
                  clock: Callable[[], dt.datetime] = lambda: dt.datetime.now(dt.UTC),
-                 localToday: Callable[[], dt.date] = dt.date.today, cloud: Any = None):
+                 localToday: Callable[[], dt.date] = dt.date.today, cloud: Any = None, drive: Any = None):
         super().__init__(config, services, log, clock, localToday)
         self.folder = folder
         self.injectedCloud = cloud  # None: the real Supabase project; tests pass a stand-in
+        self.drive = drive or DriveApi()  # Google Drive, for the automatic backup (F14.1); tests pass a stand-in
+        self.backupTask: asyncio.Task | None = None  # the backup runs beside the app, after a start's first sync
         self.store: PhoneStore | None = None
         self.cloud: Any = None
         self.engine: SyncEngine | None = None
@@ -204,6 +208,38 @@ class PhoneApp(AppBase):
             self.model.screen = "signIn"
             return
         self.refresh()
+        if outcome.status == "done" and self.backupTask is None:  # once per start, with everything synced first
+            self.backupTask = asyncio.get_running_loop().create_task(self.backUpIfDue())
+
+    # --- The automatic backup (F14.1) ----------------------------------------------------------
+
+    async def backUpIfDue(self) -> None:
+        """When the app opens and the last backup (from any device) is 30+ days old: every table, deleted
+        rows included, zipped to your Google Drive, the last 3 kept. The first time, Google asks once whether
+        the app may keep files in your Drive; a no or a failure is only logged, and it's tried again next start."""
+        try:
+            if not backupDue(self.store.rows("backups"), self.clock()):
+                return
+            googleSignIn = self.services.googleSignIn
+            account = str((self.session.session.get("user") or {}).get("email", ""))
+
+            async def getToken() -> str:
+                answer = await googleSignIn.getDriveAccess(True, account)
+                if answer.get("status") != "ok" or not answer.get("accessToken"):
+                    raise DriveError(0, str(answer.get("status")), str(answer.get("errorType") or ""))
+                return answer["accessToken"]
+
+            async def dropToken(token: str) -> None:
+                await googleSignIn.clearDriveToken(token)
+
+            rows = {table.name: self.store.rows(table.name) for table in appTables}
+            row = await withFreshToken(getToken, dropToken, lambda token: makeBackup(
+                self.drive, token, rows, appTables, appSchema, self.session.userId(), self.clock(), "phone"))
+            await self.saveRows([("backups", row)])
+            self.log.info("backup", f"backed up to Google Drive: {row['fileName']}, {row['sizeBytes']:,} bytes")
+        except Exception as problem:  # the app works the same without it
+            self.log.problem("backup", "The backup to Google Drive didn't work; it's tried again next time the app "
+                             "opens.", f"{type(problem).__name__}: {problem}"[:300])
 
     async def syncNow(self) -> SyncOutcome:
         """One sync round right away, handled like the background ones."""

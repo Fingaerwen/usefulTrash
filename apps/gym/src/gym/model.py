@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 import flet as ft
 
 from gym.planImporter import PlanImport
-from gym.rules.stats import ChartView, ExerciseDetail, ProgressLine, WeekSummary, WeightView
+from gym.rules.stats import ChartView, ExerciseDetail, HistoryDay, MonthDiary, ProgressLine, WeekSummary, WeightView
 from gym.rules.today import TodayView
 
 appName = "Gym Tracker"
@@ -41,12 +41,19 @@ class AppModel:
     chart: ChartView | None = None
     weightRange: str = "3M"  # the Weight tab (SC5.1)
     weight: WeightView | None = None
+    historyMode: str = "days"  # History (HI1.1): "days" or "months" (the diary, DI1.1)
+    historyMonth: dt.date | None = None  # the month shown (the PC view's days, and the diary); None = this month
+    historyDays: tuple[HistoryDay, ...] = ()
+    historyDay: dt.date | None = None  # the day being edited
+    historyView: TodayView | None = None  # that day, laid out like Today
+    diary: MonthDiary | None = None
     waiting: int = 0  # changes not sent yet: "3 waiting" (SC1.1)
     banners: tuple[str, ...] = ()  # shown at the top of any tab (18.4a)
     downloaded: int = 0  # first download: "Downloading your data… N rows" (14b)
     problems: tuple[str, ...] = ()  # the Problems page's lines (12d)
     planImport: PlanImport | None = None
     planLines: tuple[str, ...] = ()  # the PC view's Plans tab (SC6.1)
+    backupStatus: str = ""  # the PC view's Backup tab: what Back up now or Export CSV just did (BK1.1, EX1.1)
     tab: str = "today"
 
 
@@ -114,7 +121,7 @@ class LogFacts:
 
 
 def problemsReport(schema: int, sync: SyncFacts, log: LogFacts, now: dt.datetime, unreadablePlans: int = 0,
-                   lastBackup: str = "none yet (backups come with 0.4-alpha)",
+                   lastBackup: str = "none yet",
                    startedIn: float | None = None) -> tuple[str, ...]:
     """The Problems page as lines of text; Copy puts exactly these on the clipboard (12d)."""
     started = f" · started in {startedIn:.1f} s" if startedIn is not None else ""  # cold start under 5 s (check 8)

@@ -13,6 +13,7 @@ import datetime as dt
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from typing import Any
 
 from gym.rules.facts import ImportedPlan, LoggedExercise, SetDone
 from gym.rules.planFile import PlanExercise
@@ -351,6 +352,182 @@ def chartView(exercise: PlanExercise, logs: Mapping[dt.date, Mapping[str, Logged
             training.deloadOn(session.date) is not None,
             f"{session.date.day} {session.date:%b} · {setsText(exercise, session.sets, session.minutes)}"))
     return ChartView(exercise, chartRange, "min" if exercise.isCardio else unit(exercise), tuple(sessions))
+
+
+# --- History: days and the monthly diary (HI1.1, DI1.1) ------------------------------------------
+
+@dataclass(frozen=True, slots=True)
+class HistoryDay:
+    """One day in History's list (SC6.1): "Push · 5 exercises · finished", "Rest · 9,500 steps"."""
+
+    date: dt.date
+    text: str
+
+
+def historyDays(plans: Sequence[ImportedPlan], workouts: Sequence[LoggedWorkout],
+                logs: Mapping[dt.date, Mapping[str, LoggedExercise]], steps: Mapping[dt.date, int],
+                weights: Mapping[dt.date, float], dates: Sequence[dt.date], today: dt.date) -> tuple[HistoryDay, ...]:
+    """History's days (SC6.1, HI1.1), newest first: the session, what was done, the steps and the weigh-in."""
+    starts = [imported.start for imported in plans]
+    plansById = {imported.start.planImportId: imported.plan for imported in plans}
+    days = replay(starts, workouts, today)
+    lines = []
+    for date in sorted(dates, reverse=True):
+        day = days.get(date)
+        parts = []
+        plan = plansById.get(day.planImportId) if day else None
+        if day is not None and plan is not None and day.stepIndex is not None and day.stepIndex < len(plan.steps):
+            title = plan.steps[day.stepIndex].title
+            if day.makesUp is not None:
+                title += f", for {weekdayNames[day.makesUp].capitalize()}"
+            parts.append(title)
+            if day.workout is not None:
+                done = sum(1 for logged in logs.get(date, {}).values() if logged.done)
+                parts.append(f"{done} exercise{'' if done == 1 else 's'}")
+                parts.append("finished" if isFinished(day.workout, today) else "in progress")
+                if not day.workout.counts:
+                    parts.append("over 30% skipped")
+            elif day.status == "missed":
+                parts.append("missed")
+        elif day is None:
+            parts.append("before your plan")
+        if steps.get(date):
+            parts.append(f"{steps[date]:,} steps")
+        if date in weights:
+            parts.append(f"{kgText(weights[date])} kg")
+        lines.append(HistoryDay(date, " · ".join(parts)))
+    return tuple(lines)
+
+
+@dataclass(frozen=True, slots=True)
+class DiaryLine:
+    """One exercise's month in the diary (DI1.1), or the body weight's (exerciseId "")."""
+
+    exerciseId: str
+    name: str
+    change: str  # "25 → 30 kg/side  ↑5"
+    detail: str  # "best 3×12 @ 27.5 kg/side · 8 sessions"
+
+
+@dataclass(frozen=True, slots=True)
+class MonthDiary:
+    """A month of the progression diary (DI1.1)."""
+
+    month: dt.date  # its first day
+    lines: tuple[DiaryLine, ...]
+    firstMonth: dt.date  # the earliest month with anything logged or weighed, for ◂
+
+
+def monthStart(date: dt.date) -> dt.date:
+    return date.replace(day=1)
+
+
+def monthDiary(current: ImportedPlan | None, known: Mapping[str, PlanExercise],
+               logs: Mapping[dt.date, Mapping[str, LoggedExercise]], weights: Mapping[dt.date, float],
+               month: dt.date) -> MonthDiary:
+    """A month of the diary (DI1.1): each exercise done that month (the plan's in plan order, then others by
+    name) with the weight it started and ended the month at, its best session and how many; then the body
+    weight's first and last weigh-in that month."""
+    month = monthStart(month)
+    inPlan = list(dict.fromkeys(exercise.exerciseId for step in (current.plan.steps if current else ())
+                                for exercise in step.exercises))
+    others = sorted((exerciseId for exerciseId in known if exerciseId not in inPlan),
+                    key=lambda exerciseId: known[exerciseId].name.casefold())
+    lines = []
+    for exerciseId in [*inPlan, *others]:
+        exercise = known.get(exerciseId)
+        sessions = [session for session in history(logs, exerciseId) if monthStart(session.date) == month]
+        if exercise is None or not sessions:
+            continue
+        count = f"{len(sessions)} session{'' if len(sessions) == 1 else 's'}"
+        if exercise.isCardio:
+            values, label = [session.minutes or 0 for session in sessions], "min"
+            best = max(sessions, key=lambda session: session.minutes or 0)
+            bestText = setsText(exercise, best.sets, best.minutes)
+        elif exercise.equipment == "bodyweight":
+            values, label = [max(done.reps for done in session.sets) for session in sessions], "reps"
+            best = max(sessions, key=lambda session: sum(done.reps for done in session.sets))
+            bestText = setsText(exercise, best.sets)
+        else:
+            values = [workingWeight(session.sets) or 0 for session in sessions]
+            label, top = unit(exercise), max(values)
+            atTop = [[done for done in session.sets if done.weightKg == top] for session in sessions]
+            bestSets = max(atTop, key=lambda sets: sum(done.reps for done in sets))
+            bestText = setsText(exercise, bestSets)
+        lines.append(DiaryLine(exerciseId, exercise.name, _changeText(values[0], values[-1], label),
+                               f"best {bestText} · {count}"))
+    weighIns = [(date, weights[date]) for date in sorted(weights) if monthStart(date) == month]
+    if weighIns:
+        lines.append(DiaryLine("", "Body weight", _changeText(weighIns[0][1], weighIns[-1][1], "kg"),
+                               f"{len(weighIns)} weigh-in{'' if len(weighIns) == 1 else 's'}"))
+    dates = [date for date in logs if any(logged.done for logged in logs[date].values())] + list(weights)
+    return MonthDiary(month, tuple(lines), monthStart(min(dates, default=month)))
+
+
+def _changeText(first: float, last: float, label: str) -> str:
+    """"25 → 30 kg/side  ↑5", or "25 kg/side" when it didn't change."""
+    if first == last:
+        return f"{kgText(first)} {label}"
+    change = round(last - first, 2)
+    return f"{kgText(first)} → {kgText(last)} {label}  {'↑' if change > 0 else '↓'}{kgText(abs(change))}"
+
+
+def monthlyPoints(exercise: PlanExercise | None, logs: Mapping[dt.date, Mapping[str, LoggedExercise]],
+                  weights: Mapping[dt.date, float]) -> tuple[tuple[dt.date, float], ...]:
+    """The diary's chart (DI1.1): one point per month, as far back as it goes: an exercise's top weight
+    that month (bodyweight: most reps in a set; cardio: most minutes), or the body weight's monthly average."""
+    byMonth: dict[dt.date, list[float]] = {}
+    if exercise is None:
+        for date, weightKg in weights.items():
+            byMonth.setdefault(monthStart(date), []).append(weightKg)
+        return tuple((month, round(sum(values) / len(values), 2)) for month, values in sorted(byMonth.items()))
+    for session in history(logs, exercise.exerciseId):
+        if exercise.isCardio:
+            value = session.minutes or 0
+        elif exercise.equipment == "bodyweight":
+            value = max((done.reps for done in session.sets), default=0)
+        else:
+            value = workingWeight(session.sets) or 0
+        byMonth.setdefault(monthStart(session.date), []).append(value)
+    return tuple((month, max(values)) for month, values in sorted(byMonth.items()))
+
+
+# --- Export CSV's readable sets, and the last backup (EX1.1, F14.1) ------------------------------
+
+def readableSets(logs: Mapping[dt.date, Mapping[str, LoggedExercise]], known: Mapping[str, PlanExercise]) -> str:
+    """sets.csv in Export CSV (EX1.1): one row per set, for a spreadsheet: date, exercise, set, reps, kg (as
+    logged: one dumbbell, or the plates on one side) and its unit; cardio as minutes. Skipped ones are left out."""
+    import csv
+    import io
+    text = io.StringIO()
+    writer = csv.writer(text, lineterminator="\n")
+    writer.writerow(["date", "exercise", "exerciseId", "set", "reps", "kg", "unit", "minutes"])
+    for date in sorted(logs):
+        for exerciseId, logged in sorted(logs[date].items()):
+            if not logged.done:
+                continue
+            exercise = known.get(exerciseId)
+            name, kgUnit = (exercise.name, unit(exercise)) if exercise else (exerciseId, "kg")
+            if not logged.sets:
+                writer.writerow([date.isoformat(), name, exerciseId, "", "", "", "", logged.minutes])
+            for number, done in enumerate(logged.sets, start=1):
+                writer.writerow([date.isoformat(), name, exerciseId, number, done.reps,
+                                 "" if done.weightKg is None else kgText(done.weightKg),
+                                 "" if done.weightKg is None else kgUnit, ""])
+    return text.getvalue()
+
+
+def lastBackupText(backupRows: Sequence[Mapping[str, Any]], now: dt.datetime) -> str:
+    """"24 Oct 2026 (phone) · 3 days ago", or "none yet" (the Problems page, the PC view's Backup tab)."""
+    live = [row for row in backupRows if not row["deleted"]]
+    last = max(live, key=lambda row: row["madeAt"], default=None)
+    if last is None:
+        return "none yet"
+    madeAt = last["madeAt"]
+    days = (now - madeAt).days
+    when = "today" if days == 0 else "1 day ago" if days == 1 else f"{days} days ago"
+    by = "PC view" if last["madeBy"] == "pcView" else "phone"
+    return f"{madeAt.day} {madeAt:%b %Y} ({by}) · {when}"
 
 
 # --- The Weight tab (SC5.1) ----------------------------------------------------------------------
