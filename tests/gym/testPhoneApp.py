@@ -145,6 +145,12 @@ def planInCloud(cloud: CloudStandIn, userId: str = userA, planJson: dict | None 
     cloud.storeDirectly("plans", toCloud(tablesByName["plans"], row))
 
 
+def checkEverything(phone: Phone) -> None:
+    """[✓] on each of today's exercises: a whole workout, which counts (WD4.1)."""
+    for index in range(len(phone.app.model.today.exercises)):
+        phone.run(phone.app.check(phone.app.model.today.exercises[index]))
+
+
 def signedIn(phone: Phone) -> Phone:
     """Signs in through the screen. Background sync is then stopped, so tests decide when rounds run."""
     press(find(phone.screen(), "Sign in with Google", "Button"))
@@ -309,7 +315,7 @@ def testRestDayAndTheFlexDay(phone, cloud):
     planInCloud(cloud)
     signedIn(phone)
     app = phone.app
-    press(find(phone.screen(), "Bench Press: done as targeted", "IconButton"))  # Push today (Monday)
+    checkEverything(phone)  # Push today (Monday)
     app.localToday = lambda: monday + dt.timedelta(days=1)  # Tuesday: a rest day
     app.refresh()
     texts = phone.texts()
@@ -317,6 +323,33 @@ def testRestDayAndTheFlexDay(phone, cloud):
     app.localToday = lambda: monday + dt.timedelta(days=5)  # Saturday: Wednesday's Pull was missed
     app.refresh()
     assert "Pull · Saturday, for Wednesday · week 1/3" in phone.texts() and "Deadlift" in phone.texts()
+
+
+def testADayWithOver30PercentSkippedIsMissed(phone, cloud):
+    """WD4.1: a workout counts with at most 30% of its exercises skipped or not done; otherwise its day is
+    missed, so the flex day makes it up. Monday's Push has 4 exercises: 1 left out counts, 2 don't."""
+    planInCloud(cloud)
+    signedIn(phone)
+    app = phone.app
+    press(find(phone.screen(), "Bench Press: done as targeted", "IconButton"))
+    press(find(phone.screen(), "Lateral Raise: done as targeted", "IconButton"))
+    phone.run(app.skip(app.model.today.exercises[2]))  # Dips skipped
+    press(find(phone.screen(), "Finish workout", "Button"))  # and the walk left untouched: 2 of 4 not done
+    assert "Push · Monday · week 0/3" in phone.texts()
+    app.localToday = lambda: monday + dt.timedelta(days=5)
+    app.refresh()
+    assert "Push · Saturday, for Monday · week 0/3" in phone.texts()
+    app.model.tab = "week"
+    assert "Mo ✗" in phone.texts()
+
+    app.localToday = lambda: monday
+    app.model.tab = "today"
+    app.refresh()
+    press(find(phone.screen(), "Dips: done as targeted", "IconButton"))  # 3 of 4: it counts now
+    assert "Push · Monday · week 1/3" in phone.texts()
+    app.localToday = lambda: monday + dt.timedelta(days=5)
+    app.refresh()
+    assert "Pull · Saturday, for Wednesday · week 1/3" in phone.texts()
 
 
 def testARefusedEntryShowsWhy(phone, cloud):
@@ -566,7 +599,7 @@ def testWeekTabAndStepsForAnEarlierDay(phone, cloud):
     from gym.screens.week import DaySteps
     planInCloud(cloud)
     signedIn(phone)
-    press(find(phone.screen(), "Bench Press: done as targeted", "IconButton"))
+    checkEverything(phone)
     phone.app.model.tab = "week"
     texts = phone.texts()
     assert "Week 12–18 Oct" in texts and "1 of 3" in texts and "Mo ✓" in texts
@@ -578,8 +611,8 @@ def testWeekTabAndStepsForAnEarlierDay(phone, cloud):
     redraw(stepsEntry)
     press(find(stepsEntry, "Save", "Button"))
     assert phone.app.state.steps[monday] == 9500
-    assert ("Cardio", "95 min (from steps)") in __import__("gym.rules.stats", fromlist=["weekLines"]).weekLines(
-        phone.app.model.week)
+    assert ("Cardio", "110 min (15 gym + 95 from steps)") in __import__(  # Monday's walk + the steps
+        "gym.rules.stats", fromlist=["weekLines"]).weekLines(phone.app.model.week)
 
 
 def testStartingAndStoppingADeloadByHand(phone, cloud):

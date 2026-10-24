@@ -27,7 +27,7 @@ Deloads (WD2.4, WD3.2–WD3.5):
   Monday, for one week (Monday to Sunday). Only lifts in the plan in effect count: one you no longer
   do isn't going anywhere.
 - By week 8 at the latest: weeks count from the end of the last deload (the first time, from the week
-  of your first workout), and week 8 is a deload.
+  of your first workout that counts, WD4.1), and week 8 is a deload.
 - A deload started by hand begins on its stored day and lasts 7 days; it replaces one that's only
   scheduled.
 - In a deload: the same weight, half the sets rounded up, the rep target 3 lower (at least 1). Deload
@@ -176,7 +176,7 @@ def training(plans: Sequence[ImportedPlan], workouts: Sequence[LoggedWorkout],
     for stepEdit in stepEdits:
         stepsByDate.setdefault(stepEdit.fromDate, []).append(stepEdit)
     manualStarts = set(manualDeloads)
-    workoutDates = {workout.date for workout in workouts}
+    workoutDates = {workout.date for workout in workouts if workout.counts}  # week 1 starts with one that counts
     compound = _CompoundLifts(plans)
     until = today + oneDay
 

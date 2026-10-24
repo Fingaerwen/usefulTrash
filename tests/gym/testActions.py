@@ -160,7 +160,7 @@ def testFinishAutoSkipsWhatsLeft(app):
     assert view.finished and [entry.status for entry in view.exercises] == ["done", "autoSkipped", "autoSkipped"]
     (session,) = app.database.rows("sessions")
     assert session["finishedAt"] == app.clock()
-    assert app.today(tuesday).weekDone == 1
+    assert app.today(tuesday).weekDone == 0  # 2 of 3 skipped: over 30%, so it doesn't count (WD4.1)
 
 
 def testLoggingAfterFinishAddsToTheSameWorkout(app):

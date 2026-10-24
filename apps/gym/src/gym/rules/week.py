@@ -34,6 +34,7 @@ def weeklyTarget(plans: Iterable[PlanStart], date: dt.date) -> int | None:
 
 
 def workoutsInWeek(workouts: Iterable[LoggedWorkout], date: dt.date) -> int:
-    """How many days of the date's week have a workout. Daily steps are never a workout (CA1.1)."""
+    """How many days of the date's week have a workout that counts (WD4.1). Daily steps are never a workout
+    (CA1.1)."""
     monday = weekStart(date)
-    return len({workout.date for workout in workouts if monday <= workout.date < monday + oneWeek})
+    return len({workout.date for workout in workouts if workout.counts and monday <= workout.date < monday + oneWeek})

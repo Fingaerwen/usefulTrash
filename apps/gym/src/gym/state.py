@@ -14,6 +14,7 @@ from gym.rules.planFile import Plan, PlanExercise, checkPlan, scheduleDays
 from gym.rules.planImport import knownExercises
 from gym.rules.progression import Training, training
 from gym.rules.schedule import LoggedWorkout, PlanStart, planInEffect
+from gym.rules.sessions import withCounts
 from gym.rules.stats import ExerciseDetail, ProgressLine, WeekSummary, exerciseDetail, progressLines, weekSummary
 from gym.rules.today import TodayView, todayView
 
@@ -50,12 +51,13 @@ class GymState:
             self.plans.append(ImportedPlan(start, plan))
         self.known = knownExercises((imported.start.importedAt, imported.plan) for imported in self.plans)
 
-        self.workouts = [LoggedWorkout(row["date"], row["planImportId"], row["stepIndex"], row["finishedAt"] is not None)
-                         for row in self._live("sessions")]
+        workouts = [LoggedWorkout(row["date"], row["planImportId"], row["stepIndex"], row["finishedAt"] is not None)
+                    for row in self._live("sessions")]
         self.logs = {}
         for row in self._live("exerciseLogs"):
             self.logs.setdefault(row["date"], {})[row["exerciseId"]] = LoggedExercise(
                 row["exerciseId"], _readSets(row["sets"]), row["minutes"], row["skipped"])
+        self.workouts = withCounts(self.plans, workouts, self.logs)  # which ones count (WD4.1)
         self.steps = {row["date"]: row["steps"] for row in self._live("dailySteps")}
         self.weights = {row["date"]: row["weightKg"] for row in self._live("bodyWeight")}
         self.weightEdits = [WeightEdit(row["exerciseId"], row["weekday"], row["weightKg"], row["fromDate"])

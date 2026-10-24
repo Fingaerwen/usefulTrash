@@ -217,6 +217,17 @@ def testABonusLeftOutIsRestButAMakeUpLeftOutIsMissed():
     assert (oneMissed[day(5)].status, oneMissed[day(5)].makesUp) == ("missed", upper)
 
 
+def testAWorkoutThatDoesntCountLeavesItsDayMissed():
+    """WD4.1: too much skipped (worked out in sessions.py) and the day is missed, so the flex day makes it up;
+    today's workout is still open, and a bonus that doesn't count is rest."""
+    skippedMonday = LoggedWorkout(day(0), "p1", upper, finished=True, counts=False)
+    days = replay([plan()], [skippedMonday, *trained(1, 2, 3, 4)], today=day(6))
+    assert (days[day(0)].status, days[day(5)].makesUp, days[day(5)].stepIndex) == ("missed", upper, upper)
+    assert daySchedule([plan()], [skippedMonday], day(0)).status == "open"
+    shortBonus = LoggedWorkout(day(5), "p1", flex, finished=True, counts=False)
+    assert replay([plan()], [*trained(0, 1, 2, 3, 4), shortBonus], today=day(6))[day(5)].status == "rest"
+
+
 def testDaysBeforeTheFirstPlanAreNotListed():
     assert day(0) not in replay([plan(startDay=1)], [], today=day(2))
 

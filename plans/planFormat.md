@@ -15,8 +15,9 @@ a list of problems the user pastes back to you.
   shifts, and the next day shows its own session. Rest days are rest: there's no "train anyway".
 - **The flex day (optional):** one day can make up a session missed earlier that week. Its `makeUp`
   lists the days it can make up, **most important first**. On the flex day the app shows the first
-  of those that was missed (a workout day that ended without a workout); if two were missed, only that
-  one is made up. If none was missed, it shows the flex day's own exercises: its bonus workout.
+  of those that was missed (a workout day that ended without a workout, or with more than 30% of its
+  exercises skipped); if two were missed, only that one is made up. If none was missed, it shows the
+  flex day's own exercises: its bonus workout.
 - **Moves (optional, with the flex day):** an exercise can move to another day in the weeks the flex
   day makes up certain sessions, like "if Saturday makes up Monday or Thursday, Friday's wrist curl
   moves to the end of Saturday". A moved exercise leaves its `from` day and joins the **end** of its
@@ -24,7 +25,7 @@ a list of problems the user pastes back to you.
   what it knows: on Thursday, Monday to Wednesday are over and Thursday and Friday count as trained.
 - **Weekly target:** `weeklyTarget` is how many workouts a week the user aims for (weeks run Monday to
   Sunday). It drives the "week 2/5" counter and the streaks, and can't be more than the plan's
-  workout days.
+  workout days. A workout counts when at most 30% of its exercises are skipped.
 - **One workout per day.** The Today screen shows the session's title, the weekday and each exercise in
   the plan's order, like `Bench Press  4×8 @ 80 kg`, with the rest time and the notes underneath:
   ```

@@ -8,13 +8,15 @@ workouts (each records which session it was, plan 14).
 The rules, in plan order:
 - Each weekday has its own session, Monday to Sunday, and today's weekday decides it. A missed day
   is just missed: nothing shifts, and rest days are rest (no Train anyway).
-- A missed day is a workout day that ended without a workout, under the plan in effect that day.
+- A missed day is a workout day that ended without a workout, under the plan in effect that day. A
+  workout with more than 30% of its session's exercises skipped or not done doesn't count as one (WD4.1,
+  sessions.py works it out): its day is missed too, and it isn't counted in the week.
 - The flex day (the one with `makeUp`) shows a session missed earlier in its week: the first missed
   one in the plan's priority order. If none was missed, it shows its own workout (the bonus).
 - Days before the flex day decide it as far as they can: on Thursday, Monday to Wednesday are over
   and Thursday and Friday are assumed trained. The plan's exercise moves use this (WD1.2, today.py).
 - Calendar: "trained", "rest" (a rest day, or a flex day with nothing to make up), "missed" (any other
-  workout day that ended without a workout), or "open" (today, nothing logged yet).
+  workout day that ended without a workout that counts), or "open" (today, no workout that counts yet).
 """
 
 import datetime as dt
@@ -53,6 +55,7 @@ class LoggedWorkout:
     planImportId: str
     stepIndex: int  # whose session it was (0 = Monday's); on the flex day, the one it made up, or its own
     finished: bool  # you tapped Finish (a past day's workout counts as finished anyway, R5a)
+    counts: bool = True  # at most 30% of its session's exercises skipped or not done (WD4.1, sessions.py)
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,7 +70,7 @@ class DaySchedule:
     flexMakesUp: int | None  # what this week's flex day makes up, as far as this day knows (for moves)
     workout: LoggedWorkout | None  # the workout logged that day, if any
     nextWorkoutIndex: int | None  # the next weekday with a workout ("Rest day · next: Upper")
-    status: str  # "trained", "rest", "missed", or "open" (today, nothing logged)
+    status: str  # "trained", "rest", "missed", or "open" (today, no workout that counts yet)
 
 
 def isFinished(workout: LoggedWorkout, today: dt.date) -> bool:
@@ -131,7 +134,15 @@ def _day(plans: list[PlanStart], workoutsByDate: Mapping[dt.date, LoggedWorkout]
     if workout is not None:
         stepIndex = workout.stepIndex
         makesUp = stepIndex if isFlexDay and stepIndex != weekday else None
-        isRest, status = False, "trained"
+        isRest = False
+        if workout.counts:
+            status = "trained"
+        elif date == today:
+            status = "open"
+        elif plan.days[weekday].isRest or (isFlexDay and makesUp is None):
+            status = "rest"  # a bonus that doesn't count isn't a missed day either
+        else:
+            status = "missed"  # too much skipped to count (WD4.1)
     else:
         makesUp = flexMakesUp if isFlexDay else None
         stepIndex = weekday if makesUp is None else makesUp
@@ -171,9 +182,12 @@ def _flexMakesUp(plans: list[PlanStart], plan: PlanStart, workoutsByDate: Mappin
 
 
 def _missed(plans: list[PlanStart], workoutsByDate: Mapping[dt.date, LoggedWorkout], date: dt.date) -> bool:
-    """Whether a past day was a workout day, under the plan in effect then, that ended without one."""
+    """Whether a past day was a workout day, under the plan in effect then, that ended without one that
+    counts (WD4.1)."""
     plan = planInEffect(plans, date)
-    return plan is not None and not plan.days[date.weekday()].isRest and date not in workoutsByDate
+    workout = workoutsByDate.get(date)
+    return (plan is not None and not plan.days[date.weekday()].isRest
+            and (workout is None or not workout.counts))
 
 
 def _importOrder(plan: PlanStart) -> tuple[dt.date, dt.datetime, str]:

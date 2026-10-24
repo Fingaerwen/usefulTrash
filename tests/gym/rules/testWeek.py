@@ -50,3 +50,8 @@ def testWorkoutsInTheWeek():
     """Only that week's workouts count; a day counts once (one workout per day, DT1.1)."""
     workouts = [workout(-1), workout(0), workout(2), workout(2), workout(6), workout(7)]
     assert workoutsInWeek(workouts, day(3)) == 3
+
+
+def testAWorkoutThatDoesntCountIsNotCounted():
+    """WD4.1: more than 30% of its exercises skipped or not done."""
+    assert workoutsInWeek([workout(0), LoggedWorkout(day(2), "p1", 0, finished=True, counts=False)], day(3)) == 1
