@@ -10,6 +10,7 @@ import flet as ft
 from gym.actions import ActionRefused, GymActions
 from gym.model import AppModel, LogFacts, SyncFacts, problemsReport
 from gym.planImporter import answerQuestions, finishImport, startImport
+from gym.rules.stats import summaryBanner, weighInBanner
 from gym.rules.today import ExerciseLine, SetDone
 from gym.state import GymState
 from gym.tables import appSchema
@@ -35,6 +36,7 @@ class AppBase:
         self.session = None  # usefulShared.signIn.sessionKeeper.SessionKeeper once started
         self.actions: GymActions | None = None
         self.startedIn: float | None = None  # seconds from Python starting to the first real screen (main.py)
+        self._summarySeen: dt.date | None = None  # see summarySeenFor
 
     def hasCloudSettings(self) -> bool:
         return all(self.config.get(name) for name in ("supabaseUrl", "supabasePublishableKey", "googleWebClientId"))
@@ -79,7 +81,10 @@ class AppBase:
         self.model.progress, self.model.pastProgress = self.state.progress(today)
         self._refreshDetail()
         self._refreshWeek()
+        self._refreshChart()
+        self.model.weight = self.state.weightView(today, self.model.weightRange)
         self.afterRefresh()
+        self.model.banners = (*self.model.banners, *self.state.banners(today, self.summarySeenFor()))
 
     def _refreshDetail(self) -> None:
         self.model.detail = (self.state.exerciseDetail(self.model.progressOpen, self.localToday(),
@@ -102,6 +107,9 @@ class AppBase:
 
     async def skip(self, line: ExerciseLine) -> None:
         await self._act(self.actions.skipExercise(self.model.today, line))
+
+    async def declineSuggestion(self, line: ExerciseLine, declined: bool) -> None:
+        await self._act(self.actions.declineSuggestion(self.model.today, line, declined))
 
     async def finish(self) -> None:
         await self._act(self.actions.finishWorkout(self.model.today))
@@ -135,9 +143,49 @@ class AppBase:
         self._refreshDetail()
 
     def showWeek(self, offset: int) -> None:
-        """◂ ▸: earlier weeks, never past this one."""
+        """◂ ▸: earlier weeks, never past this one. Seeing last week's counts as seeing its summary (BN1.1)."""
         self.model.weekOffset = max(0, offset)
         self._refreshWeek()
+        if self.model.weekOffset == 1 and self.model.week is not None:
+            self.markSummarySeen(self.model.week.monday)
+            self.refresh()
+
+    # --- Charts and Weight (SC8.1, SC5.1) and the day's banners (18.4a) ------------------------
+
+    def _refreshChart(self) -> None:
+        choices = [line.exercise.exerciseId for line in (*self.model.progress, *self.model.pastProgress)]
+        exerciseId = self.model.chartExercise if self.model.chartExercise in choices else (choices or [""])[0]
+        self.model.chart = self.state.chart(exerciseId, self.localToday(), self.model.chartRange) if exerciseId else None
+
+    def showChart(self, exerciseId: str) -> None:
+        self.model.chartExercise = exerciseId
+        self._refreshChart()
+
+    def showChartRange(self, chartRange: str) -> None:
+        self.model.chartRange = chartRange
+        self._refreshChart()
+
+    def showWeightRange(self, chartRange: str) -> None:
+        self.model.weightRange = chartRange
+        self.model.weight = self.state.weightView(self.localToday(), chartRange)
+
+    async def setBodyWeight(self, date: dt.date, weightKg: float | None) -> None:
+        await self._act(self.actions.setBodyWeight(date, self.localToday(), weightKg))
+
+    def summarySeenFor(self) -> dt.date | None:
+        """The Monday of the last week whose summary you've looked at (BN1.1); the PC view keeps it in memory."""
+        return self._summarySeen
+
+    def markSummarySeen(self, monday: dt.date) -> None:
+        self._summarySeen = monday
+
+    def openBanner(self, banner: str) -> None:
+        """A banner tapped: the summary opens last week on Week, the weigh-in the Weight tab (18.4a)."""
+        if banner == summaryBanner:
+            self.model.tab = "week"
+            self.showWeek(1)
+        elif banner == weighInBanner:
+            self.model.tab = "weight"
 
     async def setWeight(self, exerciseId: str, weekday: int, weightKg: float) -> None:
         """A weight for one exercise on one day (WD2.1). If that day's session has it logged today, it applies

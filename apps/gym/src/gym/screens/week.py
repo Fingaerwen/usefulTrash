@@ -49,7 +49,7 @@ def WeekTab(app, model):
                                  alignment=ft.Alignment.CENTER, ink=enabled,
                                  tooltip=f"Steps on {date.day} {date:%b}" if enabled else None,
                                  on_click=(lambda e, index=index: setChoosing(index)) if enabled else None))
-    parts = [header, Banners(model), Notice(app, model), ft.Divider(), *lines, ft.Divider(),
+    parts = [header, Banners(app, model), Notice(app, model), ft.Divider(), *lines, ft.Divider(),
              ft.Row(days, spacing=0, wrap=True), quiet("✓ trained   · rest   ✗ missed")]
     if choosing is not None:
         date = week.calendar[choosing][0]

@@ -70,6 +70,7 @@ class FakeNotifier:
     def __init__(self):
         self.allowed = True
         self.daily: tuple | None = None
+        self.weekly: tuple | None = None
 
     async def requestPermission(self) -> bool:
         return self.allowed
@@ -77,6 +78,10 @@ class FakeNotifier:
     async def scheduleDaily(self, hour: int, minute: int, title: str, body: str) -> str:
         self.daily = (hour, minute, title, body)
         return f"2026-10-13 {hour:02d}:{minute:02d}"
+
+    async def scheduleWeekly(self, isoWeekday: int, hour: int, minute: int, title: str, body: str) -> str:
+        self.weekly = (isoWeekday, hour, minute, title, body)
+        return f"2026-10-16 {hour:02d}:{minute:02d}"
 
 
 @dataclasses.dataclass
@@ -295,6 +300,23 @@ def testALongEntrySharesTheRowWithTheName(phone, cloud):
     entry, name = find(row, "8 · 8 · 7 · 6 @ 80 kg", "Text"), find(row, "Bench Press", "Text")
     assert entry.expand and entry.text_align == ft.TextAlign.RIGHT
     assert name.max_lines == 2 and name.overflow == ft.TextOverflow.ELLIPSIS
+
+
+def testUndoOnANewWeightFromTheScreen(phone, cloud):
+    """UN1.1: a step up shows ↑new with "undo ↑"; undo shows the last weight at the top, with "redo ↑"."""
+    from gym.rules.today import SetDone
+    from gym.screens.today import ExerciseRow
+    planInCloud(cloud)
+    signedIn(phone)
+    phone.run(phone.app.saveSets(phone.app.model.today.exercises[0], [SetDone(12, 80)] * 4))  # the top of 8–12
+    phone.app.localToday = lambda: monday + dt.timedelta(days=7)
+    phone.app.refresh()
+    row = draw(ExerciseRow, phone.app, phone.app.model.today.exercises[0])
+    assert "4×8 @ 82.5 kg ↑new" in visibleTexts(row)
+    press(find(row, "undo ↑", "TextButton"))
+    row = draw(ExerciseRow, phone.app, phone.app.model.today.exercises[0])
+    assert "4×12 @ 80 kg" in visibleTexts(row) and find(row, "redo ↑", "TextButton")
+    assert not phone.app.model.today.workoutExists
 
 
 def testStepsEditing(phone, cloud):
@@ -616,6 +638,84 @@ def testWeekTabAndStepsForAnEarlierDay(phone, cloud):
         "gym.rules.stats", fromlist=["weekLines"]).weekLines(phone.app.model.week)
 
 
+def banner(root, text: str):
+    """The banner showing this text (the tappable box around it)."""
+    from screenTestKit import walk
+    (box,) = [control for control in walk(root) if type(control).__name__ == "Container"
+              and getattr(control.content, "value", None) == text and control.on_click is not None]
+    return box
+
+
+def testTheWeightTab(phone, cloud):
+    """SC5.1: Friday preselected (Monday 12 Oct: the 9th), ◂ ▸ for another day, Save, then the chart and the
+    last weigh-ins."""
+    from screenTestKit import redraw
+    planInCloud(cloud)
+    signedIn(phone)
+    phone.app.model.tab = "weight"
+    assert "Fri 9 Oct" in phone.texts() and "No weigh-ins in this span yet." in phone.texts()
+    from gym.screens.weight import WeightPage
+    page = draw(WeightPage, phone.app, phone.app.model, phone.app.model.weight)
+    type_(fieldLabelled(page, "kg"), "82,4")  # a comma works too
+    redraw(page)
+    press(find(page, "Save", "Button"))
+    press(find(page, "Later day", "IconButton"))
+    redraw(page)
+    type_(fieldLabelled(page, "kg"), "82")
+    redraw(page)
+    press(find(page, "Save", "Button"))
+    assert phone.app.state.weights == {dt.date(2026, 10, 9): 82.4, dt.date(2026, 10, 10): 82.0}
+    texts = phone.texts()
+    assert "Last 2:  82.4 · 82.0   (↓ 0.4 kg)" in texts and any(text.startswith("kg  ") for text in texts)
+
+
+def testTheChartsTab(phone, cloud):
+    """SC8.1: the plan's first exercise at the start, another picked from the list, a tap writes a session
+    out."""
+    from screenTestKit import redraw, walk
+    from gym.rules.today import SetDone
+    from gym.screens.charts import ExerciseChart
+    planInCloud(cloud)
+    signedIn(phone)
+    phone.run(phone.app.saveSets(phone.app.model.today.exercises[0], [SetDone(9, 80), SetDone(8, 80)]))
+    phone.app.model.tab = "charts"
+    texts = phone.texts()
+    assert "kg" in texts and "reps" in texts and "12 Oct" in texts and "Tap a chart to see that session." in texts
+    assert phone.app.model.chart.exercise.name == "Bench Press"
+    chart = draw(ExerciseChart, phone.app.model.chart)
+    (detector, _) = [control for control in walk(chart) if type(control).__name__ == "GestureDetector"]
+    detector.on_tap_down(type("Tap", (), {"local_position": type("At", (), {"x": 150.0, "y": 50.0})()})())
+    redraw(chart)
+    assert "12 Oct · 9 · 8 @ 80 kg" in visibleTexts(chart)
+    phone.app.showChart("dips")
+    assert phone.app.model.chart.exercise.name == "Dips" and "Nothing logged in this span yet." in phone.texts()
+
+
+def testBannersForTheSummaryAndTheWeighIn(phone, cloud):
+    """18.4a, BN1.1: next Monday last week's summary until it's seen (and it stays seen after a restart);
+    on Friday the weigh-in until today's weight is in. Tapping one opens its tab."""
+    from gym.rules.stats import summaryBanner, weighInBanner
+    planInCloud(cloud)
+    signedIn(phone)
+    phone.app.localToday = lambda: monday + dt.timedelta(days=7)
+    phone.app.refresh()
+    assert summaryBanner in phone.texts()
+    press(banner(phone.screen(), summaryBanner))
+    assert phone.app.model.tab == "week" and "Week 12–18 Oct" in phone.texts()
+    assert summaryBanner not in phone.texts()
+    phone.restart()
+    phone.app.localToday = lambda: monday + dt.timedelta(days=7)
+    phone.app.refresh()
+    assert summaryBanner not in phone.texts()
+
+    phone.app.localToday = lambda: monday + dt.timedelta(days=11)  # Friday
+    phone.app.refresh()
+    press(banner(phone.screen(), weighInBanner))
+    assert phone.app.model.tab == "weight"
+    phone.run(phone.app.setBodyWeight(monday + dt.timedelta(days=11), 81.0))
+    assert weighInBanner not in phone.texts()
+
+
 def testStartingAndStoppingADeloadByHand(phone, cloud):
     planInCloud(cloud)
     signedIn(phone)
@@ -653,13 +753,15 @@ def testStartUpDoesntWaitForTheNotificationQuestion(phone, cloud):
         assert phone.services.notifier.daily == (8, 0, "Creatine", "Time for your creatine"), start
 
 
-def testTheCreatineReminderIsSetForEightEveryDay(phone, cloud):
-    """WD3.8: set after sign-in (and again at every start); a no to notifications is only logged."""
+def testTheRemindersAreSetCreatineDailyAndTheWeighInOnFridays(phone, cloud):
+    """WD3.8, G9.1, NT1.2: set after sign-in (and again at every start); a no to notifications is only logged."""
     planInCloud(cloud)
     signedIn(phone)
     phone.run(phone.app.remindersTask)  # it runs beside start-up, which doesn't wait for it
     assert phone.services.notifier.daily == (8, 0, "Creatine", "Time for your creatine")
-    phone.services.notifier.daily, phone.services.notifier.allowed = None, False
+    assert phone.services.notifier.weekly == (5, 7, 0, "Weigh-in", "Time to weigh in")
+    phone.services.notifier.daily = phone.services.notifier.weekly = None
+    phone.services.notifier.allowed = False
     phone.run(phone.app.scheduleReminders())
-    assert phone.services.notifier.daily is None
-    assert "no creatine reminder" in (phone.folder / "appLog.txt").read_text()
+    assert phone.services.notifier.daily is None and phone.services.notifier.weekly is None
+    assert "there are no reminders" in (phone.folder / "appLog.txt").read_text()

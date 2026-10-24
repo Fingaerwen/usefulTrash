@@ -20,7 +20,7 @@ def PlansTab(app, model):
 
     return ft.Column([
         ft.Row([ft.Container(title("Plans"), expand=True), Menu(app, app.menuItems)]),
-        Banners(model),
+        Banners(app, model),
         Notice(app, model),
         *[ft.Text(line) for line in model.planLines],
         ft.Button("Import a plan file…", icon=ft.Icons.UPLOAD_FILE, on_click=importFile),

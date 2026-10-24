@@ -109,6 +109,35 @@ def testTheTopOfTheRangeAddsTheStepPerSide():
     assert History().log(0, bench=sets([10, 10, 11])).target(7, "bench", mon) == Target(26.25, 6)
 
 
+# --- ↑new and Undo (UN1.1) ----------------------------------------------------------------------
+
+def undone(history: History, n: int, exerciseId: str) -> History:
+    """day(n)'s entry for the exercise was logged after Undo on ↑new."""
+    logged = history.logs[day(n)][exerciseId]
+    history.logs[day(n)][exerciseId] = LoggedExercise(exerciseId, logged.sets, declinedSuggestion=True)
+    return history
+
+
+def testAStepUpSaysWhereItCameFrom():
+    history = History().log(0, bench=sets([10, 10, 10]))
+    assert history.target(7, "bench", mon).steppedUpFrom == 25  # Today: ↑new
+    history.log(7, bench=sets([6, 6, 6], 26.25))
+    assert history.target(14, "bench", mon).steppedUpFrom is None  # done there: no longer new
+
+
+def testUndoIsNotTodayAndTheTopAgainSuggestsTheStepAgain():
+    history = undone(History().log(0, bench=sets([10, 10, 10])).log(7, bench=sets([10, 10, 10])), 7, "bench")
+    target = history.target(14, "bench", mon)
+    assert (target, target.steppedUpFrom) == (Target(26.25, 6), 25)
+
+
+def testUndoThenShortOfTheTopStaysAtTheLastWeightsTop():
+    """Judged at 25 kg × 10 (the top), not as a fresh start at 25 kg, which would ask for 9."""
+    history = undone(History().log(0, bench=sets([10, 10, 10])).log(7, bench=sets([10, 9, 8])), 7, "bench")
+    target = history.target(14, "bench", mon)
+    assert (target, target.steppedUpFrom) == (Target(25, 10), None)
+
+
 def testTwoMissesInARowGoBackToTheLastLowerWeightThatWorked():
     history = (History().log(0, bench=sets([10, 10, 10]))  # 25 worked at 10: up to 26.25
                .log(7, bench=sets([5, 5, 6], 26.25)))  # a miss: two sets under 6

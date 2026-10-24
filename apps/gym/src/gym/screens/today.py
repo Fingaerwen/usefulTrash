@@ -41,7 +41,7 @@ def TodayTab(app, model):
     else:
         body = [ExerciseRow(app, line, key=line.exercise.exerciseId) for line in view.exercises]
         body.append(FinishLine(app, view))
-    return ft.Column([header, Banners(model), Notice(app, model),
+    return ft.Column([header, Banners(app, model), Notice(app, model),
                       ft.Text(deload) if deload else ft.Container(visible=False), ft.Divider(), *body, ft.Divider(),
                       StepsLine(app, view.stepsToday, key=f"steps{view.date}")],
                      spacing=gap, scroll=ft.ScrollMode.AUTO, expand=True)
@@ -83,6 +83,9 @@ def ExerciseRow(app, line: ExerciseLine):
     async def skip(e):
         await app.skip(line)
 
+    async def undo(e):
+        await app.declineSuggestion(line, not line.declined)
+
     shown = _loggedText(line) if done else targetText(line)
     # The name and what's shown share the width equally, so a long entry wraps instead of pushing [✓] off the
     # screen, and every [✓] stays at the right edge.
@@ -112,6 +115,8 @@ def ExerciseRow(app, line: ExerciseLine):
         ft.TextButton("unskip" if line.status == "skipped" else "skip", on_click=skip),
         ft.TextButton("✎ weight", on_click=lambda e: setSettingWeight(not settingWeight)) if weighted
         else ft.Container(visible=False),
+        ft.TextButton("redo ↑" if line.declined else "undo ↑", on_click=undo)  # ↑new: not today (UN1.1)
+        if (line.isNew or line.declined) and line.status == "todo" else ft.Container(visible=False),
     ], spacing=4, wrap=True)
     parts = [top, under]
     if showingHowTo:

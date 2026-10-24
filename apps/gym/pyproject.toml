@@ -2,7 +2,7 @@
 # Build with tools/buildRelease.py, which checks the package guard before and after (CS1.1).
 [project]
 name = "gymTracker"
-version = "0.2-alpha"  # the visible version (V3a); gym/model.py's appVersion must match (a test checks)
+version = "0.3-alpha"  # the visible version (V3a); gym/model.py's appVersion must match (a test checks)
 description = "Gym Tracker"
 requires-python = "==3.14.*"  # the Python Flet bundles for Android (R3)
 dependencies = [
@@ -26,7 +26,7 @@ usefulTrashWeighInNotify = "../../extensions/weighInNotify"
 [tool.flet]
 product = "Gym Tracker"  # the name on the phone and the PC view's title (RL1.3)
 org = "io.github.fingaerwen"
-build_number = 2  # Android's versionCode: the middle version number, one up each release (12b)
+build_number = 3  # Android's versionCode: the middle version number, one up each release (12b)
 
 [tool.flet.android]
 bundle_id = "io.github.fingaerwen.gymtracker"  # set explicitly, separate from the Phase 0 spike (RL1.3)

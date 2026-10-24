@@ -35,7 +35,7 @@ def ProgressTab(app, model):
             rows += [ProgressRow(app, line, key=f"past{line.exercise.exerciseId}") for line in model.pastProgress]
     return ft.Column([
         ft.Row([ft.Container(title("Progress"), expand=True), Menu(app, app.menuItems)]),
-        Banners(model), Notice(app, model), ft.Divider(), *rows,
+        Banners(app, model), Notice(app, model), ft.Divider(), *rows,
     ], spacing=gap, scroll=ft.ScrollMode.AUTO, expand=True)
 
 

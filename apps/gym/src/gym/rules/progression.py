@@ -6,7 +6,9 @@ the whole history is replayed day by day, so the phone and the PC view always ag
 Double progression, per track (WD2.3: an exercise's target, weight and drop-backs are its own on each
 day; sessions.py says which day a logged exercise belongs to):
 - One rep target for all sets; a new track starts at repsMin (12.1).
-- Every set reaches repsMax → the weight step (per side for a plates-per-side lift) and back to repsMin.
+- Every set reaches repsMax → the weight step (per side for a plates-per-side lift) and back to repsMin:
+  Today marks it ↑new. Undo on it (UN1.1) means not today: that session's target is the last weight at
+  repsMax, judged there as usual, so topping the range again suggests the step again.
   Otherwise every set hits the target → next target = the lowest set + 1 (R6a).
 - Miss = 2 or more sets under repsMin (a 1-set exercise: that set) (8.14a). Two misses in a row → back
   to the last lower weight that worked, with the reps last achieved there (R7b); after such a drop, two
@@ -55,10 +57,12 @@ deloadRepsShort = 3  # a deload's rep target is this much lower (WD3.5)
 
 @dataclass(frozen=True, slots=True)
 class Target:
-    """What a track asks for next: the weight (None for bodyweight) and the rep target."""
+    """What a track asks for next: the weight (None for bodyweight) and the rep target; steppedUpFrom is the
+    last weight when this one is a step up from it (↑new, UN1.1)."""
 
     weightKg: float | None
     reps: int
+    steppedUpFrom: float | None = field(default=None, compare=False)  # what's asked is the weight and reps
 
 
 @dataclass(frozen=True, slots=True)
@@ -271,12 +275,13 @@ class _Track:
     worked: dict[float, int] = field(default_factory=dict)  # weight → the reps last achieved there (R7b)
     underTarget: frozenset[int] = frozenset()  # the sets under target last time, at the target weight
     backwards: bool = False  # the same set fell short of the target twice in a row (WD3.2)
+    steppedUpFrom: float | None = None  # the weight is a step up from this one (↑new, UN1.1)
 
     def restart(self, weightKg: float | None) -> None:
         """A weight set in the app (WD3.7): from there at repsMin, with a clean slate."""
         self.weightKg, self.reps = weightKg, self.exercise.repsMin or 0
         self.missesInRow, self.dropped, self.toppedInRow = 0, False, 0
-        self.underTarget, self.backwards = frozenset(), False
+        self.underTarget, self.backwards, self.steppedUpFrom = frozenset(), False, None
 
 
 class _Replay:
@@ -294,7 +299,8 @@ class _Replay:
         self.weekOne: dt.date | None = None  # the Monday of week 1 for the week-8 rule (WD3.3)
 
     def snapshot(self) -> _Snapshot:
-        return _Snapshot({key: Target(track.weightKg, track.reps) for key, track in self.tracks.items()},
+        return _Snapshot({key: Target(track.weightKg, track.reps, track.steppedUpFrom)
+                          for key, track in self.tracks.items()},
                          dict(self.pendingEdits), dict(self.latest), dict(self.latestSet))
 
     # --- Days and deloads --------------------------------------------------------------------
@@ -379,6 +385,9 @@ class _Replay:
         if exercise.equipment == "bodyweight":
             _bodyweightSession(track, [done.reps for done in logged.sets])
             return
+        if logged.declinedSuggestion and track.steppedUpFrom is not None:  # Undo on ↑new: not today (UN1.1)
+            track.weightKg, track.reps = track.steppedUpFrom, exercise.repsMax or 0
+        track.steppedUpFrom = None
         lifted = workingWeight(logged.sets)
         self._weightedSession(track, logged.sets, lifted if lifted is not None else track.weightKg)
         if lifted is not None:
@@ -419,6 +428,7 @@ class _Replay:
                 track.toppedInRow += 1
                 track.reps = repsMax
             elif stepKg:
+                track.steppedUpFrom = track.weightKg
                 track.weightKg = round(track.weightKg + stepKg, 2)
                 track.reps, track.dropped, track.toppedInRow = repsMin, False, 0
                 track.underTarget = frozenset()  # a new weight: nothing to compare with yet

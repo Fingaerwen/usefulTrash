@@ -55,26 +55,27 @@ whole folder to your second drive (G3a). Without it, updates can't be installed 
 to uninstall, reinstall and sign in again (only changes not yet synced would be lost).
 
 ## 5. A release
-0.1-alpha was published on 2026-10-14, before the weekly schedule and everything after it; the app as it is now
-is released as 0.2-alpha (RL4.1).
-1. Once the release's cloud upgrade is done (0.2-alpha: steps 1 and 1b), I run
-   `python3 tools/buildRelease.py --cloudReady`: every check, the signed APK, the tag, and the PC view published to
-   GitHub Pages.
-2. You create the release on GitHub from the link it prints: title `Gym Tracker 0.2-alpha`,
-   **not** a pre-release (Obtainium skips those), and drag in the APK it names.
+0.1-alpha was published on 2026-10-14, before the weekly schedule and everything after it; 0.2-alpha on
+2026-10-24 (RL4.1). 0.3-alpha needs no cloud upgrade.
+1. Once the release's cloud upgrade is done (if it has one), I run `python3 tools/buildRelease.py --cloudReady`:
+   every check, the signed APK, the tag, and the PC view published to GitHub Pages.
+2. You create the release on GitHub from the link it prints: title `Gym Tracker <version>`, like
+   `Gym Tracker 0.3-alpha`, **not** a pre-release (Obtainium skips those), and drag in the APK it names.
+3. On the phone, Obtainium offers it as an update.
 
 ## 6. On the phone
 1. **Obtainium** → **+** (Add App) → source URL `https://github.com/Fingaerwen/usefulTrash` → **Add**,
-   then install Gym Tracker. If 0.1-alpha is on the phone already, Obtainium offers 0.2-alpha as an update.
+   then install Gym Tracker. Later releases come as updates in Obtainium.
 2. Open it → **Sign in with Google** → it downloads your data → Today.
-3. No battery setting up front (BT1.1). Only if a reminder arrives late (the 08:00 creatine reminder, and from
-   0.3-alpha the Friday weigh-in): Settings → Apps → Gym Tracker → Battery → **Unrestricted**.
+3. No battery setting up front (BT1.1). Only if a reminder arrives late (the 08:00 creatine reminder, or the
+   Friday 07:00 weigh-in from 0.3-alpha): Settings → Apps → Gym Tracker → Battery → **Unrestricted**.
 4. The Phase 0 app was uninstalled on 2026-10-14 (PH1.1).
 
-## 7. The check on your phone (0.2-alpha)
-What only the phone can show (Staging: each release is checked on your phone before the next one starts).
+## 7. The check on your phone (0.2-alpha and 0.3-alpha)
+What only the phone can show (Staging: each release is checked on your phone before the next one starts; 0.3-alpha
+was built before 0.2-alpha's check, ST1.3, so this list covers both).
 Anything that looks wrong: ⋮ → Problems → **Copy**, and paste it to me.
-1. **Start:** ⋮ → Problems: the top line reads `Gym Tracker 0.2-alpha · schema 2 · started in … s`, under 5 s
+1. **Start:** ⋮ → Problems: the top line reads `Gym Tracker 0.3-alpha · schema 2 · started in … s`, under 5 s
    (check 8).
 2. **Plan:** import it in the PC view's Plans tab (first `.venv/bin/python tools/checkPlan.py <file>` on the PC if
    you like). It takes effect today, or tomorrow if you've logged today.
@@ -93,4 +94,11 @@ Anything that looks wrong: ⋮ → Problems → **Copy**, and paste it to me.
 8. **Creatine reminder:** Android asks once whether the app may send notifications (allow it); the next morning at
    08:00, "Creatine · Time for your creatine". An alarm icon in the status bar is expected (alarm-clock mode, so
    it's on time). If it comes late: battery → **Unrestricted** (section 6).
-9. **Restart the phone and the app:** still signed in, everything still there, and the reminder still set.
+9. **Restart the phone and the app:** still signed in, everything still there, and the reminders still set.
+10. **↑new and Undo (0.3-alpha):** after you've topped an exercise's range, its next target shows `↑new` with
+    **undo ↑** under it; undo shows the last weight at the top of the range, with **redo ↑** to go back.
+11. **Charts (0.3-alpha):** pick an exercise at the top; the kg line and the reps bars fit the screen in light and
+    dark mode (the marks are drawn in the text colour); tap a chart and the session is written underneath.
+12. **Weight (0.3-alpha):** Friday preselected, ◂ ▸ for another day, Save; the text bars and `Last 4: …` below.
+13. **Banners (0.3-alpha):** on Friday "Weigh-in due" until you've weighed in, and at 07:00 the "Weigh-in · Time to
+    weigh in" notification; on Monday "Last week's summary is ready", which opens last week on Week and is gone.

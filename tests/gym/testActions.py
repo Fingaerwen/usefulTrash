@@ -163,6 +163,33 @@ def testFinishAutoSkipsWhatsLeft(app):
     assert app.today(tuesday).weekDone == 0  # 2 of 3 skipped: over 30%, so it doesn't count (WD4.1)
 
 
+def testUndoOnANewWeightIsNotTodayAndAloneIsNoWorkout(app):
+    """UN1.1: bench topped at 82.5, so next Monday asks 85 kg ↑new. Undo: 4×12 @ 82.5 today, with no workout
+    made; redo takes it back; logging after Undo keeps it, and so does taking the entry back."""
+    from gym.rules.today import targetText
+    nextMonday = monday + dt.timedelta(days=7)
+    view = app.today()
+    app.do(app.actions.saveSets, view, line(view, "benchPress"), [SetDone(12, 82.5)] * 4)
+    view = app.today(nextMonday)
+    assert targetText(line(view, "benchPress")) == "4×8 @ 85 kg ↑new"
+    app.do(app.actions.declineSuggestion, view, line(view, "benchPress"), True)
+    view = app.today(nextMonday)
+    bench = line(view, "benchPress")
+    assert (bench.declined, bench.isNew, targetText(bench), bench.status) == (True, False, "4×12 @ 82.5 kg", "todo")
+    assert not view.workoutExists and len(app.database.rows("sessions")) == 1  # Monday's only
+    app.do(app.actions.declineSuggestion, view, bench, False)  # redo
+    assert targetText(line(app.today(nextMonday), "benchPress")) == "4×8 @ 85 kg ↑new"
+    app.do(app.actions.declineSuggestion, app.today(nextMonday), line(app.today(nextMonday), "benchPress"), True)
+    view = app.today(nextMonday)
+    app.do(app.actions.checkExercise, view, line(view, "benchPress"))
+    logged = line(app.today(nextMonday), "benchPress").logged
+    assert (logged.sets, logged.declinedSuggestion) == ((SetDone(12, 82.5),) * 4, True)
+    view = app.today(nextMonday)
+    app.do(app.actions.checkExercise, view, line(view, "benchPress"))  # take it back
+    view = app.today(nextMonday)
+    assert not view.workoutExists and line(view, "benchPress").declined  # the workout went, the Undo stayed
+
+
 def testLoggingAfterFinishAddsToTheSameWorkout(app):
     """One workout per day (DT1.1): later entries join it, and it stays finished."""
     view = app.today()
@@ -287,3 +314,17 @@ def testADeloadByHandStartsTodayOrTomorrow(app):
     assert app.today().deload is None
     app.do(app.actions.startDeload, monday, True)  # a workout is logged today: from tomorrow
     assert app.today().nextDeload.start == monday + dt.timedelta(days=1)
+
+
+def testWeighInsReplaceAndClear(app):
+    """SC5.1, DT2.1: one weight per day, entering it again replaces it; empty clears it; no future days."""
+    friday = monday + dt.timedelta(days=4)
+    app.do(app.actions.setBodyWeight, friday, saturday, 81.4)
+    app.do(app.actions.setBodyWeight, friday, saturday, 81.2)
+    assert app.state.weights == {friday: 81.2} and len(app.database.rows("bodyWeight")) == 1
+    app.do(app.actions.setBodyWeight, friday, saturday, None)
+    assert app.state.weights == {}
+    with pytest.raises(ActionRefused, match="hasn't come yet"):
+        app.do(app.actions.setBodyWeight, saturday + dt.timedelta(days=1), saturday, 80.0)
+    with pytest.raises(ActionRefused, match="at most 2 decimals"):
+        app.do(app.actions.setBodyWeight, friday, saturday, 81.255)

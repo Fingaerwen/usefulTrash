@@ -26,6 +26,7 @@ from usefulShared.sync.syncEngine import SyncEngine, SyncLoop, SyncOutcome
 databaseName = "gymTracker.sqlite3"
 notSyncedAfter = dt.timedelta(days=3)  # the "Not synced" banner (G9.2b)
 creatineAt = (8, 0)  # the daily creatine reminder (WD3.8)
+weighInAt = (5, 7, 0)  # the weekly weigh-in reminder: Friday (ISO weekday 5) at 07:00 (G9.1, NT1.2)
 
 
 class PhoneServices(Protocol):
@@ -35,7 +36,7 @@ class PhoneServices(Protocol):
     secretStore: SecretStore  # secureStore: the session, encrypted with a phone-locked key (T1.1)
     clipboard: Any  # Flet's Clipboard: set(text)
     filePicker: Any  # Flet's FilePicker: pick_files(...)
-    notifier: Any  # weighInNotify: requestPermission(), scheduleDaily(hour, minute, title, body)
+    notifier: Any  # weighInNotify: requestPermission(), scheduleDaily(...), scheduleWeekly(isoWeekday, ...)
 
 
 class PhoneApp(AppBase):
@@ -109,16 +110,23 @@ class PhoneApp(AppBase):
         self.remindersTask = asyncio.get_running_loop().create_task(self.scheduleReminders())
 
     async def scheduleReminders(self) -> None:
-        """The daily creatine reminder at 08:00 (WD3.8), set again at every start (it replaces itself).
-        Android 13+ asks once whether the app may notify; a no just means no reminder, never an error."""
+        """The daily creatine reminder at 08:00 (WD3.8) and the Friday weigh-in at 07:00 (G9.1, NT1.2), set
+        again at every start (each replaces itself). Android 13+ asks once whether the app may notify; a no
+        just means no reminders, never an error."""
         try:
             if not await self.services.notifier.requestPermission():
-                self.log.info("reminders", "notifications aren't allowed, so there's no creatine reminder")
+                self.log.info("reminders", "notifications aren't allowed, so there are no reminders")
                 return
             hour, minute = creatineAt
             await self.services.notifier.scheduleDaily(hour, minute, "Creatine", "Time for your creatine")
         except Exception as problem:  # the app works the same without it
             self.log.problem("reminders", "The creatine reminder couldn't be set.", type(problem).__name__)
+            return
+        try:
+            weekday, hour, minute = weighInAt
+            await self.services.notifier.scheduleWeekly(weekday, hour, minute, "Weigh-in", "Time to weigh in")
+        except Exception as problem:
+            self.log.problem("reminders", "The weigh-in reminder couldn't be set.", type(problem).__name__)
 
     async def firstDownload(self) -> None:
         """Everything is fetched before Today shows, with a running count (14b). Needs the internet."""
@@ -246,6 +254,15 @@ class PhoneApp(AppBase):
         if waiting.oldestQueuedAt is not None and self.clock() - waiting.oldestQueuedAt >= notSyncedAfter:
             banners.append("Not synced for 3 days. Check your internet, or see Problems (⋮).")
         return tuple(banners)
+
+    def summarySeenFor(self) -> dt.date | None:
+        """Kept on this phone, so the summary banner stays gone once seen (BN1.1)."""
+        seen = self.store.meta("summarySeenFor") if self.store is not None else None
+        return dt.date.fromisoformat(seen) if seen else None
+
+    def markSummarySeen(self, monday: dt.date) -> None:
+        if self.store is not None:
+            self.store.setMeta("summarySeenFor", monday.isoformat())
 
     def syncFacts(self) -> SyncFacts:
         if self.store is None:

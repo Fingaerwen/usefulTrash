@@ -305,6 +305,109 @@ def exerciseDetail(exercise: PlanExercise, current: ImportedPlan | None,
                           training.stepKg(exercise) if weighted else None, tuple(lines))
 
 
+# --- The Charts tab (SC8.1) ----------------------------------------------------------------------
+
+@dataclass(frozen=True, slots=True)
+class ChartSession:
+    """One session on the Charts tab: its working weight as logged, its sets' reps at that weight (lowest and
+    highest), cardio's minutes, whether it was in a deload, and the session written out."""
+
+    date: dt.date
+    weightKg: float | None  # None for bodyweight and cardio
+    lowReps: int | None
+    highReps: int | None
+    minutes: int | None
+    deload: bool  # drawn hollow: its dip is planned
+    text: str  # "12 Nov · 10 · 10 · 9 @ 27.5 kg/side"
+
+
+@dataclass(frozen=True, slots=True)
+class ChartView:
+    """The Charts tab (SC8.1): one exercise, its sessions in the span (at most 30, oldest first)."""
+
+    exercise: PlanExercise
+    chartRange: str
+    unit: str  # the kg line's unit: "kg", "kg/side"; "min" for cardio
+    sessions: tuple[ChartSession, ...]
+
+
+def chartView(exercise: PlanExercise, logs: Mapping[dt.date, Mapping[str, LoggedExercise]], training: Training,
+              today: dt.date, chartRange: str = "3M") -> ChartView:
+    """An exercise's sessions for the Charts tab (SC8.1): kg as logged (the weight most sets used) and the reps
+    of the sets at that weight; bodyweight has reps only, cardio minutes. At most 30 sessions, evenly picked
+    and always ending with the latest, as Progress's chart."""
+    days = chartRanges.get(chartRange)
+    shown = [session for session in history(logs, exercise.exerciseId)
+             if days is None or session.date > today - dt.timedelta(days=days)]
+    if len(shown) > chartPoints:
+        step = (len(shown) - 1) / (chartPoints - 1)
+        shown = [shown[round(index * step)] for index in range(chartPoints)]
+    sessions = []
+    for session in shown:
+        weightKg = None if exercise.isCardio or exercise.equipment == "bodyweight" else workingWeight(session.sets)
+        reps = [done.reps for done in session.sets if weightKg is None or done.weightKg == weightKg]
+        sessions.append(ChartSession(
+            session.date, weightKg, min(reps, default=None), max(reps, default=None), session.minutes,
+            training.deloadOn(session.date) is not None,
+            f"{session.date.day} {session.date:%b} · {setsText(exercise, session.sets, session.minutes)}"))
+    return ChartView(exercise, chartRange, "min" if exercise.isCardio else unit(exercise), tuple(sessions))
+
+
+# --- The Weight tab (SC5.1) ----------------------------------------------------------------------
+
+weighInDay = 4  # Friday (G9.1): preselected on the Weight tab, and the weigh-in banner's day (18.4a)
+
+
+@dataclass(frozen=True, slots=True)
+class WeightView:
+    """The Weight tab (SC5.1): the day preselected, the chart and the last weigh-ins."""
+
+    preselected: dt.date  # the latest Friday up to today
+    chartRange: str
+    chart: str  # text bars, at most 30
+    lastText: str  # "Last 4:  82.0 · 81.8 · 81.6 · 81.2   (↓ 0.8 kg)"; "" before the first weigh-in
+
+
+def weightView(weights: Mapping[dt.date, float], today: dt.date, chartRange: str = "3M") -> WeightView:
+    """The Weight tab (SC5.1): Friday preselected (any day can be chosen), the weigh-ins in the span as text
+    bars, and the last four with the change across them."""
+    days = chartRanges.get(chartRange)
+    dates = [date for date in sorted(weights) if date <= today]
+    shown = [weights[date] for date in dates if days is None or date > today - dt.timedelta(days=days)]
+    last = [weights[date] for date in dates[-4:]]
+    text = ""
+    if last:
+        text = f"Last {len(last)}:  " + " · ".join(_weighIn(kg) for kg in last)
+        change = round(last[-1] - last[0], 2)
+        if change:
+            text += f"   ({'↑' if change > 0 else '↓'} {kgText(abs(change))} kg)"
+    return WeightView(today - dt.timedelta(days=(today.weekday() - weighInDay) % 7), chartRange, sparkline(shown),
+                      text)
+
+
+summaryBanner = "Last week's summary is ready."  # Mondays, until you've looked at it (18.4a, BN1.1)
+weighInBanner = "Weigh-in due: today's weight goes on the Weight tab."  # Fridays, until you've weighed in (18.4a)
+
+
+def dayBanners(today: dt.date, weights: Mapping[dt.date, float], hadPlanLastWeek: bool,
+               summarySeenFor: dt.date | None) -> tuple[str, ...]:
+    """The banners of the day (18.4a): on Mondays last week's summary until it's been seen (summarySeenFor is
+    the Monday of the last week looked at, BN1.1), on Fridays the weigh-in until there's a weight for today."""
+    banners = []
+    lastMonday = weekStart(today) - oneWeek
+    if today.weekday() == 0 and hadPlanLastWeek and summarySeenFor != lastMonday:
+        banners.append(summaryBanner)
+    if today.weekday() == weighInDay and today not in weights:
+        banners.append(weighInBanner)
+    return tuple(banners)
+
+
+def _weighIn(weightKg: float) -> str:
+    """A weigh-in with at least one decimal, as the sketch has it: 82.0, 81.8, 81.25."""
+    text = f"{weightKg:.2f}"
+    return text[:-1] if text.endswith("0") else text
+
+
 # --- The Week tab (SC4.1) ------------------------------------------------------------------------
 
 @dataclass(frozen=True, slots=True)

@@ -38,6 +38,8 @@ class ExerciseLine:
     trackDay: int | None = None  # the day whose targets it uses and updates (WD2.3); None if it has none
     stepKg: float | None = None  # its weight step: set in the app, else the plan's (WD2.1)
     needsWeight: bool = False  # only the plan's 1 kg placeholder (PF3): "@ ? kg", no target weight, ✓ opens ▾ sets
+    isNew: bool = False  # the target is a step up from the last weight: "↑new", with Undo (UN1.1)
+    declined: bool = False  # Undo pressed: today's target is the last weight at repsMax, with redo (UN1.1)
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,7 +113,7 @@ def todayView(
     # Anything logged today that isn't in the session (logged from another device or plan) still shows.
     shown = {line.exercise.exerciseId for line in lines}
     for exerciseId, logged in logsToday.items():
-        if exerciseId not in shown:
+        if exerciseId not in shown and (logged.done or logged.skipped):  # an Undo alone isn't an entry
             exercise = knownExercises.get(exerciseId) or PlanExercise(exerciseId, exerciseId, "strength")
             lines.append(ExerciseLine(exercise, None, None, None, None, "skipped" if logged.skipped else "done",
                                       logged))
@@ -125,17 +127,22 @@ def _line(entry: SessionExercise, logged: LoggedExercise | None, finished: bool,
           inDeload: bool) -> ExerciseLine:
     """A planned exercise with its target from progression; in a deload, half the sets, 3 reps short."""
     exercise = entry.exercise
-    if logged is not None:
+    if logged is not None and (logged.done or logged.skipped):  # an Undo alone isn't an entry (UN1.1)
         status = "skipped" if logged.skipped else "done"
     else:
         status = "autoSkipped" if finished else "todo"
     if exercise.isCardio:
         return ExerciseLine(exercise, None, None, None, exercise.minutes, status, logged, entry.trackDay)
-    needsWeight = False
+    needsWeight = isNew = declined = False
     if training is not None:
         target = training.target(exercise, entry.trackDay)
         weightKg, reps, stepKg = target.weightKg, target.reps, training.stepKg(exercise)
         needsWeight = training.needsWeight(exercise, entry.trackDay)
+        if target.steppedUpFrom is not None and not inDeload:  # ↑new, or Undo pressed on it (UN1.1)
+            declined = logged is not None and logged.declinedSuggestion
+            isNew = not declined
+            if declined:
+                weightKg, reps = target.steppedUpFrom, exercise.repsMax
     else:
         weightKg, reps, stepKg = exercise.weightKg, exercise.repsMin, exercise.incrementKg
     if needsWeight:
@@ -145,12 +152,13 @@ def _line(entry: SessionExercise, logged: LoggedExercise | None, finished: bool,
         sets, reps = deloadSets(sets), deloadReps(reps)
     if exercise.equipment == "bodyweight":
         weightKg, stepKg = None, None
-    return ExerciseLine(exercise, sets, reps, weightKg, None, status, logged, entry.trackDay, stepKg, needsWeight)
+    return ExerciseLine(exercise, sets, reps, weightKg, None, status, logged, entry.trackDay, stepKg, needsWeight,
+                        isNew, declined)
 
 
 def targetText(line: ExerciseLine) -> str:
-    """The target as Today writes it: "4×8 @ 80 kg", "4×8 @ 20 kg/side" (plates per side, WD1.3), "4×8 @ ? kg"
-    (no weight of yours yet, PF3), "3×8" (bodyweight) or "15 min"."""
+    """The target as Today writes it: "4×8 @ 80 kg", "4×8 @ 20 kg/side" (plates per side, WD1.3), "4×8 @ 82.5 kg
+    ↑new" (a step up, UN1.1), "4×8 @ ? kg" (no weight of yours yet, PF3), "3×8" (bodyweight) or "15 min"."""
     if line.targetMinutes is not None:
         return f"{line.targetMinutes} min"
     if line.targetSets is None or line.targetReps is None:
@@ -160,7 +168,7 @@ def targetText(line: ExerciseLine) -> str:
         return text + f" @ ? {unit(line.exercise)}"
     if line.targetWeightKg is None:
         return text
-    return text + f" @ {kgText(line.targetWeightKg)} {unit(line.exercise)}"
+    return text + f" @ {kgText(line.targetWeightKg)} {unit(line.exercise)}" + (" ↑new" if line.isNew else "")
 
 
 def kilogramsUnit(exercise: PlanExercise) -> str:

@@ -15,8 +15,21 @@ from gym.rules.planImport import knownExercises
 from gym.rules.progression import Training, training
 from gym.rules.schedule import LoggedWorkout, PlanStart, planInEffect
 from gym.rules.sessions import withCounts
-from gym.rules.stats import ExerciseDetail, ProgressLine, WeekSummary, exerciseDetail, progressLines, weekSummary
+from gym.rules.stats import (
+    ChartView,
+    ExerciseDetail,
+    ProgressLine,
+    WeekSummary,
+    WeightView,
+    chartView,
+    dayBanners,
+    exerciseDetail,
+    progressLines,
+    weekSummary,
+    weightView,
+)
 from gym.rules.today import TodayView, todayView
+from gym.rules.week import weekStart, weeklyTarget
 
 
 class GymState:
@@ -56,7 +69,8 @@ class GymState:
         self.logs = {}
         for row in self._live("exerciseLogs"):
             self.logs.setdefault(row["date"], {})[row["exerciseId"]] = LoggedExercise(
-                row["exerciseId"], _readSets(row["sets"]), row["minutes"], row["skipped"])
+                row["exerciseId"], _readSets(row["sets"]), row["minutes"], row["skipped"],
+                bool(row.get("declinedSuggestion")))
         self.workouts = withCounts(self.plans, workouts, self.logs)  # which ones count (WD4.1)
         self.steps = {row["date"]: row["steps"] for row in self._live("dailySteps")}
         self.weights = {row["date"]: row["weightKg"] for row in self._live("bodyWeight")}
@@ -93,6 +107,21 @@ class GymState:
         if exercise is None:
             return None
         return exerciseDetail(exercise, self.currentPlan(date), self.logs, self.training(date), date, chartRange)
+
+    def chart(self, exerciseId: str, date: dt.date, chartRange: str) -> ChartView | None:
+        """One exercise on the Charts tab (SC8.1)."""
+        exercise = self.known.get(exerciseId)
+        return chartView(exercise, self.logs, self.training(date), date, chartRange) if exercise else None
+
+    def weightView(self, date: dt.date, chartRange: str) -> WeightView:
+        """The Weight tab (SC5.1)."""
+        return weightView(self.weights, date, chartRange)
+
+    def banners(self, date: dt.date, summarySeenFor: dt.date | None) -> tuple[str, ...]:
+        """The banners of the day (18.4a): last week's summary on Mondays, the weigh-in on Fridays."""
+        lastMonday = weekStart(date) - dt.timedelta(days=7)
+        hadPlan = weeklyTarget([imported.start for imported in self.plans], lastMonday) is not None
+        return dayBanners(date, self.weights, hadPlan, summarySeenFor)
 
     def week(self, monday: dt.date, date: dt.date) -> WeekSummary:
         """The Week tab (SC4.1) for the week starting on `monday`."""

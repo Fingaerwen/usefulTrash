@@ -37,6 +37,7 @@ class LoggedExercise:
     sets: tuple[SetDone, ...] = ()
     minutes: int | None = None  # cardio
     skipped: bool = False
+    declinedSuggestion: bool = False  # Undo on ↑new: today's target stays at the last weight (UN1.1)
 
     @property
     def done(self) -> bool:

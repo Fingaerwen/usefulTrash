@@ -16,7 +16,7 @@ from typing import Any, Protocol
 from gym.rules.today import ExerciseLine, SetDone, TodayView
 from gym.state import GymState
 from gym.tables import exerciseLogs, sessions
-from usefulShared.tables import dailySteps, dayRowId, newRowId
+from usefulShared.tables import bodyWeight, dailySteps, dayRowId, newRowId
 
 
 class RowStore(Protocol):
@@ -84,6 +84,23 @@ class GymActions:
         else:
             await self._log(view, line, (), None, skipped=True)
 
+    async def declineSuggestion(self, view: TodayView, line: ExerciseLine, declined: bool) -> None:
+        """Undo on ↑new (UN1.1): not today, so today's target is the last weight at the top of the range; redo
+        takes that back. Stored on the exercise's entry for the day, which logging keeps; on its own it isn't
+        an entry, so it never makes a workout."""
+        logId = dayRowId(exerciseLogs, self.userId, date=view.date, exerciseId=line.exercise.exerciseId)
+        existing = self.state.row("exerciseLogs", logId)
+        live = existing is not None and not existing["deleted"]
+        if not declined and live and not existing["sets"] and existing["minutes"] is None and not existing["skipped"]:
+            await self.store.saveRows([("exerciseLogs", dict(existing, deleted=True))])  # nothing else in it
+            return
+        if not declined and not live:
+            return
+        row = dict(existing) if live else {
+            "id": logId, "userId": self.userId, "date": view.date, "exerciseId": line.exercise.exerciseId,
+            "targetReps": None, "targetWeightKg": None, "sets": [], "minutes": None, "skipped": False}
+        await self.store.saveRows([("exerciseLogs", {**row, "deleted": False, "declinedSuggestion": declined})])
+
     async def finishWorkout(self, view: TodayView) -> None:
         """Finish: the workout is done; anything untouched counts as skipped (19.1b-1)."""
         session = self._liveSession(view.date)
@@ -104,6 +121,23 @@ class GymActions:
         _checkWhole(steps, 0, 200_000, "Steps")
         await self.store.saveRows([("dailySteps", {**(existing or {}), "id": rowId, "userId": self.userId,
                                                    "deleted": False, "date": date, "steps": steps})])
+
+    # --- Body weight (SC5.1, DT2.1) -----------------------------------------------------------
+
+    async def setBodyWeight(self, date: dt.date, today: dt.date, weightKg: float | None) -> None:
+        """A day's weigh-in: entering it again replaces it (DT2.1); None clears it. Any day up to today."""
+        if date > today:
+            raise ActionRefused("A weigh-in can't be for a day that hasn't come yet.")
+        rowId = dayRowId(bodyWeight, self.userId, date=date)
+        existing = self.state.row("bodyWeight", rowId)
+        if weightKg is None:
+            if existing is not None and not existing["deleted"]:
+                await self.store.saveRows([("bodyWeight", dict(existing, deleted=True))])
+            return
+        if not _isKilograms(weightKg) or not 0 < weightKg < 1000:
+            raise ActionRefused("Weight must be a number above 0 and under 1000 kg, with at most 2 decimals.")
+        await self.store.saveRows([("bodyWeight", {**(existing or {}), "id": rowId, "userId": self.userId,
+                                                   "deleted": False, "date": date, "weightKg": float(weightKg)})])
 
     # --- Weights and weight steps (WD2.1, WD3.7) ----------------------------------------------
 
@@ -176,13 +210,16 @@ class GymActions:
     async def _takeBack(self, view: TodayView, line: ExerciseLine) -> None:
         """Takes an exercise's entry back. If it was the day's only entry, the workout goes too (finished or
         not): a workout exists only while something is logged in it, so a mistaken tap never counts as a
-        workout."""
+        workout. An Undo on ↑new stays (UN1.1)."""
         logId = dayRowId(exerciseLogs, self.userId, date=view.date, exerciseId=line.exercise.exerciseId)
         logRow = self.state.row("exerciseLogs", logId)
         if logRow is None or logRow["deleted"]:
             return
-        edits: list[tuple[str, dict[str, Any]]] = [("exerciseLogs", dict(logRow, deleted=True))]
-        othersToday = set(self.state.logs.get(view.date, {})) - {line.exercise.exerciseId}
+        keptUndo = dict(logRow, sets=[], minutes=None, skipped=False)
+        edits: list[tuple[str, dict[str, Any]]] = [
+            ("exerciseLogs", keptUndo if logRow["declinedSuggestion"] else dict(logRow, deleted=True))]
+        othersToday = {exerciseId for exerciseId, logged in self.state.logs.get(view.date, {}).items()
+                       if logged.done or logged.skipped} - {line.exercise.exerciseId}  # an Undo alone isn't one
         session = self._liveSession(view.date)
         if session is not None and not othersToday:
             edits.append(("sessions", dict(session, deleted=True)))

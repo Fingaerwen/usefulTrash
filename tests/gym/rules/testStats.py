@@ -9,7 +9,12 @@ from gym.rules.planFile import PlanExercise, checkPlan, planExercises, scheduleD
 from gym.rules.progression import training
 from gym.rules.schedule import LoggedWorkout, PlanStart
 from gym.rules.stats import (
+    chartView,
+    dayBanners,
     exerciseDetail,
+    summaryBanner,
+    weighInBanner,
+    weightView,
     loadKg,
     oneRepMaxKg,
     progressLines,
@@ -220,3 +225,65 @@ def testWeekLines():
         ("Bodyweight", "19 reps"), ("PRs", "Bench Press 26.25 kg/side · Pull-up 10 reps"),
         ("Weight", "81.2 kg   ↓ 0.4 kg")]
     assert weekTitle(weekSummary([imported], workouts, weekLogs, known, {}, {}, day(-14), day(9))) == "Week 28 Sep – 4 Oct"
+
+
+# --- The Charts tab (SC8.1) ----------------------------------------------------------------------
+
+def testChartsShowKgAsLoggedAndEachSessionsRepsAtThatWeight():
+    view = chartView(known["bench"], weekLogs, trainingOn(day(8)), day(8), "All")
+    assert view.unit == "kg/side"
+    assert [(s.date, s.weightKg, s.lowReps, s.highReps, s.deload) for s in view.sessions] == [
+        (day(0), 25, 8, 8, False), (day(7), 26.25, 9, 10, False)]
+    assert view.sessions[-1].text == "19 Oct · 10 · 9 @ 26.25 kg/side"
+    pullUps = chartView(known["pullUp"], weekLogs, trainingOn(day(8)), day(8), "All").sessions
+    assert [(s.weightKg, s.lowReps, s.highReps) for s in pullUps] == [(None, 7, 8), (None, 9, 10)]  # reps only
+
+
+def testChartsKeepToTheSpanAndAtMost30Sessions():
+    many = {day(n): {"bench": LoggedExercise("bench", (SetDone(8, 25),))} for n in range(0, 400, 2)}
+    lastDay = day(398)
+    assert [s.date for s in chartView(known["bench"], many, trainingOn(lastDay), lastDay, "3M").sessions][0] > (
+        lastDay - dt.timedelta(days=92))
+    allTime = chartView(known["bench"], many, trainingOn(lastDay), lastDay, "All").sessions
+    assert len(allTime) == 30 and allTime[-1].date == lastDay and allTime[0].date == day(0)
+
+
+def testDeloadSessionsAreMarked():
+    deloadTraining = training([imported], workouts, weekLogs, [], [], [day(7)], day(8))  # one started by hand
+    view = chartView(known["bench"], weekLogs, deloadTraining, day(8), "All")
+    assert [s.deload for s in view.sessions] == [False, True]
+
+
+# --- The Weight tab (SC5.1) ----------------------------------------------------------------------
+
+weighIns = {day(-21): 82.0, day(-14): 81.8, day(-7): 81.6, day(4): 81.25}
+
+
+def testWeightPreselectsTheLatestFridayAndShowsTheLastFour():
+    view = weightView(weighIns, day(5), "3M")  # Saturday
+    assert view.preselected == day(4)
+    assert view.lastText == "Last 4:  82.0 · 81.8 · 81.6 · 81.25   (↓ 0.75 kg)"
+    assert view.chart == sparkline([82.0, 81.8, 81.6, 81.25])
+    assert weightView(weighIns, day(4), "3M").preselected == day(4)  # Friday itself
+    assert weightView(weighIns, day(3), "3M").preselected == day(-3)  # Thursday: the Friday before
+
+
+def testWeightWithFewOrNoWeighIns():
+    assert weightView({}, day(5), "3M").lastText == "" and weightView({}, day(5), "3M").chart == ""
+    assert weightView({day(4): 80.0}, day(5), "3M").lastText == "Last 1:  80.0"
+
+
+# --- The day's banners (18.4a, BN1.1) ------------------------------------------------------------
+
+def testMondaysSummaryBannerUntilSeen():
+    nextMonday = day(7)
+    assert dayBanners(nextMonday, {}, hadPlanLastWeek=True, summarySeenFor=None) == (summaryBanner,)
+    assert dayBanners(nextMonday, {}, hadPlanLastWeek=True, summarySeenFor=monday) == ()  # last week seen
+    assert dayBanners(nextMonday, {}, hadPlanLastWeek=False, summarySeenFor=None) == ()  # nothing to sum up
+    assert dayBanners(day(8), {}, hadPlanLastWeek=True, summarySeenFor=None) == ()  # Tuesday
+
+
+def testFridaysWeighInBannerUntilWeighedIn():
+    friday = day(4)
+    assert dayBanners(friday, {}, hadPlanLastWeek=True, summarySeenFor=None) == (weighInBanner,)
+    assert dayBanners(friday, {friday: 81.0}, hadPlanLastWeek=True, summarySeenFor=None) == ()

@@ -179,6 +179,10 @@ def testProgressAndWeekTabsAreThereToo(browser, cloud):
     browser.app.model.tab = "week"
     assert "Week 12–18 Oct" in browser.texts() and "0 of 3" in browser.texts()
     assert browser.app.canEnterStepsOn(monday - dt.timedelta(days=30))  # the PC view takes any day (SC4.1)
+    browser.app.model.tab = "charts"  # SC8.1: the PC view has Charts and Weight too
+    assert "Charts" in browser.texts() and browser.app.model.chart.exercise.name == "Bench Press"
+    browser.app.model.tab = "weight"
+    assert "Weight" in browser.texts() and "Fri 9 Oct" in browser.texts()
 
 
 def testTheWebsitesCodeNeverNeedsSQLite():

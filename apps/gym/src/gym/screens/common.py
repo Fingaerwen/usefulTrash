@@ -21,12 +21,14 @@ def Notice(app, model):
 
 
 @ft.component
-def Banners(model):
-    """Banners at the top of any tab (18.4a): not synced, refused changes, update needed."""
+def Banners(app, model):
+    """Banners at the top of any tab (18.4a): not synced, refused changes, update needed, last week's summary
+    (Mondays) and the weigh-in (Fridays); tapping one of the last two opens its tab."""
     if not model.banners:
         return ft.Container(visible=False)
     return ft.Column([ft.Container(ft.Text(banner), border=ft.Border.all(1, ft.Colors.OUTLINE), border_radius=8,
-                                   padding=10) for banner in model.banners], spacing=gap)
+                                   padding=10, ink=True, on_click=lambda e, banner=banner: app.openBanner(banner))
+                      for banner in model.banners], spacing=gap)
 
 
 @ft.component

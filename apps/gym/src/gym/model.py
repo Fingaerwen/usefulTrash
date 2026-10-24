@@ -11,11 +11,11 @@ from dataclasses import dataclass, field
 import flet as ft
 
 from gym.planImporter import PlanImport
-from gym.rules.stats import ExerciseDetail, ProgressLine, WeekSummary
+from gym.rules.stats import ChartView, ExerciseDetail, ProgressLine, WeekSummary, WeightView
 from gym.rules.today import TodayView
 
 appName = "Gym Tracker"
-appVersion = "0.2-alpha"  # the release script checks it matches pyproject.toml (V3a)
+appVersion = "0.3-alpha"  # the release script checks it matches pyproject.toml (V3a)
 
 
 @ft.observable
@@ -36,6 +36,11 @@ class AppModel:
     detail: ExerciseDetail | None = None
     weekOffset: int = 0  # the Week tab (SC4.1): 0 = this week, 1 = last week, …
     week: WeekSummary | None = None
+    chartExercise: str = ""  # the Charts tab (SC8.1): the exercise picked, "" for the first one
+    chartRange: str = "3M"
+    chart: ChartView | None = None
+    weightRange: str = "3M"  # the Weight tab (SC5.1)
+    weight: WeightView | None = None
     waiting: int = 0  # changes not sent yet: "3 waiting" (SC1.1)
     banners: tuple[str, ...] = ()  # shown at the top of any tab (18.4a)
     downloaded: int = 0  # first download: "Downloading your data… N rows" (14b)

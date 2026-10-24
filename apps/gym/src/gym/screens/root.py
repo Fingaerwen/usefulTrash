@@ -1,9 +1,10 @@
 """The whole app: one screen at a time, chosen by the model (sign-in, first download, the tabs,
-Problems, plan import). The phone's tabs are Today · Progress · Week · Weight (18.1); the PC view has
-Today · Progress · Week · Plans (SC6.1). The Weight tab comes in a later version."""
+Problems, plan import). The phone's tabs are Today · Progress · Charts · Week · Weight (18.1, SC8.1); the PC
+view has the same and Plans (SC6.1)."""
 
 import flet as ft
 
+from gym.screens.charts import ChartsTab
 from gym.screens.common import (
     ComingSoon,
     DownloadingScreen,
@@ -17,12 +18,14 @@ from gym.screens.problems import ProblemsScreen
 from gym.screens.progress import ProgressTab
 from gym.screens.today import TodayTab
 from gym.screens.week import WeekTab
+from gym.screens.weight import WeightTab
 
-phoneTabs = (("today", "Today", ft.Icons.TODAY), ("progress", "Progress", ft.Icons.SHOW_CHART),
-             ("week", "Week", ft.Icons.CALENDAR_VIEW_WEEK), ("weight", "Weight", ft.Icons.MONITOR_WEIGHT))
-pcTabs = (("today", "Today", ft.Icons.TODAY), ("progress", "Progress", ft.Icons.SHOW_CHART),
-          ("week", "Week", ft.Icons.CALENDAR_VIEW_WEEK), ("plans", "Plans", ft.Icons.LIST_ALT))
-tabScreens = {"today": TodayTab, "progress": ProgressTab, "week": WeekTab, "plans": PlansTab}
+phoneTabs = (("today", "Today", ft.Icons.TODAY), ("progress", "Progress", ft.Icons.TRENDING_UP),
+             ("charts", "Charts", ft.Icons.SHOW_CHART), ("week", "Week", ft.Icons.CALENDAR_VIEW_WEEK),
+             ("weight", "Weight", ft.Icons.MONITOR_WEIGHT))
+pcTabs = (*phoneTabs, ("plans", "Plans", ft.Icons.LIST_ALT))
+tabScreens = {"today": TodayTab, "progress": ProgressTab, "charts": ChartsTab, "week": WeekTab, "weight": WeightTab,
+              "plans": PlansTab}
 
 
 @ft.component
