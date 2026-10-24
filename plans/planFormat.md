@@ -51,8 +51,8 @@ a list of problems the user pastes back to you.
     │ •  Shoulder blades squeezed together and down
   ```
   `notes` stays the one short cue that's always visible; `form` is the full list, shown on a tap.
-- **Progression is automatic, so a plan gives only the starting point.** Give each exercise a rep
-  range and a starting weight. Don't write week-by-week weights. The app's rules:
+- **Progression is automatic, so a plan gives only the rep range.** Give each exercise a rep range,
+  and each weighted one `"weightKg": 1` (see below). Don't write week-by-week weights. The app's rules:
   - One rep target for all sets, starting at `repsMin`.
   - Every set hits the target → next time, the lowest set's reps + 1.
   - Every set reaches `repsMax` → add the weight step (`incrementKg`, per side for a `platesPerSide`
@@ -60,7 +60,8 @@ a list of problems the user pastes back to you.
   - Two or more sets under `repsMin` is a miss (a 1-set exercise: that set); two misses in a row → back
     to the last lower weight that worked, at the reps achieved there. After such a drop, it takes two
     sessions at the top of the range to go heavier again.
-  - A session done at another weight than the target starts afresh at that weight.
+  - A session done at another weight than the target starts afresh at that weight (judged against
+    `repsMin`). That's how the user's real weight replaces the 1 kg placeholder.
   - **An exercise on several days progresses separately on each day:** its own target, weight and
     drop-backs per day, so a lift done fresh on Monday and tired on Wednesday doesn't drag either
     down. Its history, PRs and charts stay one.
@@ -70,6 +71,11 @@ a list of problems the user pastes back to you.
   - Bodyweight exercises progress in reps only, past `repsMax` too. Cardio has a minutes target.
   - **The user can change weights in the app:** an exercise's weight on each day (that day's target then
     starts again at `repsMin`) and its weight step.
+- **Weights come from the user, never from the plan.** Every weighted exercise in a plan has
+  `"weightKg": 1`: a placeholder, not a weight. The user sets each real weight in the app, or logs the
+  real weight the first time, which restarts the target at that weight. So never ask the user for
+  starting weights, never pick other weights, and never treat 1 kg as a mistake, also in a plan the user
+  pastes back to you.
 - **Deloads are the app's job:** a week at the same weights, half the sets (rounded up) and a rep target
   3 below the usual one. The app starts one by itself, from the next Monday, when two or more
   `compound` lifts go backwards: at their target weight, the same set falls short of the rep target in
@@ -84,10 +90,10 @@ a list of problems the user pastes back to you.
   later plan, so its history, PRs and charts carry on. A new ID starts a new history (the app asks if a
   new ID looks like a known exercise with a similar name).
 - **Importing a new plan:** it takes effect today, or tomorrow if a workout is already logged today.
-  **Exercises the user has trained (or set a weight for in the app) keep their current weights**: the
-  import lists the plan weights it didn't use. An exercise that's new, or never trained, starts at the
-  plan's weight, so a corrected file still fixes starting weights. A known exercise on a day it wasn't on
-  before starts at its latest weight from any day.
+  **Exercises the user has trained (or set a weight for in the app) keep their current weights**, so
+  the plan's 1 kg never replaces them. An exercise that's new, or never trained, starts at 1 kg until the
+  user sets or logs its weight. A known exercise on a day it wasn't on before starts at its latest weight
+  from any day.
 - **Also in the app, but not part of a plan:** daily step counts, PRs and estimated 1RM, volume,
   streaks, a weekly summary and a daily creatine reminder at 08:00. A weigh-in screen comes later. A
   plan holds training only.
@@ -103,7 +109,7 @@ a list of problems the user pastes back to you.
 | %1RM, RPE or RIR, tempo, pauses, warm-up sets, supersets, circuits, alternatives | Write it in `notes` (one line). Supersets: put the exercises next to each other and say so in their notes |
 | Timed holds (plank, wall sit) | `"bodyweight"` with reps meaning seconds (at most 100), and `notes` saying "reps = seconds" |
 | Cardio distance, pace, intervals, heart rate | Only `minutes`; put the rest in `notes` |
-| Weighted pull-ups or dips (added weight) | `"equipment": "machine"`, `weightKg` = the added weight, its own ID like `"weightedPullUp"` |
+| Weighted pull-ups or dips (added weight) | `"equipment": "machine"`, `"weightKg": 1` like every weighted exercise (the user logs the added weight), its own ID like `"weightedPullUp"` |
 | Assisted machines (more weight = easier) | Not supported: the app would add weight to progress. Use another exercise |
 | Kettlebells / cables, Smith machine, any stack / bands | `"dumbbell"` (weight of one bell) / `"machine"` / `"bodyweight"` |
 | One arm or leg at a time | Reps per side; say "per side" in `notes`. Dumbbell weight is one dumbbell, with `"dumbbells": 1` |
@@ -156,7 +162,7 @@ has it, and an exercise moves at most once for each made-up day.
 | `equipment` | yes | `"barbell"`, `"dumbbell"`, `"bodyweight"` or `"machine"` |
 | `sets` | yes | 1 to 20; may differ between days for the same exercise |
 | `repsMin`, `repsMax` | yes | the rep range, 1 to 100 each, `repsMin` not above `repsMax` |
-| `weightKg` | yes, except bodyweight | the starting weight, 0 to 1000 kg, at most 2 decimals; for dumbbells, **one** dumbbell; with `platesPerSide`, the plates on **one** side |
+| `weightKg` | yes, except bodyweight | **always `1`**: a placeholder, never a real weight. The user sets the real weight in the app or logs it the first time, so don't ask for it, don't pick another number and don't treat 1 as a mistake. (In the app, the weight is **one** dumbbell for dumbbells, and the plates on **one** side with `platesPerSide`.) |
 | `body` | see below | `"upper"` or `"lower"`: the default weight step, upper 2.5 kg, lower 5 kg |
 | `incrementKg` | see below | the weight step, 0.01 to 100 kg, at most 2 decimals; overrides `body`. Set it for dumbbells (e.g. 1 or 2) and machines (the stack's step). With `platesPerSide`, it's per side too |
 | `dumbbells` | dumbbell only, yes | `2` for one in each hand, `1` for a single dumbbell (held in both hands, or one arm at a time) |
@@ -201,7 +207,8 @@ Five core days, a flex day and a rest day. `overheadExtension` is on Monday and 
 settings (only the notes differ), `seatedLegCurl` has 4 sets on Tuesday and 3 on Friday, `plank` uses
 reps as seconds, the bench press and leg press are logged as plates per side, and the T-bar row as all
 its plates on one pin. Saturday makes up a missed session (Upper first), and two of Friday's exercises
-move in some weeks. The bench press and the pull-up have a how-to.
+move in some weeks. The bench press and the pull-up have a how-to. Every weighted exercise has
+`"weightKg": 1`.
 
 ```json
 {
@@ -213,33 +220,33 @@ move in some weeks. The bench press and the pull-up have a how-to.
     {"day": "monday", "title": "Upper", "exercises": [
       {"exerciseId": "benchPress", "name": "Bench Press", "equipment": "barbell", "body": "upper", "compound": true,
        "platesPerSide": true, "barKg": 20, "incrementKg": 1.25,
-       "sets": 3, "repsMin": 6, "repsMax": 10, "weightKg": 25, "restSec": 150, "notes": "pause on the chest",
+       "sets": 3, "repsMin": 6, "repsMax": 10, "weightKg": 1, "restSec": 150, "notes": "pause on the chest",
        "setup": "Flat bench in a rack; bar at the height of your straight arms, safety pins just below chest height",
        "howTo": ["Lie back with your eyes under the bar, feet flat on the floor",
                  "Grip a little wider than your shoulders", "Unrack, lower to mid-chest, pause, press back up"],
        "form": ["Shoulder blades squeezed together and down", "Wrists straight over the elbows",
                 "Bum stays on the bench"]},
       {"exerciseId": "tBarRow", "name": "T-Bar Row", "equipment": "machine", "incrementKg": 5, "compound": true,
-       "sets": 3, "repsMin": 8, "repsMax": 12, "weightKg": 40, "restSec": 120, "notes": "all plates on the one pin"},
+       "sets": 3, "repsMin": 8, "repsMax": 12, "weightKg": 1, "restSec": 120, "notes": "all plates on the one pin"},
       {"exerciseId": "overheadExtension", "name": "Overhead Dumbbell Extension", "equipment": "dumbbell",
-       "dumbbells": 1, "incrementKg": 2, "sets": 3, "repsMin": 10, "repsMax": 15, "weightKg": 20, "restSec": 90}
+       "dumbbells": 1, "incrementKg": 2, "sets": 3, "repsMin": 10, "repsMax": 15, "weightKg": 1, "restSec": 90}
     ]},
     {"day": "tuesday", "title": "Lower A", "exercises": [
       {"exerciseId": "legPress", "name": "Leg Press", "equipment": "machine", "incrementKg": 5, "compound": true,
-       "platesPerSide": true, "barKg": 50, "sets": 3, "repsMin": 10, "repsMax": 15, "weightKg": 40, "restSec": 120,
+       "platesPerSide": true, "barKg": 50, "sets": 3, "repsMin": 10, "repsMax": 15, "weightKg": 1, "restSec": 120,
        "setup": "Seat at notch 4; feet shoulder-width in the middle of the platform"},
       {"exerciseId": "seatedLegCurl", "name": "Seated Leg Curl", "equipment": "machine", "incrementKg": 5,
-       "sets": 4, "repsMin": 10, "repsMax": 15, "weightKg": 35, "restSec": 90},
+       "sets": 4, "repsMin": 10, "repsMax": 15, "weightKg": 1, "restSec": 90},
       {"exerciseId": "plank", "name": "Plank", "equipment": "bodyweight",
        "sets": 3, "repsMin": 30, "repsMax": 60, "restSec": 60, "notes": "reps = seconds held"}
     ]},
     {"day": "wednesday", "title": "Push", "exercises": [
       {"exerciseId": "overheadPress", "name": "Overhead Press", "equipment": "barbell", "body": "upper",
-       "compound": true, "sets": 3, "repsMin": 6, "repsMax": 10, "weightKg": 40, "restSec": 150},
+       "compound": true, "sets": 3, "repsMin": 6, "repsMax": 10, "weightKg": 1, "restSec": 150},
       {"exerciseId": "lateralRaise", "name": "Lateral Raise", "equipment": "dumbbell", "dumbbells": 2,
-       "incrementKg": 1, "sets": 3, "repsMin": 12, "repsMax": 20, "weightKg": 8, "restSec": 60},
+       "incrementKg": 1, "sets": 3, "repsMin": 12, "repsMax": 20, "weightKg": 1, "restSec": 60},
       {"exerciseId": "overheadExtension", "name": "Overhead Dumbbell Extension", "equipment": "dumbbell",
-       "dumbbells": 1, "incrementKg": 2, "sets": 3, "repsMin": 10, "repsMax": 15, "weightKg": 20, "restSec": 90,
+       "dumbbells": 1, "incrementKg": 2, "sets": 3, "repsMin": 10, "repsMax": 15, "weightKg": 1, "restSec": 90,
        "notes": "after the presses: fewer reps than Monday is normal"}
     ]},
     {"day": "thursday", "title": "Pull", "exercises": [
@@ -250,18 +257,18 @@ move in some weeks. The bench press and the pull-up have a how-to.
                  "Pull until your chin is over the bar", "Lower all the way down"],
        "form": ["No swinging or kicking", "Shoulders down, away from your ears"]},
       {"exerciseId": "preacherCurl", "name": "Preacher Curl", "equipment": "machine", "incrementKg": 2.5,
-       "sets": 3, "repsMin": 10, "repsMax": 15, "weightKg": 25, "restSec": 75}
+       "sets": 3, "repsMin": 10, "repsMax": 15, "weightKg": 1, "restSec": 75}
     ]},
     {"day": "friday", "title": "Lower B", "exercises": [
       {"exerciseId": "romanianDeadlift", "name": "Romanian Deadlift", "equipment": "barbell", "body": "lower",
        "compound": true, "platesPerSide": true, "barKg": 20, "incrementKg": 2.5,
-       "sets": 3, "repsMin": 8, "repsMax": 12, "weightKg": 30, "restSec": 150},
+       "sets": 3, "repsMin": 8, "repsMax": 12, "weightKg": 1, "restSec": 150},
       {"exerciseId": "seatedLegCurl", "name": "Seated Leg Curl", "equipment": "machine", "incrementKg": 5,
-       "sets": 3, "repsMin": 10, "repsMax": 15, "weightKg": 35, "restSec": 90},
+       "sets": 3, "repsMin": 10, "repsMax": 15, "weightKg": 1, "restSec": 90},
       {"exerciseId": "rearDeltMachine", "name": "Rear Delt Machine", "equipment": "machine", "incrementKg": 5,
-       "sets": 3, "repsMin": 12, "repsMax": 20, "weightKg": 30, "restSec": 60},
+       "sets": 3, "repsMin": 12, "repsMax": 20, "weightKg": 1, "restSec": 60},
       {"exerciseId": "behindBackWristCurl", "name": "Behind-the-Back Wrist Curl", "equipment": "barbell",
-       "incrementKg": 2.5, "sets": 2, "repsMin": 12, "repsMax": 20, "weightKg": 30, "restSec": 60}
+       "incrementKg": 2.5, "sets": 2, "repsMin": 12, "repsMax": 20, "weightKg": 1, "restSec": 60}
     ]},
     {"day": "saturday", "title": "Flex", "makeUp": ["monday", "thursday", "wednesday", "tuesday", "friday"],
      "moves": [
@@ -279,16 +286,16 @@ move in some weeks. The bench press and the pull-up have a how-to.
 
 ## How to hand a plan over
 
-1. Know before writing: workouts per week, the equipment available, and starting weights. If the user
-   doesn't know a weight, ask, or pick a clearly light one and say so.
+1. Know before writing: workouts per week and the equipment available. Don't ask for starting weights:
+   every weighted exercise gets `"weightKg": 1`, and the user sets the real weights in the app.
 2. Check the plan against every rule above, then give it as **a downloadable file named
    `<planId>-v<version>.json`** if you can create files; otherwise as **one ```json code block holding
    only the plan**, for the user to save as a `.json` file. A short summary in words before it is fine.
 3. Revising a plan: keep the `planId`, raise `version` by 1, keep every `exerciseId` for the same
-   exercise (never rename one). Trained exercises keep the app's weights, so the plan's `weightKg` only
-   counts for new or never-trained ones: give those realistic starting weights. Keep
-   each exercise's `setup`, `howTo` and `form` too, unless the user asks to change them: the app shows
-   only what the plan in use has.
+   exercise (never rename one). Keep `"weightKg": 1` on every weighted exercise, new ones included: the
+   app keeps the user's weights for known exercises, and the user sets the new ones. Keep each
+   exercise's `setup`, `howTo` and `form` too, unless the user asks to change them: the app shows only
+   what the plan in use has.
 4. If the app refuses the file, the user pastes its problem list, for example
    `Tuesday "Lower A", exercise 3 "Plank": a bodyweight exercise has no "weightKg"; its progress is counted in reps.`
    Fix exactly those and give the whole file again.
