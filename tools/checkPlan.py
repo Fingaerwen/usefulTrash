@@ -17,7 +17,7 @@ sys.path[:0] = [str(repoRoot / "apps/gym/src"), str(repoRoot / "shared/src")]
 from gym.rules.planFile import Plan, PlanExercise, readPlanFile  # noqa: E402
 from gym.rules.schedule import weekdayNames  # noqa: E402
 from gym.rules.sessions import sessionExercises  # noqa: E402
-from gym.rules.stats import kgText, unit  # noqa: E402
+from gym.rules.stats import barWeightKg, kgText, unit  # noqa: E402
 
 
 def dayName(index: int) -> str:
@@ -33,7 +33,8 @@ def exerciseText(exercise: PlanExercise) -> str:
         text += " (bodyweight)"
     else:
         dumbbells = f", {exercise.dumbbells} dumbbell{'s' if exercise.dumbbells == 2 else ''}" if exercise.dumbbells else ""
-        bar = f", bar {kgText(exercise.barKg)} kg" if exercise.barKg else ""
+        barKg = barWeightKg(exercise)
+        bar = f", bar {kgText(barKg)} kg{'' if exercise.barKg is not None else ' (estimated)'}" if barKg else ""
         text += (f" @ {kgText(exercise.weightKg)} {unit(exercise)}, step {kgText(exercise.incrementKg)}"
                  f"{dumbbells}{bar}")
     return text + (", compound" if exercise.compound else "")

@@ -53,6 +53,26 @@ def testTheRealLoad():
     assert loadKg(press, 40) == 40  # as logged
 
 
+def testABarNotInThePlanIsGuessedFromTheName():
+    """PF7: plates per side without a barKg get the bar or sled their name suggests."""
+    def bar(name, equipment="barbell", exerciseId="lift", **settings):
+        lift = PlanExercise(exerciseId, name, "strength", equipment=equipment, platesPerSide=True, **settings)
+        return loadKg(lift, 10) - 20
+
+    assert bar("Romanian deadlift") == 20
+    assert bar("Preacher curl (EZ bar)") == bar("Wrist curl", exerciseId="ezBarWristCurl") == 10
+    assert bar("Trap bar deadlift") == bar("Hex Bar Deadlift") == 25
+    assert bar("Incline Smith press 30°", "machine") == 15
+    assert bar("Hack squat", "machine") == 30
+    assert bar("Barbell hack squat") == 20  # the machine words are for machines
+    assert bar("Leg Press", "machine") == 50
+    assert bar("Lat pulldown", "machine") == bar("Calf press (partials)", "machine") == 0  # lever arms
+    assert bar("Squeeze curl") == 20  # "ez" only as a word
+    assert bar("Smith machine squat", "machine", barKg=7.5) == 7.5  # the plan's barKg wins
+    assert bar("Romanian deadlift", barKg=0) == 0
+    assert loadKg(strength("deadlift"), 100) == 100  # logged as its whole load: nothing added
+
+
 def testVolumeUsesTheRealLoad():
     assert volumeKg(bench, [SetDone(8, 25), SetDone(6, 25)]) == 70 * 14
     assert volumeKg(pullUp, [SetDone(10)]) == 0  # bodyweight reps are kept separate

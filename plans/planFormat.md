@@ -84,8 +84,12 @@ a list of problems the user pastes back to you.
   start one by hand. Deload sessions don't count for progression: afterwards every target picks up where
   it left off. So mark the compound lifts, and don't write deload weeks into a plan.
 - **Volume and estimated 1RM** count the real load: a lift logged as plates per side is doubled and
-  gets its `barKg` added, a `barKg` on a lift logged as its whole load is added as it is, and a
-  two-dumbbell lift is doubled. That's why `dumbbells`, `platesPerSide` and `barKg` exist.
+  gets its bar or sled added, and a two-dumbbell lift is doubled. That's why `dumbbells` and
+  `platesPerSide` exist. **The user doesn't weigh bars: leave `barKg` out**, and the app estimates the
+  bar or sled from the words in the exercise's name or ID: a barbell 20 kg, an EZ bar 10, a trap or hex
+  bar 25, a Smith machine 15, a hack squat sled 30, a leg press sled 50, a lever machine's arms nothing.
+  So say which bar or machine it is in the `name`, like `"Preacher curl (EZ bar)"` or
+  `"Smith machine squat"` (a Smith machine is `"machine"`).
 - **History follows the `exerciseId`.** The same ID means the same exercise on every day and in every
   later plan, so its history, PRs and charts carry on. A new ID starts a new history (the app asks if a
   new ID looks like a known exercise with a similar name).
@@ -167,7 +171,7 @@ has it, and an exercise moves at most once for each made-up day.
 | `incrementKg` | see below | the weight step, 0.01 to 100 kg, at most 2 decimals; overrides `body`. Set it for dumbbells (e.g. 1 or 2) and machines (the stack's step). With `platesPerSide`, it's per side too |
 | `dumbbells` | dumbbell only, yes | `2` for one in each hand, `1` for a single dumbbell (held in both hands, or one arm at a time) |
 | `platesPerSide` | no, barbell or machine | `true` when the user logs the plates on one side of a bar or plate-loaded machine; volume and 1RM double it |
-| `barKg` | no, barbell or machine | the bar's, sled's or carriage's own weight, 0 to 1000 kg, added for volume and 1RM. Leave it out when the logged weight already is the whole load (a stack machine, or a T-bar row logged as all the plates on its one pin) |
+| `barKg` | no, barbell or machine | **leave it out**: the app estimates the bar or sled from the `name` (see above), and the user doesn't weigh bars, so never ask for one |
 | `compound` | no | `true` for a compound lift (squat, bench, row, press, deadlift, pull-up…); the deload trigger watches these |
 | `restSec` | no | rest between sets in seconds, 0 to 3600 (shown only, there's no timer) |
 | `notes` | no | the short cue always shown on the Today screen, **one line**, up to 500 characters |
@@ -219,7 +223,7 @@ move in some weeks. The bench press and the pull-up have a how-to. Every weighte
   "week": [
     {"day": "monday", "title": "Upper", "exercises": [
       {"exerciseId": "benchPress", "name": "Bench Press", "equipment": "barbell", "body": "upper", "compound": true,
-       "platesPerSide": true, "barKg": 20, "incrementKg": 1.25,
+       "platesPerSide": true, "incrementKg": 1.25,
        "sets": 3, "repsMin": 6, "repsMax": 10, "weightKg": 1, "restSec": 150, "notes": "pause on the chest",
        "setup": "Flat bench in a rack; bar at the height of your straight arms, safety pins just below chest height",
        "howTo": ["Lie back with your eyes under the bar, feet flat on the floor",
@@ -233,7 +237,7 @@ move in some weeks. The bench press and the pull-up have a how-to. Every weighte
     ]},
     {"day": "tuesday", "title": "Lower A", "exercises": [
       {"exerciseId": "legPress", "name": "Leg Press", "equipment": "machine", "incrementKg": 5, "compound": true,
-       "platesPerSide": true, "barKg": 50, "sets": 3, "repsMin": 10, "repsMax": 15, "weightKg": 1, "restSec": 120,
+       "platesPerSide": true, "sets": 3, "repsMin": 10, "repsMax": 15, "weightKg": 1, "restSec": 120,
        "setup": "Seat at notch 4; feet shoulder-width in the middle of the platform"},
       {"exerciseId": "seatedLegCurl", "name": "Seated Leg Curl", "equipment": "machine", "incrementKg": 5,
        "sets": 4, "repsMin": 10, "repsMax": 15, "weightKg": 1, "restSec": 90},
@@ -261,7 +265,7 @@ move in some weeks. The bench press and the pull-up have a how-to. Every weighte
     ]},
     {"day": "friday", "title": "Lower B", "exercises": [
       {"exerciseId": "romanianDeadlift", "name": "Romanian Deadlift", "equipment": "barbell", "body": "lower",
-       "compound": true, "platesPerSide": true, "barKg": 20, "incrementKg": 2.5,
+       "compound": true, "platesPerSide": true, "incrementKg": 2.5,
        "sets": 3, "repsMin": 8, "repsMax": 12, "weightKg": 1, "restSec": 150},
       {"exerciseId": "seatedLegCurl", "name": "Seated Leg Curl", "equipment": "machine", "incrementKg": 5,
        "sets": 3, "repsMin": 10, "repsMax": 15, "weightKg": 1, "restSec": 90},
@@ -287,7 +291,8 @@ move in some weeks. The bench press and the pull-up have a how-to. Every weighte
 ## How to hand a plan over
 
 1. Know before writing: workouts per week and the equipment available. Don't ask for starting weights:
-   every weighted exercise gets `"weightKg": 1`, and the user sets the real weights in the app.
+   every weighted exercise gets `"weightKg": 1`, and the user sets the real weights in the app. Don't ask
+   for bar or sled weights either: leave `barKg` out.
 2. Check the plan against every rule above, then give it as **a downloadable file named
    `<planId>-v<version>.json`** if you can create files; otherwise as **one ```json code block holding
    only the plan**, for the user to save as a `.json` file. A short summary in words before it is fine.

@@ -3,13 +3,14 @@ each exercise's history and the week's summary.
 
 Pure logic: no screen, database, network or clock; "today" and every fact are passed in.
 
-The real load (WD1.3): a plates-per-side lift counts double the logged plates plus barKg; a lift with
-"dumbbells": 2 counts double; a barKg without platesPerSide is added to the logged weight; anything else
-counts as logged. Volume and estimated 1RM use the real load; weights are shown as logged (one dumbbell,
-or kg/side), as on Today (10.4).
+The real load (WD1.3): a plates-per-side lift counts double the logged plates plus its bar or sled, the
+plan's barKg or else a guess from its name (PF7); a lift with "dumbbells": 2 counts double; a barKg without
+platesPerSide is added to the logged weight; anything else counts as logged. Volume and estimated 1RM use
+the real load; weights are shown as logged (one dumbbell, or kg/side), as on Today (10.4).
 """
 
 import datetime as dt
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
@@ -27,13 +28,34 @@ stepsPerMinute = 100  # daily steps count as cardio at 100 steps a minute (CA1.1
 chartRanges = {"3M": 92, "1Y": 365, "All": None}  # days shown (plan 10)
 chartPoints = 30  # a chart has at most this many points: it fits a phone's width
 sparks = "▁▂▃▄▅▆▇█"
+# The bar or sled of a plates-per-side lift without a barKg (PF7): the first of its equipment's words found
+# in the name or ID, else the usual one: a 20 kg barbell, and a lever machine's arms counted as nothing.
+barGuesses = {"barbell": (("ez", 10), ("trap bar", 25), ("hex bar", 25)),
+              "machine": (("smith", 15), ("hack", 30), ("leg press", 50))}
+usualBarKg = {"barbell": 20, "machine": 0}
 
 
-# --- The real load (WD1.3) ----------------------------------------------------------------------
+# --- The real load (WD1.3, PF7) -----------------------------------------------------------------
+
+def words(text: str) -> str:
+    """Lowercase words between spaces, camelCase split: "reverseEzBarCurl" gives " reverse ez bar curl "."""
+    return f" {' '.join(re.findall(r'[a-z0-9]+', re.sub(r'(?<=[a-z0-9])(?=[A-Z])', ' ', text).lower()))} "
+
+
+def barWeightKg(exercise: PlanExercise) -> float:
+    """The bar's or sled's weight added to the load: the plan's barKg, else for plates per side a guess."""
+    if exercise.barKg is not None:
+        return exercise.barKg
+    if not exercise.platesPerSide:
+        return 0
+    names = (words(exercise.name), words(exercise.exerciseId))
+    return next((kg for phrase, kg in barGuesses.get(exercise.equipment, ())
+                 if any(f" {phrase} " in name for name in names)), usualBarKg.get(exercise.equipment, 0))
+
 
 def loadKg(exercise: PlanExercise, loggedKg: float) -> float:
     """The real load of one set's logged weight."""
-    load = loggedKg * (2 if exercise.platesPerSide else 1) + (exercise.barKg or 0)
+    load = loggedKg * (2 if exercise.platesPerSide else 1) + barWeightKg(exercise)
     return load * 2 if exercise.dumbbells == 2 else load
 
 

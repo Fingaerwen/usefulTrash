@@ -32,6 +32,22 @@ def testMovesShowWhatChangesInTheWeek(tmp_path, capsys):
     assert "Saturday as Wednesday" not in shown  # no move then: nothing changes
 
 
+def testAnEstimatedBarIsShownAsOne(tmp_path, capsys):
+    plan = json.loads(examplePlan.read_text(encoding="utf-8"))
+    deadlift = plan["week"][2]["exercises"][0]
+    shown = checkPlanOutput(plan, tmp_path, capsys)
+    assert ", bar 20 kg, compound" in shown  # the plan's barKg
+    del deadlift["barKg"]
+    assert ", bar 20 kg (estimated), compound" in checkPlanOutput(plan, tmp_path, capsys)
+
+
+def checkPlanOutput(plan, tmp_path, capsys) -> str:
+    path = tmp_path / "plan.json"
+    path.write_text(json.dumps(plan), encoding="utf-8")
+    assert checkPlan.main([str(path)]) == 0
+    return capsys.readouterr().out
+
+
 def testARefusedPlanListsItsProblems(tmp_path, capsys):
     path = tmp_path / "old.json"
     path.write_text(json.dumps({"planId": "old", "name": "Old", "version": 1, "weeklyTarget": 3, "cycle": []}),
