@@ -153,3 +153,14 @@ def testTrainedMeansSomethingDoneInTalos():
             {"date": day + dt.timedelta(3), "sets": [{"reps": 8}], "minutes": None, "skipped": False, "deleted": True},
             {"date": day + dt.timedelta(4), "sets": [], "minutes": None, "skipped": False, "deleted": False}]  # an Undo
     assert trainedDays(rows) == {day, day + dt.timedelta(2)}
+
+
+def testTheBriefsExampleAndTheExampleFileAreValid():
+    """apps/diet/plans/targetsFormat.md's example is what the app reads (and exampleTargets.json is it)."""
+    import re
+    from pathlib import Path
+
+    brief = Path(__file__).resolve().parents[3] / "apps" / "diet" / "plans"
+    example = json.loads(re.search(r"```json\n(.*?)```", (brief / "targetsFormat.md").read_text(), re.S).group(1))
+    assert targetsFromJson(example).problems == () and targetsFromJson(example).warnings == ()
+    assert json.loads((brief / "exampleTargets.json").read_text()) == example

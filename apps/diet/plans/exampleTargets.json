@@ -1,0 +1,30 @@
+{
+  "format": "ambrosiaTargets",
+  "version": 1,
+  "name": "Bulk from 26 Oct",
+  "trainingDay": {
+    "kcal": 3200,
+    "proteinG": 160,
+    "fatG": 90,
+    "carbsG": 440
+  },
+  "restDay": {
+    "kcal": 3200,
+    "proteinG": 160,
+    "fatG": 90,
+    "carbsG": 440
+  },
+  "waterMl": 3000,
+  "bulkCheck": {
+    "firstBlockStart": "2026-10-26",
+    "rateKgPerWeek": {
+      "min": 0.15,
+      "max": 0.35
+    },
+    "stepKcal": 150,
+    "bigStepKcal": 250,
+    "bigGainKg": 1.0,
+    "minWeighIns": 8,
+    "changeMacro": "carbs"
+  }
+}
