@@ -218,3 +218,19 @@ def testScanningOnThePhone(clock):
     app.services.scanner.next = {"status": "error", "errorType": "camera", "message": "no camera"}
     run(app.scan())
     assert app.model.notice == "The scanner couldn't start. Type the barcode instead."
+
+
+def testRecentHasTheSameAgainInOneTap(clock):
+    """4a: Recent foods re-log in one tap, with the amount you had last time."""
+    app = makeApp(clock)
+    app.openAdd("breakfast")
+    run(app.useBarcode("3017620422003"))
+    run(app.saveAmount("servings", 2, "breakfast"))
+    clock.advance(hours=6)
+    app.openAdd("snacks")
+    [recent] = app.model.recent
+    assert recent.last.portion == "servings" and recent.last.portionCount == 2
+    run(app.again(recent))
+    logs = sorted(live(app, "foodLogs"), key=lambda row: row["loggedAt"])
+    assert [(row["meal"], row["grams"]) for row in logs] == [("breakfast", 30.0), ("snacks", 30.0)]
+    assert app.model.screen == "main"

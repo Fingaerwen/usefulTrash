@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 import flet as ft
 
-from ambrosia.rules.foods import Food
+from ambrosia.rules.foods import Food, LoggedFood
 from ambrosia.rules.targets import FileCheck
 from ambrosia.rules.today import DayView
 from ambrosia.rules.week import WeekView
@@ -26,6 +26,7 @@ class Found:
     title: str
     detail: str
     product: Product | None = None
+    last: LoggedFood | None = None  # Recent: the last time you had it, to have it again in one tap (4a)
 
 
 @dataclass(frozen=True, slots=True)

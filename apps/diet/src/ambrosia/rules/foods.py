@@ -187,6 +187,11 @@ class LoggedFood:
     def amount(self) -> str:
         return amountText(self.grams, self.unit, self.portion, self.portionCount)
 
+    @property
+    def shortAmount(self) -> str:
+        """The amount without the grams behind a serving or a pack: "200 g", "1 serving", "half the pack"."""
+        return amountText(self.grams, self.unit, self.portion, self.portionCount).split(" (")[0]
+
 
 def loggedFromRow(row: Mapping[str, Any]) -> LoggedFood:
     return LoggedFood(row["id"], row["date"], row["meal"], row["loggedAt"], row["foodId"], row["name"],

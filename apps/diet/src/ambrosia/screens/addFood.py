@@ -55,7 +55,7 @@ def AddScreen(app, model):
     if mode == "scan":
         parts += [ScanPart(app, model)]
     elif mode == "recent":
-        parts += [label("Recent"), resultsCard(app, model.recent) if model.recent
+        parts += [label("Recent"), RecentCard(app, model.recent) if model.recent
                   else faint("Nothing eaten yet: search or scan a food first.")]
     else:
         parts += [SearchPart(app, model)]
@@ -74,6 +74,23 @@ def resultsCard(app, found: tuple[Found, ...]) -> ft.Container:
                         ft.Icon(ft.Icons.ADD, size=20, color=ft.Colors.OUTLINE)]),
                 on_click=lambda e, item=item: app.pickFound(item), tooltip=f"Add {item.title}")
         for item in found])
+
+
+@ft.component
+def RecentCard(app, recent: tuple[Found, ...]):
+    """Recent foods: "again" has the same amount as last time in one tap; the row opens How much."""
+    def again(item: Found):
+        async def tap(e):
+            await app.again(item)
+        return tap
+
+    return listCard([
+        listRow(ft.Row([ft.Column([ft.Text(item.title, size=14, max_lines=2, overflow=ft.TextOverflow.ELLIPSIS),
+                                   faint(item.detail)], spacing=2, expand=True),
+                        softButton(f"{item.last.shortAmount} again", again(item), tooltip=f"{item.title}: the same again")
+                        if item.last else ft.Container(visible=False)], spacing=8),
+                on_click=lambda e, item=item: app.pickFound(item), tooltip=f"Add {item.title}")
+        for item in recent])
 
 
 @ft.component

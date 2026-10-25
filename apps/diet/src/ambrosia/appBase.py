@@ -6,6 +6,7 @@ and sync, built at max effort (gate 2). Until then a stand-in store keeps the ro
 import datetime as dt
 import json
 from collections.abc import Callable, Sequence
+from dataclasses import replace
 from typing import Any
 
 import flet as ft
@@ -63,7 +64,11 @@ class AmbrosiaBase:
         monday = mondayOf(today) - dt.timedelta(weeks=self.model.weekOffset)
         self.model.week = self.state.weekView(monday, today)
         self.model.targets = self.state.targetsView(today)
-        self.model.recent = tuple(self._found(item) for item in self.state.yourFoods() if item.lastUsed)[:20]
+        lastLogs = {}
+        for log in sorted(self.state.logs, key=lambda log: log.loggedAt):
+            lastLogs[log.foodId] = log
+        self.model.recent = tuple(replace(self._found(item), last=lastLogs.get(item.food.foodId))
+                                  for item in self.state.yourFoods() if item.lastUsed)[:20]
         if self.model.historyMonth is not None:
             self.model.historyDays = tuple(self.state.historyDays(self.model.historyMonth, today))
         if self.model.historyDay is not None:
@@ -199,6 +204,16 @@ class AmbrosiaBase:
         elif found.product is not None:
             self.typeLabel("Open Food Facts doesn't have all four values for this one: type the rest from the "
                            "label.", product=found.product)
+
+    async def again(self, found: Found) -> None:
+        """Recent's one tap (4a): the same food and amount as last time, into the meal being added to."""
+        last = found.last
+        if found.food is None or last is None:
+            return
+        count = last.portionCount if last.portion != "grams" and last.portionCount else last.grams
+        date = self.model.addDate or self.localToday()
+        if await self._act(self.actions.logFood(date, self.model.addMeal, found.food, last.portion, count)):
+            self.model.screen = "history" if self.model.historyDay is not None else "main"
 
     async def saveAmount(self, portion: str, count: float, meal: str) -> None:
         picked = self.model.picked
