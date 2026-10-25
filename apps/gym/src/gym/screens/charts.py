@@ -26,7 +26,7 @@ import flet.canvas as cv
 
 from gym.rules.stats import chartRanges, evenlyPicked, kgText
 from gym.screens.common import Banners, Menu, Notice
-from gym.screens.look import card, faint, header, label, quiet, screen, segments
+from gym.screens.look import card, chartFade, faint, header, label, quiet, screen, segments
 
 chartHeight = 130  # each chart's height, in logical pixels
 labelWidth = 44  # the column of axis numbers on the left
@@ -64,8 +64,7 @@ def lineShapes(values: list[float], deloads: list[bool], width: float, picked: i
         bottom = chartHeight - inset / 2
         area = [cv.Path.MoveTo(points[0][0], bottom), *[cv.Path.LineTo(x, y) for x, y in points],
                 cv.Path.LineTo(points[-1][0], bottom), cv.Path.Close()]
-        fade = ft.PaintLinearGradient((0, inset), (0, bottom), [ft.Colors.with_opacity(0.16, ft.Colors.PRIMARY),
-                                                               ft.Colors.with_opacity(0.0, ft.Colors.PRIMARY)])
+        fade = ft.PaintLinearGradient((0, inset), (0, bottom), chartFade)
         shapes.append(cv.Path(area, paint=ft.Paint(gradient=fade, style=ft.PaintingStyle.FILL)))
     line = ft.Paint(color=ft.Colors.PRIMARY, stroke_width=2.5, stroke_cap=ft.StrokeCap.ROUND)
     shapes += [cv.Line(x1, y1, x2, y2, paint=line) for (x1, y1), (x2, y2) in zip(points, points[1:])]

@@ -4,7 +4,7 @@ import flet as ft
 
 from gym.model import appName
 from gym.rules.stats import summaryBanner, weighInBanner
-from gym.screens.look import card, gap, mainButton, quiet, title
+from gym.screens.look import card, gap, mainButton, markFill, quiet, title
 
 bannerIcons = {summaryBanner: ft.Icons.INSIGHTS, weighInBanner: ft.Icons.MONITOR_WEIGHT_OUTLINED}
 
@@ -74,9 +74,9 @@ def Menu(app, items: tuple[str, ...] = ("problems", "history", "deload", "import
 
 
 def appMark(size: int = 72) -> ft.Container:
-    """The app's sign: a dumbbell in a grey circle."""
+    """The app's sign: a dumbbell in a circle of deep red fading to grey."""
     return ft.Container(ft.Icon(ft.Icons.FITNESS_CENTER, size=size * 0.5), width=size, height=size,
-                        border_radius=size / 2, bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH, alignment=ft.Alignment.CENTER)
+                        border_radius=size / 2, gradient=markFill(), alignment=ft.Alignment.CENTER)
 
 
 def centred(parts: list[ft.Control]) -> ft.Column:

@@ -54,6 +54,7 @@ from gym.screens.look import (
     softButton,
     tapSize,
     title,
+    track,
 )
 
 restOverShownFor = 120  # seconds "Rest over" stays before the bar goes by itself
@@ -116,8 +117,7 @@ def WorkoutProgress(view):
     return card(ft.Column([
         ft.Row([ft.Text(words, weight=ft.FontWeight.W_600), quiet(f"{round(fraction * 100)}%")],
                alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-        ft.ProgressBar(value=fraction, bar_height=6, border_radius=3, color=ft.Colors.PRIMARY,
-                       bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST),
+        ft.ProgressBar(value=fraction, bar_height=6, border_radius=3, color=ft.Colors.PRIMARY, bgcolor=track),
     ], spacing=10), padding=ft.Padding.symmetric(horizontal=16, vertical=14))
 
 
@@ -254,8 +254,8 @@ def RestTimer(app, model):
         ft.Row([ft.Icon(ft.Icons.TIMER_OUTLINED, size=26), words,
                 softButton("+30 s", more, tooltip="Add 30 seconds"),
                 ft.IconButton(ft.Icons.CLOSE, tooltip="Stop the rest timer", on_click=stop)], spacing=12),
-        ft.ProgressBar(value=fraction, bar_height=4, border_radius=2, color=ft.Colors.PRIMARY,
-                       bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST),
+        ft.ProgressBar(value=fraction, bar_height=4, border_radius=2,
+                       color=ft.Colors.TERTIARY, bgcolor=track),  # the rest timer's bar is red (LK1.3)
     ], spacing=10), raised=True, padding=ft.Padding.only(left=16, top=10, right=8, bottom=14)),
         padding=ft.Padding.only(top=8, bottom=8))
 
