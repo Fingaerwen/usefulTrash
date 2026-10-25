@@ -18,6 +18,8 @@ import flet as ft
 from ambrosia.model import Found
 from ambrosia.rules.foods import FoodProblem, gramsFor, mealNames, meals, packText
 from ambrosia.screens.common import Notice, backButton, dayText
+from ambrosia.sources.genericFoods import credit as genericCredit
+from ambrosia.sources.openFoodFacts import credit as packagedCredit
 from ambrosia.screens.look import (
     card,
     faint,
@@ -61,6 +63,7 @@ def AddScreen(app, model):
             parts.append(BarcodePart(app))
     parts.append(ft.Row([faint("Not there?"), ft.TextButton("Type it from the label", on_click=lambda e: app.typeLabel(
         "Type it from the pack's label, per 100 g (or 100 ml); it's saved as one of your foods."))], spacing=0))
+    parts.append(faint(f"{genericCredit} {packagedCredit}", size=11))  # what their licences ask for
     return screen(parts)
 
 

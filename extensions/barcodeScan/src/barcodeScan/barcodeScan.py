@@ -13,12 +13,7 @@ __all__ = ["BarcodeScan"]
 class BarcodeScan(ft.Service):
     """Scans one food barcode (EAN-13, EAN-8, UPC-A, UPC-E). Add one to the page, then call a method."""
 
-    async def scanGoogle(self) -> dict:
-        """Google's code scanner, inside Google Play services: no camera permission for the app, Google's own
-        scanner screen. Google's library sends Google usage metrics (device, app, timings; no images or codes)."""
-        return await self._invoke_method(method_name="scanGoogle")
-
     async def scanOpen(self) -> dict:
         """ZXing (open source): the scanning happens in the app itself, nothing goes over the network.
-        Android asks once for the camera."""
+        Android asks once for the camera. Ambrosia's only scanner (AM5.1)."""
         return await self._invoke_method(method_name="scanOpen")

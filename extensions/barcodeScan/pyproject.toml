@@ -1,6 +1,6 @@
-# barcodeScan: our own Flet extension for scanning food barcodes (Ambrosia's Phase 0 check 1).
-# Python side (src/barcodeScan) talks to a Dart/Kotlin plugin (src/flutter/barcode_scan) with two scanners to
-# compare: Google's code scanner (Play services) and ZXing (open source, entirely on the phone).
+# barcodeScan: our own Flet extension for scanning food barcodes (Ambrosia, AM5.1).
+# Python side (src/barcodeScan) talks to a Dart/Kotlin plugin (src/flutter/barcode_scan) around ZXing's scanner
+# (open source, entirely on the phone). Google's code scanner, compared in Phase 0, was left out.
 [project]
 name = "usefulTrashBarcodeScan"  # unique prefix (CS1.1)
 version = "0.1.0"

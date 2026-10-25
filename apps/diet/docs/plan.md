@@ -91,7 +91,7 @@ Settled point by point in the design round, as Talos's plan was: 4a, 4b and 4d o
 - **Week:** each day's kcal against its target, the week's average macros, and your body weight from Talos.
 - **Bulk check banner** on check Sundays: e.g. "+0.12 kg a week → add 150 kcal a day?" with **Apply** and **Not now** (AM3.3).
 - **Targets:** import a file, the current targets for training and rest days, and the changes made to them.
-- **⋮ menu:** History (AM5.5) and Problems.
+- **⋮ menu:** History (AM5.5), Import a targets file and Problems. **As built (2026-10-25):** tapping an entry unfolds it to change the amount or the meal, or delete it; the water card's pencil sets the day's total, to fix a mistake. A day before your first targets file says so instead of asking for one.
 - **Tabs:** Today, Week, Targets (AM5.8).
 
 ### 4b. PC view
@@ -109,7 +109,7 @@ The same app built as a website, online-only like Talos's: the tabs down the lef
 - **Barcode scanning (AM5.1):** ZXing (`zxing-android-embedded`, open source), scanning inside the app with nothing sent anywhere; Android asks once for the camera. Through a new extension `extensions/barcodeScan` (package `usefulTrashBarcodeScan`).
 - Foods found are saved in `foods`, so recent foods work offline and a typed label is found again.
 - **Search order:** your own foods first, then the generic foods (plainest first, AM5.3), then, on the phone, Open Food Facts.
-- **Not found:** Open Food Facts answers an unknown barcode with 404; Ambrosia reads that as "not found, type it from the label" (AM2.3). A barcode starting with 2 is looked up only in your foods (AM5.4).
+- **Not found:** Open Food Facts answers an unknown barcode with 404; Ambrosia reads that as "not found, type it from the label" (AM2.3). A barcode starting with 2 is looked up only in your foods (AM5.4). **As built:** a shop's own code is GS1's internal ranges: EAN-13 starting with 2, or 02 or 04 (UPC-A's own ranges as EAN-13), UPC-A starting with 2 or 4, EAN-8 starting with 0 or 2. A typed barcode is checked by its last digit first, so a typing mistake isn't looked up. Without a Talos plan Ambrosia can read, every day is a training day (a bulk needs the food more than the rest).
 - **Limits:** Open Food Facts allows 15 barcode lookups and 10 searches a minute per internet connection (its API docs); a barcode is looked up once per scan, never while typing.
 
 ### 4e. Tables (cloud upgrade 003, AM6.4)
@@ -128,6 +128,7 @@ Settled 2026-10-25 at max effort. Every table has the common columns, the newest
 - **IDs that can't duplicate:** a food with a barcode gets its ID from the barcode, a USDA food from its USDA number, a day's water from the date and a change from its check's date, so the phone and the PC view make one row, never two. Food logs, label foods without a barcode, imports and backups get random IDs.
 - **Read, never written:** Talos's `bodyWeight` (the bulk check), `plans` (training and rest days, AM3.2), `sessions` and `exerciseLogs` (whether you trained that day). Ambrosia's phone keeps copies, fetched like its own tables; it never edits them, so they're never in its outbox.
 - **Facts only (F10.1):** Recent and how often you've used a food, the day's totals, the targets in effect on a day and the bulk check's results are recalculated, never stored. The generic-foods file carries each food's USDA number (FoodData Central's `fdc_id`), so a USDA food keeps its ID when USDA publishes new data.
+- **Precision (for upgrade 003's column types):** kcal per 100 g to 0.1, the macros per 100 g to 0.01, grams, serving and pack sizes to 0.1, a portion's count to 0.01 (the actions round to these, so the cloud's copy and the phone's never differ).
 
 ### 4f. Targets file (AM3.1, AM6)
 Settled with the bulk check on 2026-10-25. The brief for your Claude project, `apps/diet/plans/targetsFormat.md`, is written when building, from this:
@@ -192,6 +193,8 @@ Your part, when you have time: install the spike APK, scan about 10 of your usua
 
 ## 7. Staging
 Phase 0 → the design round (gate 1 inside it) → building (gate 2 inside it, done last, AM7.2) → the joint release (gate 3): Ambrosia 0.1-alpha and Talos 0.4-alpha together, Talos with its red (LK1.3). Each release gets its tests written first and is checked on your phone, as with Talos.
+
+**Built so far (2026-10-25, everything but gate 2):** the rules (foods and amounts, barcodes, the targets file and a day's targets, training and rest days, the week), the food sources (Open Food Facts, USDA's generic foods with their numbers and the new ranking), the state, the actions writing rows as 4e lays them out, the controller, every screen of the sketches in Ambrosia's look (`ambrosia/screens/`), the barcodeScan extension with ZXing only (AM5.1), and the targets brief for your Claude project (`apps/diet/plans/targetsFormat.md`), with tests (`tests/diet`) on a stand-in store. Every screen was drawn in headless Chromium. **Left for gate 2 (max effort):** the bulk check itself (4g) with its banner and Apply; `ambrosia/tables.py`, cloud upgrade 003 and the phone's database steps; sign-in, sync and the app's start (`main.py`, the phone and PC modes, the build settings); the backups (`dietBackups`, AM5.6) and `tools/restoreBackup.py`; Talos's weigh-in time (AM6.3).
 
 ---
 

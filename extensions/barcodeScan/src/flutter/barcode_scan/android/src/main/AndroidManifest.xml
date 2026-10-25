@@ -2,8 +2,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <application>
-        <!-- Google Play services downloads the code scanner's screen when the app is installed, not at the first scan. -->
-        <meta-data android:name="com.google.mlkit.vision.DEPENDENCIES" android:value="barcode_ui" />
         <!-- ZXing's scanner screen turns with the phone instead of always being sideways. -->
         <activity
             android:name="com.journeyapps.barcodescanner.CaptureActivity"

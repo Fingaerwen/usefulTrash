@@ -57,7 +57,7 @@ def main(page: ft.Page):
     # --- Check 1 + 2: scan, then look the barcode up -------------------------------------------------
     async def scanWith(which: str) -> None:
         started = time.perf_counter()
-        answer = await (scanner.scanGoogle() if which == "Google" else scanner.scanOpen())
+        answer = await scanner.scanOpen()
         took = time.perf_counter() - started
         if answer.get("status") == "cancelled":
             note(f"{which} scan: cancelled")
@@ -87,9 +87,6 @@ def main(page: ft.Page):
                  f"{food.describe()}")
             showFoods("Scanned", [food])
         updateCoverage()
-
-    async def scanGoogle(e):
-        await scanWith("Google")
 
     async def scanOpen(e):
         await scanWith("ZXing")
@@ -167,11 +164,9 @@ def main(page: ft.Page):
     if page.web:
         scanSection = [ft.Text("Scanning is phone only. Type a barcode instead:")]
     else:
-        scanSection = [ft.Row([ft.FilledButton("Scan (Google)", icon=ft.Icons.QR_CODE_SCANNER, on_click=scanGoogle),
-                               ft.FilledButton("Scan (ZXing)", icon=ft.Icons.CAMERA_ALT, on_click=scanOpen)],
-                              wrap=True),
-                       ft.Text("Google's scanner sends Google usage metrics (no images, no barcodes); ZXing's sends "
-                               "nothing. Try both on the same packages.", size=12)]
+        # Google's scanner left the extension once ZXing was chosen (AM5.1); the APK built in Phase 0 has both.
+        scanSection = [ft.Row([ft.FilledButton("Scan (ZXing)", icon=ft.Icons.CAMERA_ALT, on_click=scanOpen)],
+                              wrap=True)]
 
     page.add(
         ft.SafeArea(
