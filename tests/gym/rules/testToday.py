@@ -6,7 +6,18 @@ import json
 
 from gym.rules.planFile import checkPlan, planExercises, scheduleDays
 from gym.rules.schedule import LoggedWorkout, PlanStart
-from gym.rules.today import ImportedPlan, LoggedExercise, SetDone, headerText, targetText, todayView
+from gym.rules.today import (
+    ImportedPlan,
+    LoggedExercise,
+    SetDone,
+    clockText,
+    headerParts,
+    headerText,
+    restLeft,
+    targetText,
+    todayView,
+    workoutProgress,
+)
 
 monday = dt.date(2026, 10, 12)
 upper, lowerA, push, pull, lowerB, flex, sunday = range(7)
@@ -127,6 +138,7 @@ def testFlexDayMakesUpAMissedSession():
     today = view(day(5), trained(1, 2, 3, 4))  # Monday missed
     assert (today.title, today.stepIndex, today.makesUp) == ("Upper", upper, "Monday")
     assert headerText(today) == "Upper · Saturday, for Monday · week 4/5"
+    assert headerParts(today) == ("Upper", "Saturday, for Monday · 4 of 5 this week")
 
 
 def testFlexDayShowsItsBonusWhenNothingWasMissed():
@@ -212,3 +224,25 @@ def testThePlansOneKiloAsksForYourWeight():
     (overheadPress,) = todayView(plans, [], {}, planExercises(onPlaceholders), None, day(2), soFar).exercises
     assert (overheadPress.needsWeight, overheadPress.targetWeightKg) == (True, None)
     assert targetText(overheadPress) == "3×6 @ ? kg"
+
+
+def testTheHeaderInTwoLines():
+    """SC2.3: the session's title big, the weekday and the week's count under it."""
+    assert headerParts(view(day(0))) == ("Upper", "Monday · 0 of 5 this week")
+
+
+def testWorkoutProgressCountsDoneAndSkipped():
+    """SC2.4: done, skipped and all of today's exercises, for the bar on Today."""
+    first, second = (line.exercise.exerciseId for line in view(day(0)).exercises[:2])
+    assert workoutProgress(view(day(0))) == (0, 0, len(view(day(0)).exercises))
+    logs = {first: LoggedExercise(first, (SetDone(8, 80),)), second: LoggedExercise(second, skipped=True)}
+    assert workoutProgress(view(day(0), logs=logs)) == (1, 1, len(view(day(0)).exercises))
+
+
+def testTheRestTimersTimeLeft():
+    """RT1.1: whole seconds left, rounded up, never below 0; written as minutes and seconds."""
+    start = dt.datetime(2026, 10, 12, 18, 0, tzinfo=dt.UTC)
+    assert restLeft(start + dt.timedelta(seconds=90), start) == 90
+    assert restLeft(start + dt.timedelta(seconds=90), start + dt.timedelta(seconds=0.4)) == 90
+    assert restLeft(start, start + dt.timedelta(seconds=5)) == 0
+    assert (clockText(90), clockText(5), clockText(0)) == ("1:30", "0:05", "0:00")

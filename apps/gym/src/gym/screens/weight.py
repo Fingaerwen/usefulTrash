@@ -1,13 +1,15 @@
-"""The Weight tab (SC5.1), as approved (no hint text on this screen):
+"""The Weight tab (SC5.1), as approved, restyled (LK1.2; no hint text on this screen):
 
     Weight                                       ⋮
-    ─────────────────────────────────────────────
-    Fri 16 Oct    [ 81.2 ] kg              [Save]
-    ─────────────────────────────────────────────
-     kg  ▆▅▅▄▄▃▃▂                3M · 1Y · All
-    Last 4:  82.0 · 81.8 · 81.6 · 81.2   (↓ 0.8 kg)
+    ┌   ‹     Fri 16 Oct     ›                    ┐
+    └ [ kg  81.2              ]          [ Save ] ┘
+    [3M] [1Y] [All]
+    ┌ KG   the weigh-ins as a line                ┐
+    └ 2 Oct                               16 Oct  ┘
+    LAST 4
+    82.0   81.8   81.6   81.2              −0.8 kg
 
-Friday is preselected and ◂ ▸ choose any other day up to today; saving again the same day replaces it
+Friday is preselected and ‹ › choose any other day up to today; saving again the same day replaces it
 (DT2.1), and saving it empty clears it. On Fridays a banner asks for the weigh-in until it's in (18.4a).
 """
 
@@ -17,8 +19,9 @@ import flet as ft
 
 from gym.rules.schedule import weekdayNames
 from gym.rules.stats import chartRanges, kgText
+from gym.screens.charts import LineChart
 from gym.screens.common import Banners, Menu, Notice
-from gym.screens.look import gap, quiet, title
+from gym.screens.look import card, field, header, iconButton, label, mainButton, quiet, screen, segments
 from gym.screens.today import _kilograms
 
 oneDay = dt.timedelta(days=1)
@@ -64,23 +67,25 @@ def WeightPage(app, model, view):
         setProblem("")
         await app.setBodyWeight(day, weightKg)
 
-    ranges = ft.Row([ft.TextButton(name, on_click=lambda e, name=name: app.showWeightRange(name),
-                                   style=ft.ButtonStyle(text_style=ft.TextStyle(
-                                       weight=ft.FontWeight.BOLD if name == view.chartRange else None)))
-                     for name in chartRanges], spacing=0)
-    entry = ft.Row([
-        ft.IconButton(ft.Icons.CHEVRON_LEFT, tooltip="Earlier day", on_click=lambda e: move(-1)),
-        ft.Text(dayText(day), width=88),
-        ft.IconButton(ft.Icons.CHEVRON_RIGHT, tooltip="Later day", disabled=day >= today, on_click=lambda e: move(1)),
-        ft.TextField(label="kg", value=typed, keyboard_type=ft.KeyboardType.NUMBER, width=96,
-                     on_change=lambda e: setTyped(e.control.value)),
-        ft.Button("Save", on_click=save),
-    ], spacing=4, wrap=True)
-    return ft.Column([
-        ft.Row([ft.Container(title("Weight"), expand=True), Menu(app, app.menuItems)]),
-        Banners(app, model), Notice(app, model), ft.Divider(),
-        entry, quiet(problem) if problem else ft.Container(visible=False), ft.Divider(),
-        ft.Row([ft.Text(f"kg  {view.chart}", expand=True) if view.chart
-                else ft.Container(quiet("No weigh-ins in this span yet."), expand=True), ranges], wrap=True),
-        ft.Text(view.lastText) if view.lastText else ft.Container(visible=False),
-    ], spacing=gap, scroll=ft.ScrollMode.AUTO, expand=True)
+    entry = card(ft.Column([
+        ft.Row([iconButton(ft.Icons.CHEVRON_LEFT, "Earlier day", lambda e: move(-1)),
+                ft.Text(dayText(day), size=16, weight=ft.FontWeight.W_600, text_align=ft.TextAlign.CENTER,
+                        expand=True),
+                iconButton(ft.Icons.CHEVRON_RIGHT, "Later day", lambda e: move(1), disabled=day >= today)]),
+        ft.Row([field("kg", typed, lambda e: setTyped(e.control.value), expand=True, size=22),
+                mainButton("Save", save)], spacing=12),
+        quiet(problem) if problem else ft.Container(visible=False),
+    ], spacing=10), padding=ft.Padding.only(left=8, right=16, top=8, bottom=16))
+    parts = [header("Weight", trailing=[Menu(app, app.menuItems)]), Banners(app, model), Notice(app, model), entry,
+             segments([(name, name) for name in chartRanges], view.chartRange, app.showWeightRange),
+             card(LineChart(view.points, byDay=True, key=f"weighIns{view.chartRange}") if view.points
+                  else quiet("No weigh-ins in this span yet."))]
+    if view.last:
+        parts += [label(f"Last {len(view.last)}"), card(ft.Row([
+            *[ft.Text(kg, size=17, weight=ft.FontWeight.W_600 if index == len(view.last) - 1 else ft.FontWeight.W_400,
+                      color=None if index == len(view.last) - 1 else ft.Colors.ON_SURFACE_VARIANT)
+              for index, kg in enumerate(view.last)],
+            ft.Container(expand=True),
+            quiet(view.changeText, size=15) if view.changeText else ft.Container(visible=False),
+        ], spacing=16), padding=16, tooltip=view.lastText)]
+    return screen(parts)

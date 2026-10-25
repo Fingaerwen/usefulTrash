@@ -10,7 +10,7 @@ Switching back to an earlier plan and archiving come later; importing it again w
 import flet as ft
 
 from gym.screens.common import Banners, Menu, Notice
-from gym.screens.look import gap, title
+from gym.screens.look import card, header, listCard, listRow, mainButton, quiet, screen
 
 
 @ft.component
@@ -18,10 +18,11 @@ def PlansTab(app, model):
     async def importFile(e):
         await app.pickPlanFile()
 
-    return ft.Column([
-        ft.Row([ft.Container(title("Plans"), expand=True), Menu(app, app.menuItems)]),
+    lines = [listRow(ft.Text(line)) for line in model.planLines]
+    return screen([
+        header("Plans", trailing=[Menu(app, app.menuItems)]),
         Banners(app, model),
         Notice(app, model),
-        *[ft.Text(line) for line in model.planLines],
-        ft.Button("Import a plan file…", icon=ft.Icons.UPLOAD_FILE, on_click=importFile),
-    ], spacing=gap, scroll=ft.ScrollMode.AUTO, expand=True)
+        listCard(lines) if lines else card(quiet("No plan yet.")),
+        ft.Row([mainButton("Import a plan file…", importFile, icon=ft.Icons.UPLOAD_FILE)]),
+    ])

@@ -49,6 +49,16 @@ class WeighInNotifyPlugin :
                 WeighInScheduler.setAlarm(appContext, triggerAt, WeighInScheduler.oneOffRequestCode, call.text("title"), call.text("body"), WeighInScheduler.kindOneOff)
                 result.success(WeighInScheduler.formatTime(triggerAt))
             }
+            "scheduleRest" -> {
+                val triggerAt = System.currentTimeMillis() + call.number("seconds") * 1000L
+                WeighInScheduler.cancelRest(appContext) // a new rest replaces the last one, and its notification
+                WeighInScheduler.setAlarm(appContext, triggerAt, WeighInScheduler.restRequestCode, call.text("title"), call.text("body"), WeighInScheduler.kindRest)
+                result.success(WeighInScheduler.formatTime(triggerAt))
+            }
+            "cancelRest" -> {
+                WeighInScheduler.cancelRest(appContext)
+                result.success(true)
+            }
             "scheduleWeekly" -> {
                 WeighInScheduler.saveWeekly(appContext, call.number("isoWeekday"), call.number("hour"), call.number("minute"), call.text("title"), call.text("body"))
                 val next = WeighInScheduler.rescheduleWeeklyFromPrefs(appContext)

@@ -5,7 +5,7 @@ clipboard for you to paste to me; Clear empties the log. Nothing is ever sent an
 import flet as ft
 
 from gym.screens.common import Notice
-from gym.screens.look import gap, title
+from gym.screens.look import card, header, iconButton, mainButton, screen
 
 
 @ft.component
@@ -14,14 +14,13 @@ def ProblemsScreen(app, model):
         await app.copyProblems()
 
     hasRefused = any(line.startswith("Refused:") for line in model.problems)
-    return ft.Column([
-        ft.Row([ft.IconButton(ft.Icons.ARROW_BACK, tooltip="Back", on_click=lambda e: app.closeProblems()),
-                title("Problems")]),
+    return screen([
+        header("Problems", leading=iconButton(ft.Icons.ARROW_BACK, "Back", lambda e: app.closeProblems())),
         Notice(app, model),
-        ft.Column([ft.Text(line, selectable=True, size=13) for line in model.problems], spacing=2),
+        card(ft.Column([ft.Text(line, selectable=True, size=13) for line in model.problems], spacing=3)),
         ft.Row([
-            ft.Button("Copy", icon=ft.Icons.COPY, on_click=copy),
+            mainButton("Copy", copy, icon=ft.Icons.COPY),
             ft.OutlinedButton("Try again", on_click=lambda e: app.tryRefusedAgain(), visible=hasRefused),
             ft.TextButton("Clear", on_click=lambda e: app.clearProblems()),
-        ], wrap=True),
-    ], spacing=gap, scroll=ft.ScrollMode.AUTO, expand=True)
+        ], wrap=True, spacing=8),
+    ])

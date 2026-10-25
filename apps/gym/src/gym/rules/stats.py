@@ -28,7 +28,7 @@ maxOneRepMaxReps = 10  # estimated 1RM only from sets of 10 reps or fewer (16.2a
 stepsPerMinute = 100  # daily steps count as cardio at 100 steps a minute (CA1.1)
 chartRanges = {"3M": 92, "1Y": 365, "All": None}  # days shown (plan 10)
 chartPoints = 30  # a chart has at most this many points: it fits a phone's width
-sparks = "▁▂▃▄▅▆▇█"
+minus = "\u2212"  # the minus sign: the built-in font has it, and it's as wide as + (LK1.2)
 # The bar or sled of a plates-per-side lift without a barKg (PF7): the first of its equipment's words found
 # in the name or ID, else the usual one: a 20 kg barbell, and a lever machine's arms counted as nothing.
 barGuesses = {"barbell": (("ez", 10), ("trap bar", 25), ("hex bar", 25)),
@@ -160,17 +160,17 @@ def thousands(kilograms: float) -> str:
     return f"{round(kilograms):,}"
 
 
-def sparkline(values: Sequence[float]) -> str:
-    """A tiny chart in text (plan 10's "▁▂▃▃▄▅▅▆"), from lowest to highest of the values shown."""
-    if not values:
-        return ""
-    if len(values) > chartPoints:  # evenly spaced, always ending with the latest
-        step = (len(values) - 1) / (chartPoints - 1)
-        values = [values[round(index * step)] for index in range(chartPoints)]
-    low, high = min(values), max(values)
-    if high == low:
-        return sparks[3] * len(values)
-    return "".join(sparks[round((value - low) / (high - low) * (len(sparks) - 1))] for value in values)
+def signed(change: float, text: str | None = None) -> str:
+    """A change with its sign: "+5", "−0.4" (no arrows: the built-in font hasn't got them, LK1.2)."""
+    return ("+" if change > 0 else minus) + (text if text is not None else kgText(abs(change)))
+
+
+def evenlyPicked(items: Sequence, count: int = chartPoints) -> list:
+    """At most `count` of them, evenly spaced and always ending with the latest (a chart's points)."""
+    if len(items) <= count:
+        return list(items)
+    step = (len(items) - 1) / (count - 1)
+    return [items[round(index * step)] for index in range(count)]
 
 
 # --- The Progress tab (SC3.1) --------------------------------------------------------------------
@@ -199,12 +199,13 @@ class ExerciseDetail:
 
     exercise: PlanExercise
     chartRange: str
-    chart: str
+    chart: "ChartView"  # drawn like the Charts tab (SC8.1)
     chartLabel: str  # what the chart shows: "kg", "kg/side", "reps" or "min"
     recordsText: str
     days: tuple[DayTarget, ...]
     stepKg: float | None
     lines: tuple[str, ...]  # "14 Oct  4×9 @ 82.5 kg · 3,024 kg", newest first
+    recordTiles: tuple[tuple[str, str], ...] = ()  # ("Heaviest", "85 kg"), ("Est. 1RM", "~107 kg"), …
 
 
 def planDays(plan: ImportedPlan | None, exerciseId: str) -> list[int]:
@@ -267,25 +268,21 @@ def exerciseDetail(exercise: PlanExercise, current: ImportedPlan | None,
     """An exercise's page (SC3.1): the chart over 3M · 1Y · All, its PRs, its target on each of its days
     with the weight step (WD2.1), and its history, newest first, with each session's volume."""
     sessions = history(logs, exercise.exerciseId)
-    days = chartRanges.get(chartRange)
-    shown = [session for session in sessions if days is None or session.date > today - dt.timedelta(days=days)]
-    if exercise.isCardio:
-        values, label = [session.minutes or 0 for session in shown], "min"
-    elif exercise.equipment == "bodyweight":
-        values, label = [max(done.reps for done in session.sets) for session in shown if session.sets], "reps"
-    else:
-        values = [weight for session in shown if (weight := workingWeight(session.sets)) is not None]
-        label = unit(exercise)
+    label = "min" if exercise.isCardio else "reps" if exercise.equipment == "bodyweight" else unit(exercise)
 
     found = records(exercise, sessions)
-    parts = []
+    parts, tiles = [], []
     if found.heaviestKg is not None:
         parts.append(f"heaviest {kgText(found.heaviestKg)} {unit(exercise)}")
+        tiles.append(("Heaviest", f"{kgText(found.heaviestKg)} {unit(exercise)}"))
     if found.oneRepMaxKg is not None:
         parts.append(f"1RM ~{kgText(round(found.oneRepMaxKg))} kg")
+        tiles.append(("Est. 1RM", f"~{kgText(round(found.oneRepMaxKg))} kg"))
     if found.mostReps is not None:
         parts.append(f"{found.mostReps} reps" + (f" @ {kgText(found.mostRepsAtKg)} {unit(exercise)}"
                                                  if found.mostRepsAtKg is not None else ""))
+        tiles.append(("Most reps", f"{found.mostReps}" + (f" @ {kgText(found.mostRepsAtKg)}"
+                                                           if found.mostRepsAtKg is not None else "")))
 
     dayTargets = []
     if not exercise.isCardio:
@@ -301,9 +298,9 @@ def exerciseDetail(exercise: PlanExercise, current: ImportedPlan | None,
         line = f"{session.date.day} {session.date:%b}  {setsText(exercise, session.sets, session.minutes)}"
         volume = volumeKg(exercise, session.sets)
         lines.append(line + (f" · {thousands(volume)} kg" if volume else ""))
-    return ExerciseDetail(exercise, chartRange, sparkline(values), label,
+    return ExerciseDetail(exercise, chartRange, chartView(exercise, logs, training, today, chartRange), label,
                           "PRs: " + " · ".join(parts) if parts else "", tuple(dayTargets),
-                          training.stepKg(exercise) if weighted else None, tuple(lines))
+                          training.stepKg(exercise) if weighted else None, tuple(lines), tuple(tiles))
 
 
 # --- The Charts tab (SC8.1) ----------------------------------------------------------------------
@@ -338,11 +335,8 @@ def chartView(exercise: PlanExercise, logs: Mapping[dt.date, Mapping[str, Logged
     of the sets at that weight; bodyweight has reps only, cardio minutes. At most 30 sessions, evenly picked
     and always ending with the latest, as Progress's chart."""
     days = chartRanges.get(chartRange)
-    shown = [session for session in history(logs, exercise.exerciseId)
-             if days is None or session.date > today - dt.timedelta(days=days)]
-    if len(shown) > chartPoints:
-        step = (len(shown) - 1) / (chartPoints - 1)
-        shown = [shown[round(index * step)] for index in range(chartPoints)]
+    shown = evenlyPicked([session for session in history(logs, exercise.exerciseId)
+                          if days is None or session.date > today - dt.timedelta(days=days)])
     sessions = []
     for session in shown:
         weightKg = None if exercise.isCardio or exercise.equipment == "bodyweight" else workingWeight(session.sets)
@@ -384,8 +378,9 @@ def historyDays(plans: Sequence[ImportedPlan], workouts: Sequence[LoggedWorkout]
             if day.workout is not None:
                 done = sum(1 for logged in logs.get(date, {}).values() if logged.done)
                 parts.append(f"{done} exercise{'' if done == 1 else 's'}")
-                parts.append("finished" if isFinished(day.workout, today) else "in progress")
-                if not day.workout.counts:
+                finished = isFinished(day.workout, today)
+                parts.append("finished" if finished else "in progress")
+                if finished and not day.workout.counts:  # one in progress isn't judged yet (WD4.1)
                     parts.append("over 30% skipped")
             elif day.status == "missed":
                 parts.append("missed")
@@ -405,7 +400,7 @@ class DiaryLine:
 
     exerciseId: str
     name: str
-    change: str  # "25 → 30 kg/side  ↑5"
+    change: str  # "25 to 30 kg/side  +5"
     detail: str  # "best 3×12 @ 27.5 kg/side · 8 sessions"
 
 
@@ -465,11 +460,10 @@ def monthDiary(current: ImportedPlan | None, known: Mapping[str, PlanExercise],
 
 
 def _changeText(first: float, last: float, label: str) -> str:
-    """"25 → 30 kg/side  ↑5", or "25 kg/side" when it didn't change."""
+    """"25 to 30 kg/side  +5", or "25 kg/side" when it didn't change."""
     if first == last:
         return f"{kgText(first)} {label}"
-    change = round(last - first, 2)
-    return f"{kgText(first)} → {kgText(last)} {label}  {'↑' if change > 0 else '↓'}{kgText(abs(change))}"
+    return f"{kgText(first)} to {kgText(last)} {label}  {signed(round(last - first, 2))}"
 
 
 def monthlyPoints(exercise: PlanExercise | None, logs: Mapping[dt.date, Mapping[str, LoggedExercise]],
@@ -570,25 +564,28 @@ class WeightView:
 
     preselected: dt.date  # the latest Friday up to today
     chartRange: str
-    chart: str  # text bars, at most 30
-    lastText: str  # "Last 4:  82.0 · 81.8 · 81.6 · 81.2   (↓ 0.8 kg)"; "" before the first weigh-in
+    points: tuple[tuple[dt.date, float], ...]  # the weigh-ins in the span, at most 30, for the chart
+    lastText: str  # "Last 4:  82.0 · 81.8 · 81.6 · 81.2   (−0.8 kg)"; "" before the first weigh-in
+    last: tuple[str, ...] = ()  # the last four as written: "82.0", "81.8", …
+    changeText: str = ""  # across them: "−0.8 kg"; "" without a change
 
 
 def weightView(weights: Mapping[dt.date, float], today: dt.date, chartRange: str = "3M") -> WeightView:
-    """The Weight tab (SC5.1): Friday preselected (any day can be chosen), the weigh-ins in the span as text
-    bars, and the last four with the change across them."""
+    """The Weight tab (SC5.1): Friday preselected (any day can be chosen), the weigh-ins in the span for the
+    chart, and the last four with the change across them."""
     days = chartRanges.get(chartRange)
     dates = [date for date in sorted(weights) if date <= today]
-    shown = [weights[date] for date in dates if days is None or date > today - dt.timedelta(days=days)]
+    shown = evenlyPicked([(date, weights[date]) for date in dates if days is None or date > today - dt.timedelta(days=days)])
     last = [weights[date] for date in dates[-4:]]
-    text = ""
+    text, changeText = "", ""
     if last:
         text = f"Last {len(last)}:  " + " · ".join(_weighIn(kg) for kg in last)
         change = round(last[-1] - last[0], 2)
         if change:
-            text += f"   ({'↑' if change > 0 else '↓'} {kgText(abs(change))} kg)"
-    return WeightView(today - dt.timedelta(days=(today.weekday() - weighInDay) % 7), chartRange, sparkline(shown),
-                      text)
+            changeText = f"{signed(change)} kg"
+            text += f"   ({changeText})"
+    return WeightView(today - dt.timedelta(days=(today.weekday() - weighInDay) % 7), chartRange, tuple(shown),
+                      text, tuple(_weighIn(kg) for kg in last), changeText)
 
 
 summaryBanner = "Last week's summary is ready."  # Mondays, until you've looked at it (18.4a, BN1.1)
@@ -746,38 +743,44 @@ def weekTitle(week: WeekSummary) -> str:
     return f"Week {week.monday.day} {week.monday:%b} – {sunday.day} {sunday:%b}"
 
 
-def weekLines(week: WeekSummary) -> list[tuple[str, str]]:
-    """The Week tab's lines as (label, text), in the approved order (SC4.1); zero parts are left out."""
-    lines = [("Workouts", f"{week.workouts} of {week.target}" if week.target else f"{week.workouts}")]
+@dataclass(frozen=True, slots=True)
+class WeekTile:
+    """One number on the Week tab (SC4.1, LK1.2): "VOLUME / 18,400 kg / +6% vs last week"."""
+
+    name: str
+    value: str
+    detail: str = ""
+    trend: str = ""  # "up" or "down" when the detail is a change, for its arrow icon
+
+
+def weekTiles(week: WeekSummary) -> list[WeekTile]:
+    """The Week tab's numbers in the approved order (SC4.1); zero parts are left out, and the week's PRs are
+    listed under them (week.records)."""
+    tiles = [WeekTile("Workouts", f"{week.workouts} of {week.target}" if week.target else f"{week.workouts}")]
     if week.streak:
-        lines.append(("Streak", f"{week.streak} week" + ("s" if week.streak != 1 else "")))
+        tiles.append(WeekTile("Streak", f"{week.streak} week" + ("s" if week.streak != 1 else "")))
     if week.completion is not None:
-        lines.append(("Completion", f"{week.completion}%"))
+        tiles.append(WeekTile("Completion", f"{week.completion}%"))
     cardio = week.gymCardio + week.stepsCardio
     if cardio:
         parts = ([f"{week.gymCardio} gym"] if week.gymCardio else []) + (
             [f"{week.stepsCardio} from steps"] if week.stepsCardio else [])
         detail = " + ".join(parts) if len(parts) == 2 else ("gym" if week.gymCardio else "from steps")
-        lines.append(("Cardio", f"{cardio} min ({detail})"))
+        tiles.append(WeekTile("Cardio", f"{cardio} min", detail))
     if week.volumeKg:
-        text = f"{thousands(week.volumeKg)} kg"
+        detail, trend = "", ""
         if week.lastWeekVolumeKg:
             change = round((week.volumeKg - week.lastWeekVolumeKg) / week.lastWeekVolumeKg * 100)
-            text += f"   {'↑' if change > 0 else '↓'} {abs(change)}% vs last week" if change else "   same as last week"
-        lines.append(("Volume", text))
+            detail = f"{signed(change, f'{abs(change)}%')} vs last week" if change else "same as last week"
+            trend = "up" if change > 0 else "down" if change < 0 else ""
+        tiles.append(WeekTile("Volume", f"{thousands(week.volumeKg)} kg", detail, trend))
     if week.bodyweightReps:
-        lines.append(("Bodyweight", f"{week.bodyweightReps} reps"))
-    if week.records:
-        lines.append(("PRs", " · ".join(week.records)))
+        tiles.append(WeekTile("Bodyweight", f"{week.bodyweightReps} reps"))
     if week.weightKg is not None:
-        text = f"{kgText(week.weightKg)} kg"
-        if week.weightChangeKg:
-            text += f"   {'↑' if week.weightChangeKg > 0 else '↓'} {kgText(abs(week.weightChangeKg))} kg"
-        lines.append(("Weight", text))
-    return lines
-
-
-calendarMarks = {"trained": "✓", "rest": "·", "missed": "✗"}  # open, later and no plan: blank
+        change = week.weightChangeKg
+        tiles.append(WeekTile("Weight", f"{kgText(week.weightKg)} kg", f"{signed(change)} kg" if change else "",
+                              "up" if change and change > 0 else "down" if change else ""))
+    return tiles
 
 
 def workoutVolumeKg(logsToday: Mapping[str, LoggedExercise], known: Mapping[str, PlanExercise]) -> float:

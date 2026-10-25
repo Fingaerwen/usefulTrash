@@ -103,11 +103,45 @@ class AppBase:
     # Today's actions; History's day editor passes its own day's view (HI1.1).
 
     async def check(self, line: ExerciseLine, view: TodayView | None = None) -> None:
-        await self._act(self.actions.checkExercise(view or self.model.today, line))
+        if await self._act(self.actions.checkExercise(view or self.model.today, line)):
+            await self._restAfter(line, view)
 
     async def saveSets(self, line: ExerciseLine, sets: list[SetDone], minutes: int | None = None,
                        view: TodayView | None = None) -> None:
-        await self._act(self.actions.saveSets(view or self.model.today, line, sets, minutes))
+        if await self._act(self.actions.saveSets(view or self.model.today, line, sets, minutes)):
+            await self._restAfter(line, view)
+
+    # The rest timer (RT1.1): logging one of today's exercises starts its rest, unless nothing is left to do;
+    # its rest time on Today starts it between sets. The phone also sets an alert for when it's over.
+
+    async def _restAfter(self, line: ExerciseLine, view: TodayView | None) -> None:
+        today = self.model.today
+        if (view is not None or line.status == "done" or not line.exercise.restSec
+                or today is None or not any(other.status == "todo" for other in today.exercises)):
+            return
+        await self.startRest(line.exercise.restSec, line.exercise.name)
+
+    async def startRest(self, seconds: int, name: str) -> None:
+        self.model.restSeconds, self.model.restName = seconds, name
+        self.model.restUntil = self.clock() + dt.timedelta(seconds=seconds)
+        await self.restAlert(seconds)
+
+    async def addRest(self, seconds: int = 30) -> None:
+        """+30 s: from what's left, or from now once it's over."""
+        if self.model.restUntil is None:
+            return
+        now = self.clock()
+        left = max(0.0, (self.model.restUntil - now).total_seconds()) + seconds
+        self.model.restSeconds = max(self.model.restSeconds, round(left))
+        self.model.restUntil = now + dt.timedelta(seconds=left)
+        await self.restAlert(round(left))
+
+    async def stopRest(self) -> None:
+        self.model.restUntil = None
+        await self.restAlert(None)
+
+    async def restAlert(self, seconds: int | None) -> None:
+        """The phone sets (or with None, cancels) its alert for when the rest is over; the PC view has none."""
 
     async def skip(self, line: ExerciseLine, view: TodayView | None = None) -> None:
         await self._act(self.actions.skipExercise(view or self.model.today, line))
@@ -276,10 +310,11 @@ class AppBase:
     async def stopDeload(self) -> None:
         await self._act(self.actions.stopDeload(self.localToday()))
 
-    async def _act(self, action) -> None:
-        """Runs an action; a refused entry shows why, anything unexpected goes to the log."""
+    async def _act(self, action) -> bool:
+        """Runs an action; a refused entry shows why, anything unexpected goes to the log. True if it worked."""
         try:
             await action
+            return True
         except ActionRefused as refused:
             self.model.notice = str(refused)
         except Exception as problem:
@@ -288,6 +323,7 @@ class AppBase:
                 self.log.crash(problem, "today")
                 notice = "That didn't work. Details are on the Problems page."
             self.model.notice = notice
+        return False
 
     def describeFailure(self, problem: Exception) -> str | None:
         """Plain words for an expected failure (the PC view's refused writes); None = unexpected."""

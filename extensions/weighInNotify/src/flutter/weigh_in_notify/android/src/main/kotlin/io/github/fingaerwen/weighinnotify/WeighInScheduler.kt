@@ -21,6 +21,7 @@ import java.util.Locale
  * All alarm + notification logic, shared by the plugin and the broadcast receivers.
  * Two repeating reminders, each in its own alarm slot: the weekly weigh-in and a daily one (the creatine
  * reminder, WD3.8). Each slot's settings are saved separately, so one never disturbs the other.
+ * The rest timer's alert (RT1.1) has a slot of its own too: one-off, on the dot, in a channel that pops up.
  */
 object WeighInScheduler {
     private const val channelId = "weighIn"
@@ -33,12 +34,16 @@ object WeighInScheduler {
     const val oneOffRequestCode = 5002
     const val showNowNotificationId = 5003
     const val dailyRequestCode = 5004
+    const val restRequestCode = 5005
+    const val restChannelId = "rest"
+    const val restChannelName = "Rest timer"
     const val extraTitle = "title"
     const val extraBody = "body"
     const val extraKind = "kind"
     const val kindWeekly = "weekly"
     const val kindDaily = "daily"
     const val kindOneOff = "oneOff"
+    const val kindRest = "rest"
 
     /** First moment matching the weekday/hour/minute that is strictly after [afterMillis] (local time, DST-safe). */
     fun nextWeeklyTrigger(isoWeekday: Int, hour: Int, minute: Int, afterMillis: Long): Calendar {
@@ -111,9 +116,9 @@ object WeighInScheduler {
 
     /**
      * Sets an alarm that still fires in Doze mode.
-     * Weekly and daily reminders: alarm-clock mode (review F21.2). OnePlus stretched normal exact alarms into a
-     * 1-hour window even with battery "Unrestricted", while alarm-clock alarms (like the Clock app's) stay on
-     * the dot. Side effect: Android shows an alarm icon and lists it as the next alarm.
+     * Weekly and daily reminders and the rest timer: alarm-clock mode (review F21.2). OnePlus stretched normal
+     * exact alarms into a 1-hour window even with battery "Unrestricted", while alarm-clock alarms (like the
+     * Clock app's) stay on the dot. Side effect: Android shows an alarm icon and lists it as the next alarm.
      * Other alarms: exact if allowed, otherwise Android may delay them a little.
      */
     fun setAlarm(context: Context, triggerAtMillis: Long, requestCode: Int, title: String, body: String, kind: String) {
@@ -163,6 +168,13 @@ object WeighInScheduler {
         val alarmManager = context.getSystemService(AlarmManager::class.java)
         alarmManager.cancel(alarmIntent(context, weeklyRequestCode, "", "", kindWeekly))
         context.getSharedPreferences(prefsName, Context.MODE_PRIVATE).edit().clear().apply()
+    }
+
+    /** Cancels the rest timer's alarm and takes away its notification if it's showing (RT1.1). */
+    fun cancelRest(context: Context) {
+        val alarmManager = context.getSystemService(AlarmManager::class.java)
+        alarmManager.cancel(alarmIntent(context, restRequestCode, "", "", kindRest))
+        NotificationManagerCompat.from(context).cancel(restRequestCode)
     }
 
     /** Remembers the daily schedule so it can be restored after reboot/update. */
@@ -223,11 +235,11 @@ object WeighInScheduler {
      */
     fun showNotification(
         context: Context, title: String, body: String, notificationId: Int,
-        channel: String = channelId, name: String = channelName,
+        channel: String = channelId, name: String = channelName, importance: Int = NotificationManager.IMPORTANCE_DEFAULT,
     ): Boolean {
         if (!notificationsAllowed(context)) return false
         if (Build.VERSION.SDK_INT >= 26) {
-            val notificationChannel = NotificationChannel(channel, name, NotificationManager.IMPORTANCE_DEFAULT)
+            val notificationChannel = NotificationChannel(channel, name, importance)
             context.getSystemService(NotificationManager::class.java).createNotificationChannel(notificationChannel)
         }
         val contentIntent = openAppIntent(context)

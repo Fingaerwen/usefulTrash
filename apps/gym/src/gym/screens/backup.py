@@ -12,7 +12,7 @@ import flet as ft
 
 from gym.rules.stats import lastBackupText
 from gym.screens.common import Banners, Menu, Notice
-from gym.screens.look import gap, quiet, title
+from gym.screens.look import card, faint, header, label, mainButton, quiet, screen, softButton
 
 
 @ft.component
@@ -24,12 +24,15 @@ def BackupTab(app, model):
         await app.exportCsv()
 
     last = lastBackupText(app._live("backups"), app.clock())
-    return ft.Column([
-        ft.Row([ft.Container(title("Backup"), expand=True), Menu(app, app.menuItems)]),
-        Banners(app, model), Notice(app, model), ft.Divider(),
-        ft.Text(f"Last backup: {last}"),
-        ft.Row([ft.Button("Back up now", icon=ft.Icons.BACKUP, on_click=backUp),
-                ft.OutlinedButton("Export CSV", icon=ft.Icons.DOWNLOAD, on_click=export)], wrap=True),
+    return screen([
+        header("Backup", trailing=[Menu(app, app.menuItems)]),
+        Banners(app, model), Notice(app, model),
+        card(ft.Row([ft.Icon(ft.Icons.CLOUD_DONE_OUTLINED, size=28, color=ft.Colors.ON_SURFACE_VARIANT),
+                     ft.Column([label("Last backup"), ft.Text(last, size=16, weight=ft.FontWeight.W_600)], spacing=2,
+                               expand=True)], spacing=14)),
+        ft.Row([mainButton("Back up now", backUp, icon=ft.Icons.BACKUP),
+                softButton("Export CSV", export, icon=ft.Icons.DOWNLOAD)], wrap=True, spacing=8),
         quiet(model.backupStatus) if model.backupStatus else ft.Container(visible=False),
-        quiet("The phone backs up to your Google Drive by itself every 30 days and keeps the last 3."),
-    ], spacing=gap, scroll=ft.ScrollMode.AUTO, expand=True)
+        faint("The phone backs up to your Google Drive by itself every 30 days and keeps the last 3, beside one "
+              "history file that keeps everything."),
+    ])

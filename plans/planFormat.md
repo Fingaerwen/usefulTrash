@@ -174,7 +174,7 @@ has it, and an exercise moves at most once for each made-up day.
 | `platesPerSide` | no, barbell or machine | `true` when the user logs the plates on one side of a bar or plate-loaded machine; volume and 1RM double it |
 | `barKg` | no, barbell or machine | **leave it out**: the app estimates the bar or sled from the `name` (see above), and the user doesn't weigh bars, so never ask for one |
 | `compound` | no | `true` for a compound lift (squat, bench, row, press, deadlift, pull-up…); the deload trigger watches these |
-| `restSec` | no | rest between sets in seconds, 0 to 3600 (shown only, there's no timer) |
+| `restSec` | no | rest between sets in seconds, 0 to 3600: the app's rest timer runs this long |
 | `notes` | no | the short cue always shown on the Today screen, **one line**, up to 500 characters |
 | `setup` | no | how-to: the machine or equipment needed and how to set it up, **one line**, up to 300 characters |
 | `howTo` | no | how-to: the steps to do it, in order, as a **list of lines**, like `["Lie back…", "Grip…"]`; 1 to 12 lines, each one line of up to 200 characters, without numbers (the app numbers them) |

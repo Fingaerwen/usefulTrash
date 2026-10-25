@@ -47,12 +47,12 @@ class GymActions:
         elif line.exercise.isCardio and line.targetMinutes is not None:
             await self._log(view, line, (), line.targetMinutes, skipped=False)
         elif line.needsWeight:  # Today opens ▾ sets instead (PF3)
-            raise ActionRefused("Enter the weight you lifted with ▾ sets: your plan's weight is only a placeholder.")
+            raise ActionRefused("Enter the weight you lifted under Sets: your plan's weight is only a placeholder.")
         elif line.targetReps is not None and line.targetSets:
             await self._log(view, line, (SetDone(line.targetReps, line.targetWeightKg),) * line.targetSets, None,
                             skipped=False)
         else:
-            raise ActionRefused("This exercise has no target here: enter what you did with ▾ sets.")
+            raise ActionRefused("This exercise has no target here: enter what you did under Sets.")
 
     async def saveSets(self, view: TodayView, line: ExerciseLine, sets: Sequence[SetDone],
                        minutes: int | None = None) -> None:

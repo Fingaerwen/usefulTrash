@@ -25,9 +25,9 @@ from gym.rules.stats import (
     records,
     history,
     setsText,
-    sparkline,
+    signed,
     volumeKg,
-    weekLines,
+    weekTiles,
     weekSummary,
     weekTitle,
     workoutVolumeKg,
@@ -126,10 +126,9 @@ def testHowSetsAreWritten():
     assert setsText(strength("walk"), (), 15) == "15 min"
 
 
-def testSparkline():
-    assert sparkline([1, 2, 3, 4, 5, 6, 7, 8]) == "▁▂▃▄▅▆▇█"
-    assert sparkline([5, 5]) == "▄▄"
-    assert len(sparkline(list(range(100)))) == 30 and sparkline(list(range(100)))[-1] == "█"
+def testChangesAreWrittenWithSignsNotArrows():
+    """LK1.2: the PC view's font has no arrows, so a change is "+5" or "−0.4"."""
+    assert (signed(5), signed(-0.4), signed(6, "6%")) == ("+5", "−0.4", "+6%")
 
 
 # --- The Progress tab (SC3.1) --------------------------------------------------------------------
@@ -167,7 +166,10 @@ def testProgressListsThePlanAndPastExercises():
 
 def testExerciseDetail():
     detail = exerciseDetail(known["bench"], imported, weekLogs, trainingOn(day(8)), day(8), "All")
-    assert (detail.chart, detail.chartLabel) == ("▁█", "kg/side")
+    assert detail.chartLabel == "kg/side"
+    assert [(s.date, s.weightKg) for s in detail.chart.sessions] == [(day(0), 25), (day(7), 26.25)]
+    assert detail.recordTiles == (("Heaviest", "26.25 kg/side"), ("Est. 1RM", f"~{round(loadKg(bench, 26.25) * 4 / 3)} kg"),
+                                  ("Most reps", "10 @ 26.25"))
     assert detail.recordsText == f"PRs: heaviest 26.25 kg/side · 1RM ~{round(loadKg(bench, 26.25) * 4 / 3)} kg · 10 reps @ 26.25 kg/side"
     assert [day.text for day in detail.days] == ["Mon 26.25 kg/side × 10", "Wed 26.25 kg/side × 6"]
     assert detail.stepKg == 1.25
@@ -223,11 +225,13 @@ def testWeekLines():
     benchNow, benchBefore = volumeKg(bench, logs[day(7)]["bench"].sets), volumeKg(bench, logs[day(0)]["bench"].sets)
     change = round((benchNow - benchBefore - 500) / (benchBefore + 500) * 100)
     assert weekTitle(week) == "Week 19–25 Oct"
-    assert weekLines(week) == [
-        ("Workouts", "1 of 2"), ("Streak", "1 week"), ("Completion", "100%"), ("Cardio", "145 min (from steps)"),
-        ("Volume", f"{round(benchNow):,} kg   {'↑' if change > 0 else '↓'} {abs(change)}% vs last week"),
-        ("Bodyweight", "19 reps"), ("PRs", "Bench Press 26.25 kg/side · Pull-up 10 reps"),
-        ("Weight", "81.2 kg   ↓ 0.4 kg")]
+    assert [(tile.name, tile.value, tile.detail, tile.trend) for tile in weekTiles(week)] == [
+        ("Workouts", "1 of 2", "", ""), ("Streak", "1 week", "", ""), ("Completion", "100%", "", ""),
+        ("Cardio", "145 min", "from steps", ""),
+        ("Volume", f"{round(benchNow):,} kg", f"{'+' if change > 0 else '−'}{abs(change)}% vs last week",
+         "up" if change > 0 else "down"),
+        ("Bodyweight", "19 reps", "", ""), ("Weight", "81.2 kg", "−0.4 kg", "down")]
+    assert week.records == ("Bench Press 26.25 kg/side", "Pull-up 10 reps")
     assert weekTitle(weekSummary([imported], workouts, weekLogs, known, {}, {}, day(-14), day(9))) == "Week 28 Sep – 4 Oct"
 
 
@@ -266,14 +270,15 @@ weighIns = {day(-21): 82.0, day(-14): 81.8, day(-7): 81.6, day(4): 81.25}
 def testWeightPreselectsTheLatestFridayAndShowsTheLastFour():
     view = weightView(weighIns, day(5), "3M")  # Saturday
     assert view.preselected == day(4)
-    assert view.lastText == "Last 4:  82.0 · 81.8 · 81.6 · 81.25   (↓ 0.75 kg)"
-    assert view.chart == sparkline([82.0, 81.8, 81.6, 81.25])
+    assert view.lastText == "Last 4:  82.0 · 81.8 · 81.6 · 81.25   (−0.75 kg)"
+    assert (view.last, view.changeText) == (("82.0", "81.8", "81.6", "81.25"), "−0.75 kg")
+    assert view.points == tuple(sorted(weighIns.items()))
     assert weightView(weighIns, day(4), "3M").preselected == day(4)  # Friday itself
     assert weightView(weighIns, day(3), "3M").preselected == day(-3)  # Thursday: the Friday before
 
 
 def testWeightWithFewOrNoWeighIns():
-    assert weightView({}, day(5), "3M").lastText == "" and weightView({}, day(5), "3M").chart == ""
+    assert weightView({}, day(5), "3M").lastText == "" and weightView({}, day(5), "3M").points == ()
     assert weightView({day(4): 80.0}, day(5), "3M").lastText == "Last 1:  80.0"
 
 
@@ -306,10 +311,10 @@ def testTheDiaryGivesEachExercisesMonthThenTheBodyWeight():
     october = {**weekLogs, day(14): {"bench": LoggedExercise("bench", (SetDone(10, 26.25), SetDone(10, 26.25)))}}
     diary = monthDiary(imported, known, october, {day(4): 82.0, day(18): 81.2}, day(0))
     assert [(line.name, line.change, line.detail) for line in diary.lines] == [
-        ("Bench Press", "25 → 26.25 kg/side  ↑1.25", "best 2×10 @ 26.25 kg/side · 3 sessions"),
-        ("Pull-up", "8 → 10 reps  ↑2", "best 10 · 9 · 2 sessions"),
+        ("Bench Press", "25 to 26.25 kg/side  +1.25", "best 2×10 @ 26.25 kg/side · 3 sessions"),
+        ("Pull-up", "8 to 10 reps  +2", "best 10 · 9 · 2 sessions"),
         ("Oldrow", "50 kg", "best 1×10 @ 50 kg · 1 session"),
-        ("Body weight", "82 → 81.2 kg  ↓0.8", "2 weigh-ins")]
+        ("Body weight", "82 to 81.2 kg  −0.8", "2 weigh-ins")]
     assert diary.firstMonth == dt.date(2026, 10, 1)
     assert monthDiary(imported, known, october, {}, dt.date(2026, 11, 5)).lines == ()
 
@@ -330,4 +335,4 @@ def testTheReadableHistory():
     assert files["weighIns.csv"] == "date,kg\n2026-10-16,82\n"
     assert files["steps.csv"] == "date,steps\n2026-10-13,9500\n"
     assert files["diary.csv"].splitlines()[:2] == [
-        "month,exercise,weight,best and sessions", "2026-10,Bench Press,25 → 26.25 kg/side  ↑1.25,best 10 · 9 @ 26.25 kg/side · 2 sessions"]
+        "month,exercise,weight,best and sessions", "2026-10,Bench Press,25 to 26.25 kg/side  +1.25,best 10 · 9 @ 26.25 kg/side · 2 sessions"]

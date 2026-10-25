@@ -1,5 +1,6 @@
 package io.github.fingaerwen.weighinnotify
 
+import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -21,6 +22,9 @@ class AlarmReceiver : BroadcastReceiver() {
                 WeighInScheduler.markFired(context, WeighInScheduler.kindDaily)
                 WeighInScheduler.rescheduleDailyFromPrefs(context)
             }
+            WeighInScheduler.kindRest -> WeighInScheduler.showNotification(context, title, body,
+                WeighInScheduler.restRequestCode, WeighInScheduler.restChannelId, WeighInScheduler.restChannelName,
+                NotificationManager.IMPORTANCE_HIGH) // pops up over whatever is on screen
             else -> WeighInScheduler.showNotification(context, title, body, WeighInScheduler.oneOffRequestCode)
         }
     }

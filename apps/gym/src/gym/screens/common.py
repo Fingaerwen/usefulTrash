@@ -3,7 +3,10 @@
 import flet as ft
 
 from gym.model import appName
-from gym.screens.look import gap, quiet, title
+from gym.rules.stats import summaryBanner, weighInBanner
+from gym.screens.look import card, gap, mainButton, quiet, title
+
+bannerIcons = {summaryBanner: ft.Icons.INSIGHTS, weighInBanner: ft.Icons.MONITOR_WEIGHT_OUTLINED}
 
 
 @ft.component
@@ -15,9 +18,10 @@ def Notice(app, model):
     def close(e):
         app.model.notice = ""
 
-    return ft.Container(
-        ft.Row([ft.Text(model.notice, expand=True), ft.IconButton(ft.Icons.CLOSE, tooltip="Close", on_click=close)]),
-        border=ft.Border.all(1, ft.Colors.OUTLINE), border_radius=8, padding=ft.Padding.only(left=12))
+    return card(ft.Row([ft.Icon(ft.Icons.INFO_OUTLINE, size=20, color=ft.Colors.ON_SURFACE_VARIANT),
+                        ft.Text(model.notice, expand=True),
+                        ft.IconButton(ft.Icons.CLOSE, tooltip="Close", on_click=close, icon_size=20)], spacing=10),
+                padding=ft.Padding.only(left=14, top=4, bottom=4, right=4), raised=True)
 
 
 @ft.component
@@ -26,9 +30,13 @@ def Banners(app, model):
     (Mondays) and the weigh-in (Fridays); tapping one of the last two opens its tab."""
     if not model.banners:
         return ft.Container(visible=False)
-    return ft.Column([ft.Container(ft.Text(banner), border=ft.Border.all(1, ft.Colors.OUTLINE), border_radius=8,
-                                   padding=10, ink=True, on_click=lambda e, banner=banner: app.openBanner(banner))
-                      for banner in model.banners], spacing=gap)
+    return ft.Column([
+        card(ft.Row([ft.Icon(bannerIcons.get(banner, ft.Icons.ERROR_OUTLINE), size=20),
+                     ft.Text(banner, expand=True, weight=ft.FontWeight.W_500),
+                     ft.Icon(ft.Icons.CHEVRON_RIGHT, size=20, color=ft.Colors.OUTLINE)
+                     if banner in bannerIcons else ft.Container(visible=False)], spacing=12),
+             padding=14, raised=True, tooltip=banner, on_click=lambda e, banner=banner: app.openBanner(banner))
+        for banner in model.banners], spacing=8)
 
 
 @ft.component
@@ -48,29 +56,43 @@ def Menu(app, items: tuple[str, ...] = ("problems", "history", "deload", "import
         await app.stopDeload()
 
     entries = {
-        "problems": ft.PopupMenuItem(content="Problems", on_click=lambda e: app.openProblems()),
-        "history": ft.PopupMenuItem(content="History", on_click=lambda e: app.openHistory()),
-        "importPlan": ft.PopupMenuItem(content="Import a plan file", on_click=importPlan),
-        "signOut": ft.PopupMenuItem(content="Sign out", on_click=signOut),
+        "history": ft.PopupMenuItem(content="History", icon=ft.Icons.HISTORY, on_click=lambda e: app.openHistory()),
+        "importPlan": ft.PopupMenuItem(content="Import a plan file", icon=ft.Icons.UPLOAD_FILE, on_click=importPlan),
+        "problems": ft.PopupMenuItem(content="Problems", icon=ft.Icons.BUG_REPORT_OUTLINED,
+                                     on_click=lambda e: app.openProblems()),
+        "signOut": ft.PopupMenuItem(content="Sign out", icon=ft.Icons.LOGOUT, on_click=signOut),
     }
     if app.model.deloadAction == "start":
-        entries["deload"] = ft.PopupMenuItem(content="Start a deload", on_click=startDeload)
+        entries["deload"] = ft.PopupMenuItem(content="Start a deload", icon=ft.Icons.SELF_IMPROVEMENT,
+                                             on_click=startDeload)
     elif app.model.deloadAction == "stop":
-        entries["deload"] = ft.PopupMenuItem(content="Stop the deload", on_click=stopDeload)
-    return ft.PopupMenuButton(icon=ft.Icons.MORE_VERT, tooltip="More",
+        entries["deload"] = ft.PopupMenuItem(content="Stop the deload", icon=ft.Icons.SELF_IMPROVEMENT,
+                                             on_click=stopDeload)
+    return ft.PopupMenuButton(icon=ft.Icons.MORE_VERT, tooltip="More", bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
+                              shape=ft.RoundedRectangleBorder(radius=14),
                               items=[entries[name] for name in items if name in entries])
 
 
-@ft.component
-def StartingScreen(app, model):
-    return ft.Column([title(appName), ft.ProgressRing()], horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+def appMark(size: int = 72) -> ft.Container:
+    """The app's sign: a dumbbell in a grey circle."""
+    return ft.Container(ft.Icon(ft.Icons.FITNESS_CENTER, size=size * 0.5), width=size, height=size,
+                        border_radius=size / 2, bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH, alignment=ft.Alignment.CENTER)
+
+
+def centred(parts: list[ft.Control]) -> ft.Column:
+    return ft.Column(parts, spacing=16, horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                      alignment=ft.MainAxisAlignment.CENTER, expand=True)
 
 
 @ft.component
+def StartingScreen(app, model):
+    return centred([appMark(), title(appName), ft.ProgressRing(width=24, height=24, stroke_width=2.5)])
+
+
+@ft.component
 def FailedScreen(app, model):
-    return ft.Column([title(appName), ft.Text(model.failure),
-                      ft.TextButton("Problems", on_click=lambda e: app.openProblems())], spacing=16)
+    return centred([appMark(), title(appName), ft.Text(model.failure, text_align=ft.TextAlign.CENTER),
+                    ft.TextButton("Problems", on_click=lambda e: app.openProblems())])
 
 
 @ft.component
@@ -79,13 +101,16 @@ def SignInScreen(app, model):
     async def signIn(e):
         await app.signIn()
 
-    return ft.Column([
-        title(appName),
+    return centred([
+        appMark(88), title(appName),
+        quiet("Your plan, your sets, your progress.", size=15),
+        ft.Container(height=8),
         Notice(app, model),
-        ft.Button("Sign in with Google", icon=ft.Icons.LOGIN, on_click=signIn, disabled=bool(model.busy)),
+        ft.Row([mainButton("Sign in with Google", signIn, icon=ft.Icons.LOGIN, disabled=bool(model.busy),
+                           expand=True)]),
         quiet(model.busy) if model.busy else ft.Container(visible=False),
         ft.TextButton("Problems", on_click=lambda e: app.openProblems()),
-    ], spacing=16)
+    ])
 
 
 @ft.component
@@ -95,13 +120,20 @@ def DownloadingScreen(app, model):
         await app.firstDownload()
 
     rows = f"{model.downloaded:,} rows" if model.downloaded else ""
-    return ft.Column([
+    return centred([
+        appMark(),
         title("Downloading your data…" if model.busy else "First download"),
-        ft.Row([ft.ProgressRing(width=20, height=20), ft.Text(rows)]) if model.busy else Notice(app, model),
-        ft.Button("Try again", on_click=retry) if not model.busy else ft.Container(visible=False),
-    ], spacing=16)
+        ft.Row([ft.ProgressRing(width=20, height=20, stroke_width=2.5), ft.Text(rows)], tight=True)
+        if model.busy else Notice(app, model),
+        mainButton("Try again", retry) if not model.busy else ft.Container(visible=False),
+    ])
 
 
 @ft.component
 def ComingSoon(what: str):
     return ft.Column([quiet(f"{what} comes in a later version.")], expand=True)
+
+
+def gapped(parts: list[ft.Control]) -> ft.Column:
+    """Parts stacked with the screen's gap, not scrolling on their own (inside a screen that does)."""
+    return ft.Column(parts, spacing=gap)

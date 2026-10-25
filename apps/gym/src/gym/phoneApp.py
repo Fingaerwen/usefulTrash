@@ -38,7 +38,7 @@ class PhoneServices(Protocol):
     secretStore: SecretStore  # secureStore: the session, encrypted with a phone-locked key (T1.1)
     clipboard: Any  # Flet's Clipboard: set(text)
     filePicker: Any  # Flet's FilePicker: pick_files(...)
-    notifier: Any  # weighInNotify: requestPermission(), scheduleDaily(...), scheduleWeekly(isoWeekday, ...)
+    notifier: Any  # weighInNotify: requestPermission(), scheduleDaily(...), scheduleWeekly(...), scheduleRest(...)
 
 
 class PhoneApp(AppBase):
@@ -131,6 +131,17 @@ class PhoneApp(AppBase):
             await self.services.notifier.scheduleWeekly(weekday, hour, minute, "Weigh-in", "Time to weigh in")
         except Exception as problem:
             self.log.problem("reminders", "The weigh-in reminder couldn't be set.", type(problem).__name__)
+
+    async def restAlert(self, seconds: int | None) -> None:
+        """The rest timer's alert (RT1.1): a notification when the rest is over, even with the screen off, in
+        its own "Rest timer" channel; None cancels it (and takes away one that's showing)."""
+        try:
+            if seconds is None:
+                await self.services.notifier.cancelRest()
+            else:
+                await self.services.notifier.scheduleRest(seconds, "Rest over", "Time for your next set.")
+        except Exception as problem:  # the timer on screen works the same without it
+            self.log.problem("reminders", "The rest timer's alert couldn't be set.", type(problem).__name__)
 
     async def firstDownload(self) -> None:
         """Everything is fetched before Today shows, with a running count (14b). Needs the internet."""
@@ -287,9 +298,9 @@ class PhoneApp(AppBase):
         elif self.lastOutcome.status == "cloudTooOld":
             banners.append(f"The cloud needs upgrade {appSchema:03d} before this app can sync.")
         if waiting.refused:
-            banners.append("The cloud refused a change. See Problems (⋮).")
+            banners.append("The cloud refused a change. See Problems in the menu.")
         if waiting.oldestQueuedAt is not None and self.clock() - waiting.oldestQueuedAt >= notSyncedAfter:
-            banners.append("Not synced for 3 days. Check your internet, or see Problems (⋮).")
+            banners.append("Not synced for 3 days. Check your internet, or see Problems in the menu.")
         return tuple(banners)
 
     def summarySeenFor(self) -> dt.date | None:

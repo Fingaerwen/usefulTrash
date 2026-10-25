@@ -165,7 +165,7 @@ def signedIn(browser):
 def testSignInLoadsEverythingThenShowsToday(browser, cloud):
     planInCloud(cloud)
     signedIn(browser)
-    assert "Push · Monday · week 0/3" in browser.texts()
+    assert "Push" in browser.texts() and "Monday · 0 of 3 this week" in browser.texts()
     browser.app.model.tab = "plans"
     texts = browser.texts()
     assert "Active: Push Pull Legs (example) (v1) · since 12 Oct · 3/week" in texts
@@ -200,7 +200,8 @@ def testThePhonesChangesShowUpAfterAFetch(browser, cloud):
     cloud.clock.advance(minutes=10)
     cloud.storeDirectly("dailySteps", toCloud(tablesByName["dailySteps"], exampleRow("dailySteps", date=monday)))
     browser.run(browser.app.fetchNow())
-    assert "Steps today: 14,000" in browser.texts()
+    texts = browser.texts()
+    assert texts[texts.index("STEPS TODAY") + 1] == "14,000"
 
 
 def testCloudNotUpgradedYetSaysSo(browser, cloud):
@@ -224,7 +225,7 @@ def testProgressAndWeekTabsAreThereToo(browser, cloud):
     browser.app.model.tab = "progress"
     assert "Bench Press" in browser.texts() and "now 80 kg × 8" in browser.texts()
     browser.app.model.tab = "week"
-    assert "Week 12–18 Oct" in browser.texts() and "0 of 3" in browser.texts()
+    assert "This week" in browser.texts() and "12–18 Oct" in browser.texts() and "0 of 3" in browser.texts()
     assert browser.app.canEnterStepsOn(monday - dt.timedelta(days=30))  # the PC view takes any day (SC4.1)
     browser.app.model.tab = "charts"  # SC8.1: the PC view has Charts and Weight too
     assert "Charts" in browser.texts() and browser.app.model.chart.exercise.name == "Bench Press"
@@ -287,7 +288,8 @@ def testBackUpNowWithGooglesPermissionFromTheSecondWindow(browser, cloud):
     planInCloud(cloud)
     signedIn(browser)
     browser.app.model.tab = "backup"
-    assert "Last backup: none yet" in browser.texts()
+    texts = browser.texts()
+    assert texts[texts.index("LAST BACKUP") + 1] == "none yet"
     press(find(browser.screen(), "Back up now", "Button"))
     (url,) = browser.services.urlLauncher.opened
     query = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
@@ -300,7 +302,7 @@ def testBackUpNowWithGooglesPermissionFromTheSecondWindow(browser, cloud):
     assert browser.services.prefs.values == {}  # the handed-over token is gone from the site's storage
     texts = browser.texts()
     assert any(text.startswith("Backed up to your Google Drive: GymTracker-backup-") for text in texts)
-    assert any(text.startswith("Last backup: 12 Oct 2026 (PC view)") for text in texts)
+    assert any(text.startswith("12 Oct 2026 (PC view)") for text in texts)
     assert "driveToken1" not in "\n".join(browser.app.problemsLines())
 
 

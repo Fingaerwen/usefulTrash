@@ -42,7 +42,8 @@ class Event:
 
 
 def draw(componentFn, *args) -> BaseControl:
-    """Renders a component and everything under it; returns the root."""
+    """Renders a component and everything under it; returns the root. Fails if what's drawn would make
+    Flutter refuse the layout or the PC view's font can't write it (see layoutProblems, undrawable)."""
     token = _context_page.set(_Page())
     try:
         root = Renderer().render(componentFn, *args)
@@ -59,6 +60,71 @@ def redraw(control: BaseControl) -> None:
         _expand(control)
     finally:
         _context_page.reset(token)
+    problems = layoutProblems(control)
+    assert not problems, "Flutter would refuse this layout (a grey box on screen):\n" + "\n".join(problems)
+    missing = undrawable(control)
+    assert not missing, f"The PC view's font can't write {''.join(sorted(missing))!r} (use an icon or plain text)"
+
+
+# --- What Flutter refuses, and what the PC view's font can't write ---------------------------------
+# Flutter draws a grey box instead of a screen when a layout breaks its rules; the screens here never show a
+# phone or a browser, so these rules are checked on the drawn controls instead.
+
+def _drawn(control: BaseControl) -> list[BaseControl]:
+    """A control as drawn: a component stands for what it rendered."""
+    if isinstance(control, Component):
+        return [drawn for child in _asList(control._b) for drawn in _drawn(child)]
+    return [control]
+
+
+def layoutProblems(root: BaseControl) -> list[str]:
+    """Layouts Flutter refuses: anything flexible (expand set, even to False) in a wrapping row or column;
+    expand in a column that scrolls or sits in one without a height (it would grow forever); a row stretching
+    its children's height there too."""
+    problems: list[str] = []
+
+    def check(control: BaseControl, unboundedHeight: bool) -> None:
+        if getattr(control, "visible", True) is False:
+            return
+        kind = type(control).__name__
+        children = [drawn for child in _children(control) for drawn in _drawn(child)]
+        childUnbounded = unboundedHeight and getattr(control, "height", None) is None
+        if kind in ("Row", "Column"):
+            where = f"{kind}({', '.join(filter(None, (label(child) for child in children)))[:60]!r})"
+            for child in children:
+                expand = getattr(child, "expand", None)
+                if getattr(control, "wrap", False) and expand is not None:
+                    problems.append(f"{where}: wraps, but holds a flexible {type(child).__name__}")
+                elif kind == "Column" and (control.scroll is not None or childUnbounded) and expand:
+                    problems.append(f"{where}: no height limit, but holds an expanding {type(child).__name__}")
+                elif kind == "Row" and control.scroll is not None and expand:
+                    problems.append(f"{where}: scrolls sideways, but holds an expanding {type(child).__name__}")
+            if kind == "Column" and control.scroll is not None:
+                childUnbounded = True
+            if kind == "Row" and childUnbounded and getattr(control.vertical_alignment, "value", None) == "stretch":
+                problems.append(f"{where}: stretches its children's height, but has no height limit")
+        for child in children:
+            check(child, childUnbounded)
+
+    for drawn in _drawn(root):
+        check(drawn, False)
+    return problems
+
+
+# The built-in font (Roboto, in the PC view with no fallback fonts) writes Latin text and these; anything
+# else (✓ ▾ ↑ ✎ …) is an empty box there.
+drawableExtras = set("–—‘’“”…•−›‹€")
+
+
+def undrawable(root: BaseControl) -> set[str]:
+    """Characters shown (texts, button words, labels, tooltips) the PC view's font can't write."""
+    found = set()
+    for control in walk(root):
+        for name in ("value", "content", "label", "text", "tooltip", "hint_text", "suffix"):
+            value = getattr(control, name, None)
+            if isinstance(value, str):
+                found |= {char for char in value if ord(char) > 0xFF and char not in drawableExtras}
+    return found
 
 
 def _expand(control: BaseControl) -> None:

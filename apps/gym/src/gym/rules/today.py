@@ -18,8 +18,8 @@ from gym.rules.sessions import SessionExercise, sessionExercises
 from gym.rules.stats import kgText, unit, workoutVolumeKg
 from gym.rules.week import weeklyTarget, workoutsInWeek
 
-__all__ = ["ExerciseLine", "ImportedPlan", "LoggedExercise", "SetDone", "TodayView", "deloadText", "headerText",
-           "kilogramsUnit", "targetText", "todayView"]
+__all__ = ["ExerciseLine", "ImportedPlan", "LoggedExercise", "SetDone", "TodayView", "clockText", "deloadText",
+           "headerParts", "headerText", "kilogramsUnit", "restLeft", "targetText", "todayView", "workoutProgress"]
 
 upcomingDays = 7  # a deload starting within this many days shows on Today
 
@@ -38,7 +38,7 @@ class ExerciseLine:
     trackDay: int | None = None  # the day whose targets it uses and updates (WD2.3); None if it has none
     stepKg: float | None = None  # its weight step: set in the app, else the plan's (WD2.1)
     needsWeight: bool = False  # only the plan's 1 kg placeholder (PF3): "@ ? kg", no target weight, ✓ opens ▾ sets
-    isNew: bool = False  # the target is a step up from the last weight: "↑new", with Undo (UN1.1)
+    isNew: bool = False  # the target is a step up from the last weight: marked "new", with Undo (UN1.1)
     declined: bool = False  # Undo pressed: today's target is the last weight at repsMax, with redo (UN1.1)
 
 
@@ -157,8 +157,8 @@ def _line(entry: SessionExercise, logged: LoggedExercise | None, finished: bool,
 
 
 def targetText(line: ExerciseLine) -> str:
-    """The target as Today writes it: "4×8 @ 80 kg", "4×8 @ 20 kg/side" (plates per side, WD1.3), "4×8 @ 82.5 kg
-    ↑new" (a step up, UN1.1), "4×8 @ ? kg" (no weight of yours yet, PF3), "3×8" (bodyweight) or "15 min"."""
+    """The target as Today writes it: "4×8 @ 80 kg", "4×8 @ 20 kg/side" (plates per side, WD1.3), "4×8 @ ? kg" (no
+    weight of yours yet, PF3), "3×8" (bodyweight) or "15 min". A step up (UN1.1) is marked beside it."""
     if line.targetMinutes is not None:
         return f"{line.targetMinutes} min"
     if line.targetSets is None or line.targetReps is None:
@@ -168,7 +168,7 @@ def targetText(line: ExerciseLine) -> str:
         return text + f" @ ? {unit(line.exercise)}"
     if line.targetWeightKg is None:
         return text
-    return text + f" @ {kgText(line.targetWeightKg)} {unit(line.exercise)}" + (" ↑new" if line.isNew else "")
+    return text + f" @ {kgText(line.targetWeightKg)} {unit(line.exercise)}"
 
 
 def kilogramsUnit(exercise: PlanExercise) -> str:
@@ -185,6 +185,36 @@ def headerText(view: TodayView) -> str:
     if view.weekTarget is not None:
         parts.append(f"week {view.weekDone}/{view.weekTarget}")
     return " · ".join(parts)
+
+
+def headerParts(view: TodayView) -> tuple[str, str]:
+    """The top as two lines (SC2.3): the session's title big, and under it the weekday with the week's count:
+    ("Upper", "Monday · 2 of 5 this week"), or on the flex day ("Upper", "Saturday, for Monday · 4 of 5 this
+    week")."""
+    if not view.hasPlan:
+        return "Today", ""
+    parts = [view.weekday + (f", for {view.makesUp}" if view.makesUp else "")]
+    if view.weekTarget is not None:
+        parts.append(f"{view.weekDone} of {view.weekTarget} this week")
+    return view.title, " · ".join(parts)
+
+
+def workoutProgress(view: TodayView) -> tuple[int, int, int]:
+    """Today's progress bar (SC2.4): the exercises done, skipped, and in all."""
+    done = sum(1 for line in view.exercises if line.status == "done")
+    skipped = sum(1 for line in view.exercises if line.status in ("skipped", "autoSkipped"))
+    return done, skipped, len(view.exercises)
+
+
+def restLeft(until: dt.datetime, now: dt.datetime) -> int:
+    """The rest timer's whole seconds left, rounded up, never below 0 (RT1.1)."""
+    left = (until - now).total_seconds()
+    return max(0, int(left) + (1 if left > int(left) else 0))
+
+
+def clockText(seconds: int) -> str:
+    """90 as "1:30"."""
+    return f"{seconds // 60}:{seconds % 60:02d}"
 
 
 def deloadText(view: TodayView) -> str:

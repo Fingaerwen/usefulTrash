@@ -73,7 +73,7 @@ class PlanExercise:
     platesPerSide: bool = False  # weights are the plates on one side: doubled for volume and 1RM (WD1.3)
     barKg: float | None = None  # the bar's or sled's own weight, added for volume and 1RM (WD1.3)
     compound: bool = False  # a compound lift, watched by the deload trigger (WD3.2)
-    restSec: int | None = None  # shown on Today, no timer (17.3a)
+    restSec: int | None = None  # shown on Today, and how long its rest timer runs (17.3a, RT1.1)
     notes: str | None = None  # form cues shown on Today (17.3a)
     minutes: int | None = None  # the cardio target
     setup: str | None = None  # how-to (SC7.1): the machine or equipment needed and how to set it up

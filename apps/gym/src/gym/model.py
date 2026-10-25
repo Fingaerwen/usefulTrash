@@ -48,6 +48,9 @@ class AppModel:
     historyView: TodayView | None = None  # that day, laid out like Today
     diary: MonthDiary | None = None
     waiting: int = 0  # changes not sent yet: "3 waiting" (SC1.1)
+    restUntil: dt.datetime | None = None  # the rest timer (RT1.1): when the rest is over, None when none runs
+    restSeconds: int = 0  # how long that rest is in all, for its bar
+    restName: str = ""  # the exercise it's for
     banners: tuple[str, ...] = ()  # shown at the top of any tab (18.4a)
     downloaded: int = 0  # first download: "Downloading your data… N rows" (14b)
     problems: tuple[str, ...] = ()  # the Problems page's lines (12d)
@@ -139,7 +142,7 @@ def problemsReport(schema: int, sync: SyncFacts, log: LogFacts, now: dt.datetime
     lines.append(f"Last backup: {lastBackup}")
     clean = log.tokenShapedStrings == 0 and log.knownSecretsFound == 0
     lines.append(f"Log check: {log.lines} lines, {log.tokenShapedStrings} token-shaped strings, "
-                 f"{log.knownSecretsFound} current tokens found" + (" ✓" if clean else " ✗"))
+                 f"{log.knownSecretsFound} current tokens found" + (", clean" if clean else ", not clean"))
     if log.recent:
         lines.append("Recent problems:")
         for at, area, plainWords, technical in log.recent:

@@ -27,6 +27,18 @@ class WeighInNotify(ft.Service):
             arguments={"seconds": seconds, "title": title, "body": body},
         )
 
+    async def scheduleRest(self, seconds: int, title: str, body: str) -> str:
+        """The rest timer's alert: a notification after `seconds`, on the dot (alarm-clock mode), in its own
+        "Rest timer" channel that pops up. Setting it again replaces it. Returns the planned time."""
+        return await self._invoke_method(
+            method_name="scheduleRest",
+            arguments={"seconds": seconds, "title": title, "body": body},
+        )
+
+    async def cancelRest(self) -> bool:
+        """Cancels the rest timer's alert, and takes away its notification if it's showing."""
+        return await self._invoke_method(method_name="cancelRest")
+
     async def scheduleWeekly(self, isoWeekday: int, hour: int, minute: int, title: str, body: str) -> str:
         """Repeats a notification every week. isoWeekday: 1 = Monday … 7 = Sunday (Friday = 5).
         Survives app restarts, phone reboots and app updates. Returns the next planned time."""

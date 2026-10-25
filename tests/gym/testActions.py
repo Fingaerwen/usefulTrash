@@ -93,10 +93,10 @@ def testCheckLogsTheTargetAndStartsTheWorkout(app):
 
 
 def testCheckWontLogThePlansOneKiloPlaceholder(app):
-    """Today opens ▾ sets instead (PF3); the action refuses too, so 1 kg never lands in your history."""
+    """Today opens the sets instead (PF3); the action refuses too, so 1 kg never lands in your history."""
     view = app.today()
     placeholder = dataclasses.replace(line(view, "benchPress"), targetWeightKg=None, needsWeight=True)
-    with pytest.raises(ActionRefused, match="▾ sets"):
+    with pytest.raises(ActionRefused, match="under Sets"):
         app.do(app.actions.checkExercise, view, placeholder)
     assert app.database.rows("exerciseLogs") == []
 
@@ -164,21 +164,22 @@ def testFinishAutoSkipsWhatsLeft(app):
 
 
 def testUndoOnANewWeightIsNotTodayAndAloneIsNoWorkout(app):
-    """UN1.1: bench topped at 82.5, so next Monday asks 85 kg ↑new. Undo: 4×12 @ 82.5 today, with no workout
+    """UN1.1: bench topped at 82.5, so next Monday asks 85 kg, marked new. Undo: 4×12 @ 82.5 today, with no workout
     made; redo takes it back; logging after Undo keeps it, and so does taking the entry back."""
     from gym.rules.today import targetText
     nextMonday = monday + dt.timedelta(days=7)
     view = app.today()
     app.do(app.actions.saveSets, view, line(view, "benchPress"), [SetDone(12, 82.5)] * 4)
     view = app.today(nextMonday)
-    assert targetText(line(view, "benchPress")) == "4×8 @ 85 kg ↑new"
+    assert (targetText(line(view, "benchPress")), line(view, "benchPress").isNew) == ("4×8 @ 85 kg", True)
     app.do(app.actions.declineSuggestion, view, line(view, "benchPress"), True)
     view = app.today(nextMonday)
     bench = line(view, "benchPress")
     assert (bench.declined, bench.isNew, targetText(bench), bench.status) == (True, False, "4×12 @ 82.5 kg", "todo")
     assert not view.workoutExists and len(app.database.rows("sessions")) == 1  # Monday's only
     app.do(app.actions.declineSuggestion, view, bench, False)  # redo
-    assert targetText(line(app.today(nextMonday), "benchPress")) == "4×8 @ 85 kg ↑new"
+    redone = line(app.today(nextMonday), "benchPress")
+    assert (targetText(redone), redone.isNew) == ("4×8 @ 85 kg", True)
     app.do(app.actions.declineSuggestion, app.today(nextMonday), line(app.today(nextMonday), "benchPress"), True)
     view = app.today(nextMonday)
     app.do(app.actions.checkExercise, view, line(view, "benchPress"))

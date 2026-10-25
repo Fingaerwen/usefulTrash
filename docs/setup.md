@@ -90,36 +90,48 @@ Anything that looks wrong: ⋮ → Problems → **Copy**, and paste it to me.
    (check 8).
 2. **Plan:** import it in the PC view's Plans tab (first `.venv/bin/python tools/checkPlan.py <file>` on the PC if
    you like). It takes effect today, or tomorrow if you've logged today.
-3. **Today:** the header (`Upper · Monday · week 0/5`); [✓] an exercise and tap it again to take it back; ▾ sets
-   with another weight; skip; tap a name for its how-to; ✎ weight; Finish (`Workout finished ✓ · … kg`); the steps
-   line. On the first sessions your plan's 1 kg weights show as `? kg`: [✓] opens ▾ sets, where the weight typed in
-   set 1 counts for the sets below (the target starts from there), or use ✎ weight before you start, which also
+3. **Today:** the header (`Upper`, and under it `Monday · 0 of 5 this week`) and the progress card (`0 of 10
+   done`); tick an exercise with the big circle and tap it again to take it back; **Sets** with another weight;
+   in ⋯: Skip, How to (or tap the name), Set the weight; Finish (`Workout finished · … kg`); the steps card. On the
+   first sessions your plan's 1 kg weights show as `? kg`: the tick opens Sets, where the weight typed in set 1
+   counts for the sets below (the target starts from there), or use Set the weight before you start, which also
    fills the exercise's other days still at `? kg`. A 5- or 6-set exercise logged with uneven reps (your ab
-   machine) still shows its name, the entry wraps if it must, and [✓] stays at the right edge (SC2.2).
+   machine) wraps under its name, and the tick stays at the right edge.
 4. **The gym's dead zone:** airplane mode → log a few → `N waiting` at the top → airplane mode off → it disappears
    within about a minute, and the PC view shows the entries a minute later.
-5. **Progress:** each exercise with `now …` and its PR; open one: chart, PRs, `Now Mon …` with ✎, the history.
-6. **Week:** the numbers, the calendar row (✓ trained, ✗ missed), ◂ ▸, and a day tapped to enter its steps.
-7. **Deload by hand:** ⋮ → Start a deload → Today's deload line, half the sets and 3 reps fewer → ⋮ → Stop the
+5. **Progress:** each exercise with `now …` and its PR; open one: the chart, the three PR tiles, `NEXT TIME`
+   with the pencil, the history.
+6. **Week:** the tiles, the days (a filled circle with a tick: trained; a cross: missed; a dot: rest), ‹ ›, and
+   a day tapped to enter its steps.
+7. **Deload by hand:** ⋮ → Start a deload → Today's deload card, half the sets and 3 reps fewer → ⋮ → Stop the
    deload (unless you want one).
 8. **Creatine reminder:** Android asks once whether the app may send notifications (allow it); the next morning at
    08:00, "Creatine · Time for your creatine". An alarm icon in the status bar is expected (alarm-clock mode, so
    it's on time). If it comes late: battery → **Unrestricted** (section 6).
 9. **Restart the phone and the app:** still signed in, everything still there, and the reminders still set.
-10. **↑new and Undo (0.3-alpha):** after you've topped an exercise's range, its next target shows `↑new` with
-    **undo ↑** under it; undo shows the last weight at the top of the range, with **redo ↑** to go back.
+10. **"new" and Not today (0.3-alpha):** after you've topped an exercise's range, its next target is marked
+    `new`; tap the mark (or ⋯ → Not today) and the last weight at the top of the range shows, marked `not today`;
+    tap it again (or ⋯ → Take the step up) to go back.
 11. **Charts (0.3-alpha):** pick an exercise at the top; the kg line and the reps bars fit the screen in light and
-    dark mode (the marks are drawn in the text colour); tap a chart and the session is written underneath.
-12. **Weight (0.3-alpha):** Friday preselected, ◂ ▸ for another day, Save; the text bars and `Last 4: …` below.
+    dark mode, with the latest session written underneath; tap the chart and another one is.
+12. **Weight (0.3-alpha):** Friday preselected, ‹ › for another day, Save; the chart and `LAST 4` below.
 13. **Banners (0.3-alpha):** on Friday "Weigh-in due" until you've weighed in, and at 07:00 the "Weigh-in · Time to
     weigh in" notification; on Monday "Last week's summary is ready", which opens last week on Week and is gone.
 14. **The automatic backup (0.3-alpha):** after the update, Google asks once about Drive (allow it); then
     ⋮ → Problems shows `Last backup: … (phone) · today`, and Google Drive has the folder **Gym Tracker backups**
     with a dated backup and `GymTracker-history.zip` in it.
-15. **History (0.3-alpha):** ⋮ → History → Days: every day this month, ◂ for earlier ones; Edit one of the
-    last 7, ✓ an exercise there, and Today stays as it was; an older day opens with View, read-only; Delete
-    this workout; Months: your month per exercise, and a tap shows its chart; All time: every exercise's
+15. **History (0.3-alpha):** ⋮ → History → Days: every day this month since your plan began, ‹ for earlier ones;
+    open one of the last 7 (a pencil), tick an exercise there, and Today stays as it was; an older day opens
+    read-only; Delete this workout; Months: your month per exercise, and a tap shows its chart; All time: every exercise's
     chart with its PRs, and your weight's.
 16. **The PC view (0.3-alpha):** the History tab (any day), the Backup tab: Export CSV downloads a zip; after
     step 1c, Back up now opens Google's page in a second window, and then says "Backed up to your Google
     Drive: …". If it doesn't, ⋮ → Problems → Copy, and paste it to me.
+17. **The look (0.3-alpha):** black with charcoal cards in dark mode, the mirror (white, light grey) in light mode;
+    nothing cut off or overlapping on Today, Progress, an exercise's page, Charts, Week, Weight and History; the PC
+    view has its tabs down the left and its screens in the middle. A grey box instead of a screen: ⋮ → Problems →
+    Copy, and paste it to me.
+18. **The rest timer (0.3-alpha):** tick an exercise: the timer at the bottom of Today counts down its rest; +30 s
+    adds, × stops it; tapping an exercise's rest time (the stopwatch) starts it between sets. Lock the phone
+    during one: at 0 a "Rest over" notification pops up, on time (an alarm icon in the status bar meanwhile is
+    expected). It can be muted on its own: Android settings → Apps → Gym Tracker → Notifications → Rest timer.
