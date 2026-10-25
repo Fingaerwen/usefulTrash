@@ -20,7 +20,7 @@ from urllib.parse import unquote, urlparse
 repoRoot = Path(__file__).resolve().parents[1]
 ourPrefix = "usefultrash"  # normalized: every package of ours is named usefulTrash<Something>
 # Names that must never appear in a build: our packages' old names and PyPI look-alikes.
-forbiddenNames = {"securestore", "shared", "usefulshared", "nativegooglesignin", "weighinnotify"}
+forbiddenNames = {"securestore", "shared", "usefulshared", "nativegooglesignin", "weighinnotify", "barcodescan"}
 
 
 def normalized(name: str) -> str:

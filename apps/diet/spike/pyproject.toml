@@ -1,0 +1,38 @@
+# Ambrosia's Phase 0 spike (apps/diet/docs/plan.md, section 6): a throwaway app that tests the diet app's risky
+# parts on your phone and in the browser. Never imported by anything; kept as the record, like spikes/phase0.
+[project]
+name = "ambrosiaSpike"
+version = "0.0.1"
+description = "Ambrosia Phase 0 checks"
+requires-python = "==3.14.*"  # the Python Flet bundles for Android (R3)
+dependencies = [
+    "flet==1.0.3",
+    # Our own package; it must have a local path below, or a build would look the name up on PyPI (CS1.1).
+    "usefulTrashBarcodeScan",
+]
+
+# Local packages: paths are relative to this folder, so the repo builds from wherever it's cloned.
+[tool.flet.dev_packages]
+usefulTrashBarcodeScan = "../../../extensions/barcodeScan"
+
+[tool.flet]
+product = "Ambrosia spike"
+org = "io.github.fingaerwen"
+build_number = 1
+
+[tool.flet.android]
+# Its own package, apart from the real app (io.github.fingaerwen.ambrosia), so that installs cleanly later.
+bundle_id = "io.github.fingaerwen.ambrosiaspike"
+target_arch = ["arm64-v8a"]  # your phone's CPU type only: one small APK (RL3)
+
+[tool.flet.web]
+base_url = "/usefulTrash/ambrosia/"  # where Ambrosia's PC view would live, next to Talos's (plan 4c)
+cdn = false  # Python and Flutter come from our own site, as with Talos (plan 1)
+
+[tool.flet.app]
+path = "src"
+
+# Workaround for a Flet 1.0.3 template bug (found in Talos's Phase 0): it pins Dart package jni to 1.0.0,
+# but jni_flutter 1.0.4+1 requires jni ^1.1.0, so the Android build fails.
+[tool.flet.flutter.pubspec.dependency_overrides]
+jni = "1.1.0"
