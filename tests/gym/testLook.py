@@ -26,7 +26,8 @@ def testShadesAreGreysLeaningTowardsRed():
             if role in textRoles or role == "surface":
                 assert red == green == blue, (role, shade)
             else:
-                assert red >= max(green, blue) and red - min(green, blue) <= 24 and abs(green - blue) <= 4, (role, shade)
+                leansRed = red >= max(green, blue) and red - min(green, blue) <= 24 and abs(green - blue) <= 4
+                assert leansRed, (role, shade)
     assert (darkShades["surface"], lightShades["surface"]) == ("#000000", "#FFFFFF")  # black, mirrored in light
     assert darkTheme().color_scheme.primary == "#FFFFFF" and lightTheme().color_scheme.primary == "#000000"
 
