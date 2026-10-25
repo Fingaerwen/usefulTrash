@@ -96,8 +96,10 @@ class AmbrosiaState:
 
     def dayView(self, date: dt.date, editable: bool = True) -> DayView:
         kind = self.dayKind(date)
-        return DayView(date, kind, self.targetsFor(date, kind), dayTotal(self.logs, date), byMeal(self.logs, date),
-                       self.water.get(date, 0), self.waterTarget(date), editable)
+        targets = self.targetsFor(date, kind)
+        later = targets is None and any(found.effectiveDate > date for found in self.imports)
+        return DayView(date, kind, targets, dayTotal(self.logs, date), byMeal(self.logs, date),
+                       self.water.get(date, 0), self.waterTarget(date), editable, later)
 
     def weekView(self, monday: dt.date, today: dt.date) -> WeekView:
         return weekView(monday, today, self.logs, self.dayKind, self.targetsFor, self.weights)

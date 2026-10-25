@@ -100,11 +100,14 @@ class AmbrosiaBase:
     def openAdd(self, meal: str, date: dt.date | None = None) -> None:
         self.model.addMeal, self.model.addDate = meal, date or self.localToday()
         self.model.addMode = "search" if self.mode == "pc" else self.model.addMode
-        self.model.results, self.model.notice = None, ""
+        self.model.results, self.model.searchWords, self.model.notice = None, "", ""
         self.model.screen = "add"
 
     def setAddMode(self, mode: str) -> None:
         self.model.addMode = mode
+
+    def typeSearch(self, words: str) -> None:
+        self.model.searchWords = words
 
     def _found(self, item: UsedFood) -> Found:
         times = f"eaten {item.uses} times" if item.uses > 1 else "eaten once" if item.uses else "not eaten yet"

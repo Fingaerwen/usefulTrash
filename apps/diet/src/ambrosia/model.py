@@ -87,6 +87,7 @@ class AppModel:
     addMeal: str = "lunch"
     addDate: dt.date | None = None
     addMode: str = "search"  # search, scan or recent
+    searchWords: str = ""  # what's typed in the search field, kept while you look at a result
     results: SearchResults | None = None
     recent: tuple[Found, ...] = ()
     picked: Picked | None = None
