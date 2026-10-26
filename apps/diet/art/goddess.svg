@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 900" width="600" height="900">
+  <!-- Ambrosia's goddess (AM7.3): a stylized anime-style silhouette in profile, facing left, drawn for the app
+       (no outside art). Hair flowing back and down, a tiara with a star, a closed eye with lashes. Gold lines over
+       a pink-to-gold body, faint, behind the screens. apps/diet/makeGoddess.py renders it to src/assets. -->
+  <defs>
+    <linearGradient id="hairFill" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FF8AD0" stop-opacity="0.95"/>
+      <stop offset="0.6" stop-color="#D44A9C" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#FF8AD0" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="skinFill" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#FFE3F3" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#FF8AD0" stop-opacity="0.7"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFF4B8"/>
+      <stop offset="0.5" stop-color="#FFC72C"/>
+      <stop offset="1" stop-color="#E09A00"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFF4B8" stop-opacity="0.55"/>
+      <stop offset="0.6" stop-color="#FF8AD0" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#FF8AD0" stop-opacity="0"/>
+    </radialGradient>
+    <!-- The body fades out downwards instead of ending in a hard edge -->
+    <linearGradient id="fadeDown" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.45" stop-color="white"/>
+      <stop offset="1" stop-color="black"/>
+    </linearGradient>
+    <mask id="bodyFade" maskUnits="userSpaceOnUse" x="0" y="0" width="600" height="900">
+      <rect x="0" y="120" width="600" height="440" fill="url(#fadeDown)"/>
+    </mask>
+    <g id="spark">
+      <path d="M0 -1 C 0.08 -0.08, 0.08 -0.08, 1 0 C 0.08 0.08, 0.08 0.08, 0 1 C -0.08 0.08, -0.08 0.08, -1 0 C -0.08 -0.08, -0.08 -0.08, 0 -1 Z" fill="#FFF4B8"/>
+    </g>
+  </defs>
+
+  <!-- A halo behind the head -->
+  <circle cx="345" cy="250" r="190" fill="url(#halo)"/>
+  <circle cx="345" cy="250" r="150" fill="none" stroke="url(#gold)" stroke-width="2" stroke-opacity="0.7"/>
+
+  <!-- Hair: one long mass from the crown, back and down in waves to the bottom right -->
+  <path fill="url(#hairFill)" d="
+    M 300 128
+    C 340 92, 420 96, 455 142
+    C 492 192, 486 262, 470 318
+    C 456 370, 478 420, 512 468
+    C 548 520, 560 590, 532 650
+    C 512 694, 528 752, 572 800
+    C 520 790, 488 748, 482 700
+    C 476 652, 498 610, 470 560
+    C 446 520, 410 500, 404 448
+    C 398 404, 420 366, 404 330
+    C 392 304, 372 296, 356 300
+    L 352 262
+    C 340 226, 318 196, 300 186 Z"/>
+  <!-- Strands flying back from the hair -->
+  <path fill="none" stroke="url(#gold)" stroke-width="2.4" stroke-linecap="round" d="
+    M 440 130 C 500 150, 540 210, 560 290
+    M 466 210 C 520 250, 548 330, 540 420
+    M 486 470 C 540 520, 580 600, 566 690
+    M 470 330 C 500 380, 520 430, 516 480"/>
+
+  <!-- Face, neck and shoulder in profile, facing left -->
+  <path fill="url(#skinFill)" mask="url(#bodyFade)" d="
+    M 302 150
+    C 288 166, 280 188, 276 212
+    C 272 226, 270 236, 262 252
+    L 248 270
+    C 256 276, 264 276, 268 280
+    C 264 288, 266 294, 270 298
+    C 266 304, 266 310, 272 316
+    C 274 330, 284 344, 302 350
+    C 318 354, 334 352, 344 346
+    L 350 392
+    C 352 424, 330 452, 286 476
+    C 252 494, 226 520, 214 560
+    L 418 560
+    C 420 520, 404 470, 396 420
+    L 384 300
+    C 370 250, 340 196, 302 150 Z"/>
+  <!-- Bangs over the forehead, sharp anime tips -->
+  <path fill="url(#hairFill)" d="
+    M 296 132 C 330 120, 372 132, 392 168
+    C 372 160, 356 164, 344 180
+    C 340 198, 336 214, 330 228
+    C 326 204, 318 188, 304 180
+    C 300 200, 292 214, 280 222
+    C 286 196, 286 172, 296 132 Z"/>
+  <!-- The closed eye with lashes, and a brow -->
+  <path fill="none" stroke="#FFC72C" stroke-width="3" stroke-linecap="round" d="
+    M 280 236 C 290 244, 304 244, 314 236
+    M 282 238 L 276 246  M 290 242 L 286 251  M 299 243 L 297 252  M 308 240 L 309 249"/>
+  <path fill="none" stroke="#FFC72C" stroke-width="2" stroke-linecap="round" d="M 284 218 C 294 212, 306 212, 316 216"/>
+  <!-- Lips -->
+  <path fill="#FF8AD0" d="M 266 299 C 272 296, 278 298, 280 302 C 276 306, 270 306, 266 303 Z"/>
+
+  <!-- The tiara: a gold band with a star at the front -->
+  <path fill="none" stroke="url(#gold)" stroke-width="4" stroke-linecap="round" d="M 290 150 C 330 128, 380 126, 420 146"/>
+  <use href="#spark" transform="translate(300 132) scale(22)"/>
+  <circle cx="300" cy="132" r="4" fill="#FFF4B8"/>
+  <use href="#spark" transform="translate(352 126) scale(9)"/>
+  <use href="#spark" transform="translate(398 134) scale(9)"/>
+
+  <!-- A gown's neckline in gold -->
+  <path fill="none" stroke="url(#gold)" stroke-width="2.5" mask="url(#bodyFade)" d="M 236 520 C 280 492, 330 480, 400 492"/>
+
+  <!-- Sparkles around her -->
+  <use href="#spark" transform="translate(180 210) scale(18)" opacity="0.9"/>
+  <use href="#spark" transform="translate(210 120) scale(9)" opacity="0.8"/>
+  <use href="#spark" transform="translate(150 380) scale(12)" opacity="0.7"/>
+  <use href="#spark" transform="translate(520 120) scale(14)" opacity="0.85"/>
+  <use href="#spark" transform="translate(580 380) scale(9)" opacity="0.7"/>
+  <use href="#spark" transform="translate(470 860) scale(16)" opacity="0.8"/>
+</svg>

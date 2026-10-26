@@ -1,8 +1,9 @@
 """Ambrosia's look (apps/diet/docs/plan.md AM7.1, AM7.3): the suite's black and shades (usefulShared.look) with
 bold, sharp, flashy gold and light pink, all behind the content. Dark mode follows the phone: black underneath,
 cards with a pink undertone fading from a pink corner, metallic-gold streaks with a pale shine and anime-style
-sparkles, light-pink glows. Light mode mirrors it. Text, ticks and the main buttons are never gold or pink. A
-fantasy anime-style goddess behind the screens is still to come (AM7.3).
+sparkles, light-pink glows, and a goddess drawn in anime style, large and faint behind the lower right (a
+placeholder you may replace, AM7.3). Light mode mirrors it. Text, ticks and the main buttons are never gold or
+pink.
 """
 
 import flet as ft
@@ -85,6 +86,7 @@ lightAccents = {"tertiary": "#D69A00", "on_tertiary": "#FFFFFF", "on_tertiary_fi
                 "tertiary_fixed": "#FFEAF6", "tertiary_fixed_dim": "#FF9BD6"}
 
 goldEdge = accentEdge  # the sharp gold line along the tab bar
+goddessImage = "goddess.webp"  # in src/assets, made by apps/diet/makeGoddess.py
 
 
 def lightTheme() -> ft.Theme:
@@ -132,6 +134,8 @@ def backdrop(content: ft.Control) -> ft.Control:
                across=False, top=150, right=-1200),
         streak(2800, 1.5, [accent(0.0, gold), accent(0.9, gold), accent(0.0, gold)], [0.4, 0.58, 0.75],
                across=False, top=162, right=-1200),
+        # The goddess (AM7.3): drawn for the app, apps/diet/art/goddess.svg; large and faint, lower right.
+        ft.Image(src=goddessImage, height=560, fit=ft.BoxFit.CONTAIN, opacity=0.5, right=-50, bottom=36),
         sparkle(32, top=54, right=114), sparkle(16, top=28, right=44), sparkle(22, top=126, right=20),
         sparkle(12, top=96, right=178),
         streak(520, 2, [accent(0.0, pink), accent(0.85, pink), accent(0.0, pink)], [0.0, 0.5, 1.0], across=False,

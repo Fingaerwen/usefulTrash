@@ -78,7 +78,7 @@ Quoted word for word from section 10 of your Claude project's context file ("Gym
 | AM6.4 | Cloud upgrade 003 as in 4e: `foods`, `foodLogs`, `water`, `dietTargets`, `targetChanges`, `dietBackups` and `bodyWeight.weighedAt`. The bulk check's exact rules are in 4g, the targets file's fields in 4f. |
 | AM7.1 | Ambrosia's look: bold, sharp, aggressive gold, with pink gradients over a goddess background, on the suite's black and greys (like Talos's red, LK1.3). |
 | AM7.2 | Building order: everything that doesn't need max effort first; the max-effort parts (gate 2: the bulk check and the new tables' sync) last. Commits go to main and are pushed as they're done. |
-| AM7.3 | No photo behind Ambrosia: the goddess is to be fantasy anime style (how the art is made is open, 4j). The gold is flashier: metallic, with a pale shine on its edges, double lines and anime-style sparkles, kept sharp (gold spread thin over black turns brown); the pink is lighter and pinker, and carries the glows. |
+| AM7.3 | No photo behind Ambrosia: the goddess is fantasy anime style; for now a stylized profile drawn for the app, a placeholder you'll decide on later (4j). The gold is flashier: metallic, with a pale shine on its edges, double lines and anime-style sparkles, kept sharp (gold spread thin over black turns brown); the pink is lighter and pinker, and carries the glows. |
 | AM8.1 | You weigh only on Fridays. Talos's Friday 07:00 reminder and Friday banner stay as they are. The bulk check's rules (4g) assume a weigh-in after every session (only days you trained count, at least 8 a block); they're reworked at max effort in gate 2, with the targets brief. |
 | AM5.8 | The design round's sketches are the basis for building: phone tabs Today, Week, Targets (⋮: History, Problems); PC view tabs Today, Week, History, Targets, Backup. Details are settled as each screen is built and checked on your phone. |
 
@@ -168,7 +168,7 @@ Settled 2026-10-25 at max effort: the protocol in section 2, with the settings f
 - **From Phase 0, still open:** duplicate generic foods and the four searches the new ranking still gets wrong (oatmeal, spaghetti, skim milk, bacon), if they bother you in use; anything Ambrosia keeps in the browser gets its own key names (both PC views share one browser storage).
 - **Where you shop:** you'll say just before the first version goes live (AM5.4); ask then.
 - **The bulk check with Friday weigh-ins (AM8.1, gate 2, max effort):** a block holds only 2 Fridays, so as written (at least 8 weigh-ins, only days you trained) every check would be skipped, and with 2 a block the averages are much noisier (a single weigh-in scatters about ±0.4 kg). Settle then: count every weigh-in (a Friday morning one isn't after a workout), and what the targets file's minimum and the protocol become; tell your Claude project you weigh only on Fridays, since its protocol assumes every session.
-- **The goddess (AM7.3):** fantasy anime style; how the art is made is open.
+- **The goddess (AM7.3):** for now a stylized anime-style profile drawn for the app (`apps/diet/art/goddess.svg`, rendered by `apps/diet/makeGoddess.py`); you'll decide later what goes there.
 - Settled on 2026-10-25: the scanner (AM5.1), the PC view's name search (AM5.2), the ranking (AM5.3), shop barcodes (AM5.4), one Drive backup per app (AM5.6), Talos's weekly summary (AM5.7), the sketches (AM5.8).
 
 ## 5. Max-effort gates
