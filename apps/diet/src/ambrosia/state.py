@@ -27,7 +27,7 @@ from ambrosia.rules.today import DayView
 from ambrosia.rules.week import WeekView, weekView, weighIns
 
 ambrosiaTables = ("foods", "foodLogs", "water", "dietTargets", "targetChanges", "dietBackups")
-talosTables = ("bodyWeight", "plans", "sessions", "exerciseLogs")  # read, never written (4e)
+talonTables = ("bodyWeight", "plans", "sessions", "exerciseLogs")  # read, never written (4e)
 
 
 @dataclass(frozen=True, slots=True)
