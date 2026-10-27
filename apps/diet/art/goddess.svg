@@ -1,115 +1,211 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 900" width="600" height="900">
-  <!-- Ambrosia's goddess (AM7.3): a stylized anime-style silhouette in profile, facing left, drawn for the app
-       (no outside art). Hair flowing back and down, a tiara with a star, a closed eye with lashes. Gold lines over
-       a pink-to-gold body, faint, behind the screens. apps/diet/makeGoddess.py renders it to src/assets. -->
+  <!-- Ambrosia's goddess of harmony (apps/diet/docs/plan.md AM9.3): an anime beauty in profile, facing left.
+       Half-lidded rose eyes with long lashes, glossy lips, light pink hair with a shine band and soft clumps, a
+       slender neck, collarbones, Harmonia's pearl necklace and a pearl drop earring, an off-shoulder gown with
+       pearl trim, an olive wreath in pearl and a soft halo. Soft lines only: the sharp gold is her katanas,
+       drawn separately (katana.svg). Drawn for the app, a placeholder until you pick final art.
+       tools/makeArt.py renders it to src/assets/goddess.webp. -->
   <defs>
-    <linearGradient id="hairFill" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#FF8AD0" stop-opacity="0.95"/>
-      <stop offset="0.6" stop-color="#D44A9C" stop-opacity="0.75"/>
-      <stop offset="1" stop-color="#FF8AD0" stop-opacity="0"/>
+    <linearGradient id="hair" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#FFE6F3"/>
+      <stop offset="0.4" stop-color="#FFB8DD"/>
+      <stop offset="1" stop-color="#F59AC9" stop-opacity="0"/>
     </linearGradient>
-    <linearGradient id="skinFill" x1="0" y1="0" x2="0.4" y2="1">
-      <stop offset="0" stop-color="#FFE3F3" stop-opacity="0.95"/>
-      <stop offset="1" stop-color="#FF8AD0" stop-opacity="0.7"/>
+    <linearGradient id="bangs" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFD6EC"/>
+      <stop offset="1" stop-color="#F7A6D1"/>
     </linearGradient>
-    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#FFF4B8"/>
-      <stop offset="0.5" stop-color="#FFC72C"/>
-      <stop offset="1" stop-color="#E09A00"/>
+    <linearGradient id="lock" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFC9E6"/>
+      <stop offset="1" stop-color="#F59AC9"/>
+    </linearGradient>
+    <linearGradient id="hairShade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#E78BBE"/>
+      <stop offset="1" stop-color="#E78BBE" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="skin" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#FFF6FB"/>
+      <stop offset="1" stop-color="#FFE2F0"/>
+    </linearGradient>
+    <linearGradient id="iris" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5A1240"/>
+      <stop offset="0.6" stop-color="#B83C82"/>
+      <stop offset="1" stop-color="#F28CC4"/>
+    </linearGradient>
+    <linearGradient id="gown" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFC7E6" stop-opacity="0.92"/>
+      <stop offset="0.5" stop-color="#F59AC9" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#F59AC9" stop-opacity="0"/>
     </linearGradient>
     <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0" stop-color="#FFF4B8" stop-opacity="0.55"/>
-      <stop offset="0.6" stop-color="#FF8AD0" stop-opacity="0.18"/>
-      <stop offset="1" stop-color="#FF8AD0" stop-opacity="0"/>
+      <stop offset="0" stop-color="#FFE3F3" stop-opacity="0.5"/>
+      <stop offset="0.55" stop-color="#FFB8DD" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#FFB8DD" stop-opacity="0"/>
     </radialGradient>
-    <!-- The body fades out downwards instead of ending in a hard edge -->
+    <radialGradient id="pearl" cx="0.35" cy="0.35" r="0.65">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F5C6DE"/>
+    </radialGradient>
     <linearGradient id="fadeDown" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0.45" stop-color="white"/>
-      <stop offset="1" stop-color="black"/>
+      <stop offset="0.55" stop-color="white"/>
+      <stop offset="0.92" stop-color="black"/>
     </linearGradient>
-    <mask id="bodyFade" maskUnits="userSpaceOnUse" x="0" y="0" width="600" height="900">
-      <rect x="0" y="120" width="600" height="440" fill="url(#fadeDown)"/>
+    <mask id="fade" maskUnits="userSpaceOnUse" x="0" y="0" width="600" height="900">
+      <rect x="0" y="0" width="600" height="900" fill="url(#fadeDown)"/>
     </mask>
-    <g id="spark">
-      <path d="M0 -1 C 0.08 -0.08, 0.08 -0.08, 1 0 C 0.08 0.08, 0.08 0.08, 0 1 C -0.08 0.08, -0.08 0.08, -1 0 C -0.08 -0.08, -0.08 -0.08, 0 -1 Z" fill="#FFF4B8"/>
-    </g>
+    <clipPath id="eyeClip">
+      <path d="M 286 238 C 294 231, 306 230, 315 234 L 314 246 C 306 250, 296 250, 288 247 Z"/>
+    </clipPath>
+    <path id="leaf" d="M 0 0 C 6 -7, 18 -8, 26 0 C 18 7, 6 6, 0 0 Z"/>
   </defs>
 
-  <!-- A halo behind the head -->
-  <circle cx="345" cy="250" r="190" fill="url(#halo)"/>
-  <circle cx="345" cy="250" r="150" fill="none" stroke="url(#gold)" stroke-width="2" stroke-opacity="0.7"/>
+  <!-- The halo: a soft glow and two thin rings -->
+  <circle cx="345" cy="250" r="210" fill="url(#halo)"/>
+  <circle cx="345" cy="250" r="160" fill="none" stroke="#FFE3F3" stroke-opacity="0.55" stroke-width="1.6"/>
+  <circle cx="345" cy="250" r="176" fill="none" stroke="#FFB8DD" stroke-opacity="0.3" stroke-width="1"/>
 
-  <!-- Hair: one long mass from the crown, back and down in waves to the bottom right -->
-  <path fill="url(#hairFill)" d="
-    M 300 128
-    C 340 92, 420 96, 455 142
-    C 492 192, 486 262, 470 318
-    C 456 370, 478 420, 512 468
-    C 548 520, 560 590, 532 650
-    C 512 694, 528 752, 572 800
-    C 520 790, 488 748, 482 700
-    C 476 652, 498 610, 470 560
-    C 446 520, 410 500, 404 448
-    C 398 404, 420 366, 404 330
-    C 392 304, 372 296, 356 300
-    L 352 262
-    C 340 226, 318 196, 300 186 Z"/>
-  <!-- Strands flying back from the hair -->
-  <path fill="none" stroke="url(#gold)" stroke-width="2.4" stroke-linecap="round" d="
-    M 440 130 C 500 150, 540 210, 560 290
-    M 466 210 C 520 250, 548 330, 540 420
-    M 486 470 C 540 520, 580 600, 566 690
-    M 470 330 C 500 380, 520 430, 516 480"/>
+  <g mask="url(#fade)">
+    <!-- Hair behind: one long mass flowing back and down in soft waves -->
+    <path fill="url(#hair)" d="
+      M 292 172 C 312 108, 424 92, 468 150
+      C 504 200, 496 270, 490 320
+      C 484 372, 514 420, 542 470
+      C 574 528, 580 600, 552 660
+      C 534 700, 550 760, 592 812
+      C 532 800, 502 752, 500 704
+      C 498 650, 522 610, 496 556
+      C 472 508, 420 470, 402 420
+      C 388 380, 386 330, 382 300
+      C 378 284, 370 276, 360 274 Z"/>
+    <path fill="url(#hairShade)" fill-opacity="0.45" d="
+      M 472 330 C 478 380, 502 420, 526 470 C 550 520, 558 580, 538 640
+      C 522 590, 502 540, 478 500 C 452 456, 448 400, 472 330 Z"/>
+    <path fill="none" stroke="#E78BBE" stroke-width="1.4" stroke-linecap="round" stroke-opacity="0.7" d="
+      M 440 200 C 470 260, 462 320, 470 370 M 456 380 C 480 430, 516 470, 530 540 M 500 560 C 520 620, 510 680, 540 760"/>
+    <!-- Loose strands drifting back -->
+    <path fill="none" stroke="#FFD0EA" stroke-width="2" stroke-linecap="round" stroke-opacity="0.85" d="
+      M 458 146 C 522 166, 558 226, 574 296
+      M 490 300 C 542 340, 568 400, 562 470
+      M 542 640 C 582 690, 598 740, 586 800"/>
+    <!-- The shine band across the crown -->
+    <path fill="#FFF6FB" fill-opacity="0.6" d="
+      M 338 136 C 372 120, 418 122, 452 146
+      L 447 154 L 437 148 L 427 157 L 415 148 L 403 156 L 391 146 L 379 154 L 365 144 L 351 151 L 342 142 Z"/>
 
-  <!-- Face, neck and shoulder in profile, facing left -->
-  <path fill="url(#skinFill)" mask="url(#bodyFade)" d="
-    M 302 150
-    C 288 166, 280 188, 276 212
-    C 272 226, 270 236, 262 252
-    L 248 270
-    C 256 276, 264 276, 268 280
-    C 264 288, 266 294, 270 298
-    C 266 304, 266 310, 272 316
-    C 274 330, 284 344, 302 350
-    C 318 354, 334 352, 344 346
-    L 350 392
-    C 352 424, 330 452, 286 476
-    C 252 494, 226 520, 214 560
-    L 418 560
-    C 420 520, 404 470, 396 420
-    L 384 300
-    C 370 250, 340 196, 302 150 Z"/>
-  <!-- Bangs over the forehead, sharp anime tips -->
-  <path fill="url(#hairFill)" d="
-    M 296 132 C 330 120, 372 132, 392 168
-    C 372 160, 356 164, 344 180
-    C 340 198, 336 214, 330 228
-    C 326 204, 318 188, 304 180
-    C 300 200, 292 214, 280 222
-    C 286 196, 286 172, 296 132 Z"/>
-  <!-- The closed eye with lashes, and a brow -->
-  <path fill="none" stroke="#FFC72C" stroke-width="3" stroke-linecap="round" d="
-    M 280 236 C 290 244, 304 244, 314 236
-    M 282 238 L 276 246  M 290 242 L 286 251  M 299 243 L 297 252  M 308 240 L 309 249"/>
-  <path fill="none" stroke="#FFC72C" stroke-width="2" stroke-linecap="round" d="M 284 218 C 294 212, 306 212, 316 216"/>
-  <!-- Lips -->
-  <path fill="#FF8AD0" d="M 266 299 C 272 296, 278 298, 280 302 C 276 306, 270 306, 266 303 Z"/>
+    <!-- Neck and bare shoulders, ending at the gown's neckline -->
+    <path fill="url(#skin)" d="
+      M 318 316 C 322 350, 322 372, 318 392
+      C 292 398, 264 410, 246 428
+      C 232 442, 222 458, 216 476
+      C 264 512, 372 522, 490 458
+      C 482 440, 470 428, 454 420
+      C 436 406, 410 396, 396 388
+      C 390 360, 386 330, 384 296 Z"/>
+    <!-- Cel shadow under the jaw, collarbones -->
+    <path fill="#F4BCD8" fill-opacity="0.75" d="M 318 318 C 334 332, 352 328, 366 312 L 384 296 L 388 344 C 364 352, 336 346, 318 318 Z"/>
+    <path fill="none" stroke="#F2B0D2" stroke-width="1.6" stroke-linecap="round" d="M 268 424 C 290 414, 310 414, 330 420 M 346 420 C 362 414, 378 414, 394 422"/>
+    <!-- Harmonia's necklace: pearls on a fine chain, a drop at the front -->
+    <path fill="none" stroke="#F5C6DE" stroke-width="1" d="M 300 398 C 316 430, 372 432, 394 398"/>
+    <g fill="url(#pearl)" stroke="#E7A6C9" stroke-width="0.6">
+      <circle cx="302" cy="402" r="3.2"/><circle cx="308" cy="411" r="3.4"/><circle cx="316" cy="418" r="3.6"/>
+      <circle cx="326" cy="423" r="3.8"/><circle cx="338" cy="426" r="4"/><circle cx="350" cy="426" r="4"/>
+      <circle cx="362" cy="423" r="3.8"/><circle cx="373" cy="418" r="3.6"/><circle cx="382" cy="411" r="3.4"/>
+      <circle cx="389" cy="403" r="3.2"/>
+      <path d="M 344 431 C 350 438, 352 446, 344 450 C 336 446, 338 438, 344 431 Z"/>
+    </g>
 
-  <!-- The tiara: a gold band with a star at the front -->
-  <path fill="none" stroke="url(#gold)" stroke-width="4" stroke-linecap="round" d="M 290 150 C 330 128, 380 126, 420 146"/>
-  <use href="#spark" transform="translate(300 132) scale(22)"/>
-  <circle cx="300" cy="132" r="4" fill="#FFF4B8"/>
-  <use href="#spark" transform="translate(352 126) scale(9)"/>
-  <use href="#spark" transform="translate(398 134) scale(9)"/>
+    <!-- The gown: off the shoulders, a soft neckline with pearl trim, long folds -->
+    <path fill="url(#gown)" d="
+      M 214 474 C 264 512, 372 520, 490 456
+      C 494 540, 478 600, 466 650
+      C 480 740, 500 820, 520 900 L 180 900
+      C 200 820, 226 740, 240 650
+      C 226 600, 214 540, 214 474 Z"/>
+    <path fill="none" stroke="#FFD6EC" stroke-width="2.2" stroke-linecap="round" d="M 214 474 C 264 512, 372 520, 490 456"/>
+    <path fill="none" stroke="#FFF6FB" stroke-width="3.4" stroke-linecap="round" stroke-dasharray="0.1 9" d="M 220 482 C 266 516, 372 524, 486 464"/>
+    <path fill="none" stroke="#FFB8DD" stroke-width="1.8" stroke-linecap="round" stroke-opacity="0.8" d="
+      M 236 520 C 250 560, 236 610, 248 660 C 256 700, 240 760, 232 820
+      M 310 520 C 322 580, 316 650, 324 760
+      M 390 512 C 396 580, 392 640, 400 760
+      M 462 486 C 470 550, 456 610, 452 660 C 466 720, 480 780, 488 830"/>
 
-  <!-- A gown's neckline in gold -->
-  <path fill="none" stroke="url(#gold)" stroke-width="2.5" mask="url(#bodyFade)" d="M 236 520 C 280 492, 330 480, 400 492"/>
+    <!-- The face in profile, facing left -->
+    <path fill="url(#skin)" d="
+      M 304 170
+      C 292 184, 286 200, 285 216
+      C 284 226, 281 232, 276 240
+      L 264 258
+      C 266 262, 270 264, 275 264
+      C 274 270, 274 274, 276 277
+      C 272 280, 272 284, 277 286
+      C 274 290, 275 295, 281 297
+      C 281 302, 284 310, 292 316
+      C 306 326, 328 328, 346 318
+      C 360 308, 370 290, 372 268
+      L 374 220
+      C 362 196, 334 178, 304 170 Z"/>
+    <ellipse cx="306" cy="264" rx="13" ry="5" fill="#FF9FD2" fill-opacity="0.42"/>
+    <!-- The eye: half-lidded, a rose iris with a light, a thick upper lash line and lashes flicking forward -->
+    <path fill="#FFFFFF" d="M 286 238 C 294 231, 306 230, 315 234 L 314 246 C 306 250, 296 250, 288 247 Z"/>
+    <g clip-path="url(#eyeClip)">
+      <ellipse cx="294" cy="242" rx="6.5" ry="8.5" fill="url(#iris)"/>
+      <circle cx="292" cy="240" r="2.6" fill="#2A0418"/>
+      <circle cx="291" cy="238" r="1.7" fill="#FFFFFF"/>
+      <circle cx="296" cy="246" r="1" fill="#FFFFFF" fill-opacity="0.8"/>
+      <path fill="#F4BCD8" fill-opacity="0.7" d="M 284 236 C 294 231, 306 230, 316 234 L 316 240 C 306 236, 294 236, 284 240 Z"/>
+    </g>
+    <path fill="none" stroke="#4A0D2F" stroke-width="3.4" stroke-linecap="round" d="M 285 239 C 293 232, 305 231, 316 235"/>
+    <path fill="none" stroke="#4A0D2F" stroke-width="1.6" stroke-linecap="round" d="
+      M 286 238 L 279 235 M 288 236 L 282 231 M 291 234 L 287 228"/>
+    <path fill="none" stroke="#C2588F" stroke-width="1.2" stroke-linecap="round" d="M 290 248 C 296 250, 304 250, 310 248"/>
+    <path fill="none" stroke="#D07AAE" stroke-width="2" stroke-linecap="round" d="M 287 222 C 297 216, 309 216, 319 220"/>
+    <!-- Glossy lips -->
+    <path fill="#F38FC0" d="M 276 277 C 272 280, 272 284, 277 286 L 281 286 C 280 282, 279 279, 276 277 Z"/>
+    <path fill="#F7A0CC" d="M 277 286 C 274 290, 275 295, 281 297 C 282 294, 282 290, 281 286 Z"/>
+    <path fill="none" stroke="#FFFFFF" stroke-width="1" stroke-linecap="round" d="M 276.5 291 L 278 292"/>
 
-  <!-- Sparkles around her -->
-  <use href="#spark" transform="translate(180 210) scale(18)" opacity="0.9"/>
-  <use href="#spark" transform="translate(210 120) scale(9)" opacity="0.8"/>
-  <use href="#spark" transform="translate(150 380) scale(12)" opacity="0.7"/>
-  <use href="#spark" transform="translate(520 120) scale(14)" opacity="0.85"/>
-  <use href="#spark" transform="translate(580 380) scale(9)" opacity="0.7"/>
-  <use href="#spark" transform="translate(470 860) scale(16)" opacity="0.8"/>
+    <!-- A pearl drop earring -->
+    <path fill="none" stroke="#F5C6DE" stroke-width="1" d="M 364 298 L 364 314"/>
+    <path fill="url(#pearl)" stroke="#E7A6C9" stroke-width="0.6" d="M 364 312 C 370 318, 371 326, 364 330 C 357 326, 358 318, 364 312 Z"/>
+
+    <!-- The side lock, falling in front of the ear and down past the shoulder -->
+    <path fill="url(#lock)" d="
+      M 356 206 C 346 250, 346 292, 352 330
+      C 358 372, 350 420, 326 466
+      C 352 446, 370 410, 374 364
+      C 378 320, 374 268, 384 226 Z"/>
+    <path fill="none" stroke="#FFE6F3" stroke-width="1.4" stroke-linecap="round" stroke-opacity="0.9" d="M 362 236 C 356 280, 358 330, 360 372"/>
+    <!-- Bangs over the forehead, soft clumps that keep clear of the eye -->
+    <path fill="url(#bangs)" d="
+      M 290 176 C 318 132, 396 128, 426 182
+      C 418 198, 410 212, 404 226
+      C 400 212, 396 204, 390 198
+      C 386 214, 382 226, 376 236
+      C 372 222, 366 212, 358 206
+      C 356 220, 352 228, 346 234
+      C 342 222, 336 212, 328 206
+      C 326 212, 322 218, 318 222
+      C 314 210, 304 194, 290 176 Z"/>
+    <path fill="none" stroke="#FFF6FB" stroke-width="2" stroke-linecap="round" stroke-opacity="0.85" d="
+      M 318 154 C 350 142, 386 148, 408 168 M 380 170 C 384 190, 380 206, 376 222 M 342 176 C 346 194, 346 210, 344 224"/>
+
+    <!-- The olive wreath, in pearl: Harmonia's sign -->
+    <path fill="none" stroke="#FFF0F8" stroke-width="2" stroke-linecap="round" d="M 298 168 C 338 144, 402 140, 450 168"/>
+    <g fill="#FFF0F8" fill-opacity="0.95">
+      <use href="#leaf" transform="translate(302 166) rotate(-150)"/>
+      <use href="#leaf" transform="translate(316 158) rotate(-110)"/>
+      <use href="#leaf" transform="translate(334 150) rotate(-160)"/>
+      <use href="#leaf" transform="translate(352 146) rotate(-100)"/>
+      <use href="#leaf" transform="translate(372 143) rotate(-150)"/>
+      <use href="#leaf" transform="translate(394 143) rotate(-95)"/>
+      <use href="#leaf" transform="translate(412 147) rotate(-140)"/>
+      <use href="#leaf" transform="translate(430 155) rotate(-85)"/>
+      <use href="#leaf" transform="translate(446 165) rotate(-120)"/>
+    </g>
+    <g fill="url(#pearl)">
+      <circle cx="324" cy="155" r="3"/>
+      <circle cx="382" cy="145" r="3"/>
+      <circle cx="422" cy="152" r="3"/>
+    </g>
+  </g>
 </svg>

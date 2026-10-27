@@ -1,8 +1,8 @@
 """The facts, worked out from every row (plan 3b, F10.1): your foods, what you ate, water, the targets files and
-the changes applied to them, and from Talos its plans, the days you trained and your weigh-ins. Everything the
+the changes applied to them, and from Talon its plans, the days you trained and your weigh-ins. Everything the
 screens show is recalculated from these; nothing derived is stored.
 
-Rows are plain dicts with the columns of apps/diet/docs/plan.md 4e (and Talos's own for its tables).
+Rows are plain dicts with the columns of apps/diet/docs/plan.md 4e (and Talon's own for its tables).
 """
 
 import datetime as dt

@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 60" width="1000" height="60">
+  <!-- The goddess's katana (apps/diet/docs/plan.md AM9.4), drawn, lying flat: the hilt on the left in a dark
+       plum wrap with pink diamonds, a gold guard and collar, and a curved gold blade with a pale straight temper
+       line and a bright edge. The one sharp, lethal thing among her soft lines. Ambrosia shows two: one resting
+       over her shoulder, one laid across the top of every screen. tools/makeArt.py renders it. -->
+  <defs>
+    <linearGradient id="kBlade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#C98A00"/>
+      <stop offset="0.35" stop-color="#FFC72C"/>
+      <stop offset="0.75" stop-color="#FFE58A"/>
+      <stop offset="1" stop-color="#FFF4B8"/>
+    </linearGradient>
+    <linearGradient id="kGold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFF4B8"/>
+      <stop offset="0.5" stop-color="#FFC72C"/>
+      <stop offset="1" stop-color="#B37800"/>
+    </linearGradient>
+    <linearGradient id="kSaya" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3D2036"/>
+      <stop offset="0.4" stop-color="#14070F"/>
+      <stop offset="1" stop-color="#050204"/>
+    </linearGradient>
+    <radialGradient id="kGlint" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFF4B8" stop-opacity="0.9"/>
+      <stop offset="0.4" stop-color="#FFC72C" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#FFC72C" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <g>
+      <rect x="0" y="17" width="16" height="26" rx="4" fill="url(#kGold)"/>
+      <rect x="14" y="19" width="214" height="22" rx="3" fill="#2A0F1F"/>
+      <path fill="#FFB8DD" fill-opacity="0.55" d="M 22 30 l 11 -9 l 11 9 l -11 9 Z M 48 30 l 11 -9 l 11 9 l -11 9 Z M 74 30 l 11 -9 l 11 9 l -11 9 Z M 100 30 l 11 -9 l 11 9 l -11 9 Z M 126 30 l 11 -9 l 11 9 l -11 9 Z M 152 30 l 11 -9 l 11 9 l -11 9 Z M 178 30 l 11 -9 l 11 9 l -11 9 Z M 204 30 l 11 -9 l 11 9 l -11 9 Z"/>
+      <rect x="226" y="3" width="13" height="54" rx="5" fill="url(#kGold)"/>
+      <path fill="url(#kGold)" d="M 239 17 L 264 18 L 264 42 L 239 43 Z"/>
+
+      <path fill="url(#kBlade)" d="M 264 18 Q 640 22 958 6 Q 988 2 1000 9 Q 984 24 950 27 Q 640 46 264 42 Z"/>
+      <path fill="none" stroke="#B37800" stroke-width="2" stroke-opacity="0.8" d="M 292 24 Q 640 28 880 13"/>
+      <path fill="none" stroke="#FFF4B8" stroke-width="1.4" stroke-opacity="0.9" d="M 268 36 Q 640 40 950 21"/>
+      <path fill="none" stroke="#FFF4B8" stroke-width="7" stroke-opacity="0.18" d="M 264 42 Q 640 46 950 27 Q 984 24 1000 9"/>
+      <path fill="none" stroke="#FFFDF0" stroke-width="1.8" d="M 264 42 Q 640 46 950 27 Q 984 24 1000 9"/>
+      <path fill="none" stroke="#B37800" stroke-width="1.2" d="M 958 6 L 952 26"/>
+  </g>
+</svg>

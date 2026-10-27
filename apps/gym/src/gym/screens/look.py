@@ -1,27 +1,30 @@
-"""The look (plan 12c, G1, LK1.1, LK1.2, LK1.3): black and shades of black and grey, with red woven into the
-background. Dark mode follows the phone: black underneath, charcoal cards with a blood-red undertone, lighter
-shades for what's raised or picked, white for what matters. Light mode is the mirror: white underneath,
-light cards, black. The red stays behind the content (LK1.3): a glow and sharp diagonal streaks behind every
-screen, cards fading from a red corner, the picked tab, progress tracks, the fill under a chart and the edge
-of the tab bar. Text, ticks and the main buttons are never red. Everything takes its shade from the theme's
-colour roles below, so one screen looks right in both modes.
+"""The look (plan 12c, LK1.1 to LK1.5): black and shades of black and grey, with red woven into the background,
+and Talon as the hard half of the suite's mirrored opposites (LK1.4): corners cut, a winged knight in crimson
+power armour behind every screen, faint, lower right, facing right towards Ambrosia. Dark only (LK1.5): black
+underneath, see-through charcoal cards with a blood-red undertone and a blur, lighter shades for what's raised
+or picked, white for what matters. The red stays behind the content (LK1.3): a glow and sharp diagonal streaks,
+cards fading from a red top-left corner with a thin red top edge, the picked tab, progress tracks, the fill under
+a chart and the edge of the tab bar. Text, ticks and the main buttons are never red. Everything takes its shade
+from the theme's colour roles below.
 
 Only characters the built-in font has are written on screen (no ✓ ▾ ↑ ✎): icons stand in for them, because
 the PC view ships without fallback fonts and would draw boxes (LK1.2).
 """
 
+from functools import partial
+
 import flet as ft
 
-from usefulShared.look import (  # the suite's pieces, used by Talos's screens through here
+from usefulShared import look as suite
+from usefulShared.look import (  # the suite's pieces, used by Talon's screens through here
+    Form,
     accent,
     accentEdge,
     big,
-    card,
     chartFade,
     chevron,
     dot,
     faint,
-    field,
     filling,
     gap,
     grow,
@@ -31,30 +34,37 @@ from usefulShared.look import (  # the suite's pieces, used by Talos's screens t
     iconButton,
     indicator,
     label,
-    listCard,
     listRow,
-    mainButton,
     makeTheme,
-    markFill,
     pagePadding,
-    pill,
     quiet,
-    radius,
     screen,
-    segments,
-    softButton,
-    statTile,
     streak,
     tapSize,
     title,
     track,
 )
 
+# Talon's shapes (LK1.4): two corners cut, the card's red from the top left, a thin red line along each card's top
+form = Form(cut=True, corner=14, small=7, button=10, fadeFrom=ft.Alignment.TOP_LEFT, topEdge=True)
+card = partial(suite.card, form=form)
+listCard = partial(suite.listCard, form=form)
+statTile = partial(suite.statTile, form=form)
+pill = partial(suite.pill, form=form)
+segments = partial(suite.segments, form=form)
+mainButton = partial(suite.mainButton, form=form)
+softButton = partial(suite.softButton, form=form)
+field = partial(suite.field, form=form)
+markFill = partial(suite.markFill, form=form)
+shaped = partial(suite.shaped, form=form)
+indicatorShape = suite.indicatorShape(form=form)
+knightImage = "talon.webp"  # in src/assets, made by tools/makeArt.py from apps/gym/art/talon.svg
+
 redEdge = accentEdge  # the sharp red line along the tab bar (LK1.3)
 
-# The shades, darkest first in dark mode (lightest first in light mode). Each is a theme colour role, so
-# controls use them by name (ft.Colors.SURFACE_CONTAINER_LOW and so on) and get the right one for the mode.
-# Under the black and white, every shade leans a little towards red (LK1.3).
+# The shades, darkest first. Each is a theme colour role, so controls use them by name
+# (ft.Colors.SURFACE_CONTAINER_LOW and so on). Under the black and white, every shade leans a little towards red
+# (LK1.3).
 darkShades = {
     "surface": "#000000",  # underneath everything
     "surface_container_lowest": "#090506",
@@ -69,45 +79,23 @@ darkShades = {
     "primary": "#FFFFFF",  # what matters: ticks, the main button, chart lines
     "on_primary": "#000000",
 }
-lightShades = {
-    "surface": "#FFFFFF",
-    "surface_container_lowest": "#FDFAFA",
-    "surface_container_low": "#F5EEEE",
-    "surface_container": "#F0E7E7",
-    "surface_container_high": "#EADFDF",
-    "surface_container_highest": "#DFD0D1",
-    "outline_variant": "#EBDCDD",
-    "outline": "#9A9A9A",
-    "on_surface_variant": "#5E5E5E",
-    "on_surface": "#0A0A0A",
-    "primary": "#000000",
-    "on_primary": "#FFFFFF",
-}
 # The reds (LK1.3), in the theme's tertiary roles, which nothing else uses: the red itself (streaks, glows,
 # the rest timer's bar), deep red (the picked tab, raised cards, progress tracks), a card's red corner, and
 # the glow's brighter red.
 darkReds = {"tertiary": "#E3242B", "on_tertiary": "#000000", "tertiary_container": "#4A0D13",
             "on_tertiary_container": "#FFDADB", "tertiary_fixed": "#2A0C10", "tertiary_fixed_dim": "#FF2633"}
-lightReds = {"tertiary": "#C1121F", "on_tertiary": "#FFFFFF", "tertiary_container": "#F7DCDF",
-             "on_tertiary_container": "#410509", "tertiary_fixed": "#FBEFF0", "tertiary_fixed_dim": "#F08C95"}
-
-
-def _theme(shades: dict[str, str]) -> ft.Theme:
-    return makeTheme(shades, darkReds if shades is darkShades else lightReds)
-
-
-def lightTheme() -> ft.Theme:
-    return _theme(lightShades)
 
 
 def darkTheme() -> ft.Theme:
-    return _theme(darkShades)
+    """The one theme: Talon is dark only (LK1.5)."""
+    return makeTheme(darkShades, darkReds)
 
 
-def backdrop(content: ft.Control) -> ft.Control:
+def backdrop(content: ft.Control, wide: bool = False) -> ft.Control:
     """The screen's background: black, with red behind everything: a glow over the top, a fainter one low on
-    the screen, a sharp-edged blade with a crisp line across the top corner, and two thin slashes near the
-    bottom. Nothing in it can be tapped; the content sits on top."""
+    the screen, a sharp-edged blade with a crisp line across the top corner, two thin slashes near the bottom,
+    and the knight, faint, lower right (LK1.4), larger in the PC view (wide). Nothing in it can be tapped; the
+    content sits on top."""
     glow = ft.Colors.TERTIARY_FIXED_DIM
     layers: list[ft.Control] = [
         ft.Container(bgcolor=ft.Colors.SURFACE, **filling),
@@ -125,5 +113,8 @@ def backdrop(content: ft.Control) -> ft.Control:
                bottom=190, left=-150),
         streak(380, 1.5, [accent(0.0), accent(0.4), accent(0.0)], [0.0, 0.5, 1.0], across=False,
                bottom=168, left=-110),
+        # The knight (LK1.4): drawn for the app, apps/gym/art/talon.svg, facing right towards Ambrosia
+        ft.Image(src=knightImage, height=640, opacity=0.7, right=-20, bottom=-40) if wide else
+        ft.Image(src=knightImage, height=560, opacity=0.8, right=-40, bottom=60),
     ]
     return ft.Stack([*layers, ft.Container(content, **filling)], expand=True, clip_behavior=ft.ClipBehavior.HARD_EDGE)

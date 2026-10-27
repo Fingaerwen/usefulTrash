@@ -1,21 +1,56 @@
-"""The suite's look (plan 12c, LK1.2, LK1.3; Ambrosia's AM7.1): black and shades of black and grey, with each
-app's own colour woven into the background, behind the content. Every piece here takes its colours from the
-theme's roles, so one screen looks right in dark and light mode and in either app: each app sets the values
-(its shades, and its colour in the tertiary roles: makeTheme) and draws its own backdrop (gym/screens/look.py,
+"""The suite's look (plan 12c, LK1.2, LK1.3, LK1.4, Ambrosia's AM7.1 and AM9): black and shades of black and
+grey, with each app's own colour woven into the background, behind the content. The two apps are mirrored
+opposites (LK1.4): Talon is hard and red, its corners cut, Ambrosia is soft and pink with round corners and a
+lethal gold. Both are dark only (LK1.5). Every piece here takes its colours from the theme's roles and its shapes
+from the app's Form, so one screen looks right in either app: each app sets the values (its shades, its colour
+in the tertiary roles: makeTheme, its Form) and draws its own backdrop (gym/screens/look.py,
 ambrosia/screens/look.py). Text, ticks and the main buttons are never the app's colour.
 
 Only characters the built-in font has are written on screen (no ✓ ▾ ↑ ✎): icons stand in for them, because
 the PC view ships without fallback fonts and would draw boxes (LK1.2).
 """
 
+import dataclasses
 import math
 
 import flet as ft
 
 tapSize = 48  # tap targets, in logical pixels
 gap = 12  # between the parts of a screen
-radius = 16  # cards
 pagePadding = 16  # the screen's side margins
+cardBlur = 4  # cards are see-through and blur what's behind them, so the art shows faintly (LK1.4)
+
+
+@dataclasses.dataclass(frozen=True)
+class Form:
+    """An app's shapes (LK1.4, AM9.1). Talon cuts two corners (top left, bottom right) of its cards, chips, buttons
+    and tab marker, Ambrosia rounds all four, more than before. Each app's look module binds its Form into the
+    pieces below, so its screens never pass it."""
+    cut: bool  # two corners cut instead of all four rounded
+    corner: float  # a card's cut or rounding
+    small: float  # chips, pills and the tab marker
+    button: float  # buttons
+    fadeFrom: ft.Alignment  # the corner a card's colour fades from
+    topEdge: bool  # a thin line of the app's colour along each card's top
+
+
+def shape(size: float, *, form: Form, side: ft.BorderSide | None = None) -> ft.OutlinedBorder:
+    """The app's outline at a size: two corners cut, or all four rounded."""
+    if form.cut:
+        return ft.BeveledRectangleBorder(radius=ft.BorderRadius.only(top_left=size, bottom_right=size),
+                                         side=side or ft.BorderSide.none())
+    return ft.RoundedRectangleBorder(radius=size, side=side or ft.BorderSide.none())
+
+
+def shaped(inner: ft.Container, size: float, *, form: Form, side: ft.BorderSide | None = None,
+           **outer) -> ft.Card:
+    """A container in the app's outline: a flat, see-through card holding it, clipping it and its ripple."""
+    return ft.Card(inner, shape=shape(size, form=form, side=side), clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
+                   margin=0, elevation=0, bgcolor=ft.Colors.TRANSPARENT, **outer)
+
+
+# Options that place or size a card, which go on the outline rather than on what's inside it
+_outerOptions = ("expand", "width", "height", "key", "visible", "col", "left", "top", "right", "bottom", "data")
 
 
 def makeTheme(shades: dict[str, str], accents: dict[str, str]) -> ft.Theme:
@@ -73,23 +108,32 @@ def big(text: str, size: int = 24) -> ft.Text:
 # --- Surfaces ------------------------------------------------------------------------------------
 
 def card(content: ft.Control, padding: int | ft.Padding = 16, on_click=None, tooltip: str | None = None,
-         hollow: bool = False, raised: bool = False, **options) -> ft.Container:
-    """A rounded panel, fading from a corner of the app's colour into its charcoal (LK1.3). Hollow ones (only an
-    outline) recede: done exercises. Raised ones stand out, from the deep accent: banners and the rest timer."""
-    fill, border, behind = None, None, None
-    if hollow:  # a faint wash of the background, so the streaks behind it stay quiet
-        border, behind = ft.Border.all(1, ft.Colors.OUTLINE_VARIANT), ft.Colors.with_opacity(0.6, ft.Colors.SURFACE)
+         hollow: bool = False, raised: bool = False, *, form: Form, **options) -> ft.Card:
+    """A panel in the app's outline, fading from a corner of the app's colour into its charcoal (LK1.3). See-through
+    with a blur, so the art behind shows faintly (LK1.4). Hollow ones (only an outline) recede: done exercises.
+    Raised ones stand out, solid, from the deep accent: banners and the rest timer."""
+    fill, side, behind, blur, edge = None, None, None, None, None
+    if hollow:  # a faint wash of the background, so the art behind it stays quiet
+        side, behind = ft.BorderSide(1, ft.Colors.OUTLINE_VARIANT), ft.Colors.with_opacity(0.6, ft.Colors.SURFACE)
     elif raised:
-        fill = _fade(ft.Colors.TERTIARY_CONTAINER, ft.Colors.SURFACE_CONTAINER_HIGH, 0.85)
+        fill = _fade(ft.Colors.TERTIARY_CONTAINER, ft.Colors.SURFACE_CONTAINER_HIGH, 0.85, form=form)
     else:
-        fill = _fade(ft.Colors.TERTIARY_FIXED, ft.Colors.SURFACE_CONTAINER_LOW, 0.55)
-    return ft.Container(content, bgcolor=behind, gradient=fill, border=border, border_radius=radius, padding=padding,
-                        ink=on_click is not None, on_click=on_click, tooltip=tooltip, **options)
+        fill = _fade(ft.Colors.with_opacity(0.8, ft.Colors.TERTIARY_FIXED),
+                     ft.Colors.with_opacity(0.72, ft.Colors.SURFACE_CONTAINER_LOW), 0.55, form=form)
+        blur = cardBlur
+    if form.topEdge and not hollow:
+        edge = ft.Border.only(top=ft.BorderSide(1, accent(0.45)))
+    outer = {name: options.pop(name) for name in _outerOptions if name in options}
+    inner = ft.Container(content, bgcolor=behind, gradient=fill, border=edge, blur=blur, padding=padding,
+                         ink=on_click is not None, on_click=on_click, tooltip=tooltip, **options)
+    return shaped(inner, form.corner, form=form, side=side, **outer)
 
 
-def _fade(corner: str, rest: str, reach: float) -> ft.LinearGradient:
-    """From a red top-left corner into a shade, diagonally, done at `reach` of the way across."""
-    return ft.LinearGradient(begin=ft.Alignment.TOP_LEFT, end=ft.Alignment.BOTTOM_RIGHT, colors=[corner, rest],
+def _fade(corner: str, rest: str, reach: float, *, form: Form) -> ft.LinearGradient:
+    """From the app's corner (Talon's top left, Ambrosia's top right) into a shade, diagonally, done at `reach` of
+    the way across."""
+    start = form.fadeFrom
+    return ft.LinearGradient(begin=start, end=ft.Alignment(-start.x, -start.y), colors=[corner, rest],
                              stops=[0.0, reach])
 
 
@@ -125,23 +169,28 @@ def accentEdge(vertical: bool = False) -> ft.Container:
     return ft.Container(width=2 if vertical else None, height=None if vertical else 2, gradient=gradient)
 
 
-def markFill() -> ft.LinearGradient:
+def markFill(*, form: Form) -> ft.LinearGradient:
     """The app sign's circle: the deep accent into its grey."""
-    return _fade(ft.Colors.TERTIARY_CONTAINER, ft.Colors.SURFACE_CONTAINER_HIGH, 1.0)
+    return _fade(ft.Colors.TERTIARY_CONTAINER, ft.Colors.SURFACE_CONTAINER_HIGH, 1.0, form=form)
+
+
+def indicatorShape(*, form: Form) -> ft.OutlinedBorder:
+    """The picked tab's marker, in the tab bar and the PC view's rail."""
+    return shape(form.small if form.cut else 16, form=form)
 
 
 def hairline() -> ft.Divider:
     return ft.Divider(height=1, thickness=1, color=ft.Colors.OUTLINE_VARIANT)
 
 
-def listCard(rows: list[ft.Control]) -> ft.Container:
+def listCard(rows: list[ft.Control], *, form: Form) -> ft.Card:
     """Rows in one card with hairlines between them (each row brings its own padding)."""
     parts: list[ft.Control] = []
     for index, row in enumerate(rows):
         if index:
             parts.append(hairline())
         parts.append(row)
-    return card(ft.Column(parts, spacing=0), padding=0, clip_behavior=ft.ClipBehavior.ANTI_ALIAS)
+    return card(ft.Column(parts, spacing=0), padding=0, form=form)
 
 
 def listRow(content: ft.Control, on_click=None, tooltip: str | None = None, padding: ft.Padding | None = None,
@@ -168,50 +217,54 @@ def grow(expand: bool) -> bool | None:
 
 
 def pill(text: str, selected: bool = False, on_click=None, tooltip: str | None = None,
-         icon: ft.IconData | None = None) -> ft.Container:
-    """A small rounded chip; picked ones are filled."""
+         icon: ft.IconData | None = None, *, form: Form) -> ft.Card:
+    """A small chip in the app's outline; picked ones are filled."""
     color = ft.Colors.ON_PRIMARY if selected else ft.Colors.ON_SURFACE
     words = ft.Text(text, size=13, weight=ft.FontWeight.W_600 if selected else ft.FontWeight.W_500, color=color)
     content = ft.Row([ft.Icon(icon, size=16, color=color), words], spacing=6, tight=True) if icon else words
-    return ft.Container(content, bgcolor=ft.Colors.PRIMARY if selected else ft.Colors.SURFACE_CONTAINER_HIGH,
-                        border_radius=20, padding=ft.Padding.symmetric(horizontal=14, vertical=8),
-                        ink=on_click is not None, on_click=on_click, tooltip=tooltip)
+    inner = ft.Container(content, bgcolor=ft.Colors.PRIMARY if selected else ft.Colors.SURFACE_CONTAINER_HIGH,
+                         padding=ft.Padding.symmetric(horizontal=14, vertical=8),
+                         ink=on_click is not None, on_click=on_click, tooltip=tooltip)
+    return shaped(inner, form.small, form=form)
 
 
-def segments(options: list[tuple[str, str]], selected: str, choose) -> ft.Row:
+def segments(options: list[tuple[str, str]], selected: str, choose, *, form: Form) -> ft.Row:
     """Choices side by side (3M · 1Y · All, Days · Months · All time); the picked one is filled."""
-    return ft.Row([pill(text, key == selected, on_click=lambda e, key=key: choose(key), tooltip=f"Show {text}")
+    return ft.Row([pill(text, key == selected, on_click=lambda e, key=key: choose(key), tooltip=f"Show {text}",
+                        form=form)
                    for key, text in options], spacing=6, wrap=True)
 
 
-def _buttonStyle(background: str, foreground: str) -> ft.ButtonStyle:
-    return ft.ButtonStyle(bgcolor=background, color=foreground, elevation=0,
-                          shape=ft.RoundedRectangleBorder(radius=14),
+def _buttonStyle(background: str, foreground: str, form: Form) -> ft.ButtonStyle:
+    return ft.ButtonStyle(bgcolor=background, color=foreground, elevation=0, shape=shape(form.button, form=form),
                           padding=ft.Padding.symmetric(horizontal=20, vertical=14),
                           text_style=ft.TextStyle(size=15, weight=ft.FontWeight.W_600))
 
 
 def mainButton(text: str, on_click, icon: ft.IconData | None = None, disabled: bool = False,
-               tooltip: str | None = None, expand: bool = False) -> ft.Button:
-    """The one button a screen is about (Finish workout, Save, Sign in): filled white in dark mode."""
+               tooltip: str | None = None, expand: bool = False, *, form: Form) -> ft.Button:
+    """The one button a screen is about (Finish workout, Save, Sign in): filled white."""
     return ft.Button(text, icon=icon, on_click=on_click, disabled=disabled, tooltip=tooltip, height=tapSize + 4,
-                     expand=grow(expand), style=_buttonStyle(ft.Colors.PRIMARY, ft.Colors.ON_PRIMARY))
+                     expand=grow(expand), style=_buttonStyle(ft.Colors.PRIMARY, ft.Colors.ON_PRIMARY, form))
 
 
 def softButton(text: str, on_click, icon: ft.IconData | None = None, disabled: bool = False,
-               tooltip: str | None = None, expand: bool = False) -> ft.Button:
+               tooltip: str | None = None, expand: bool = False, *, form: Form) -> ft.Button:
     """A second button, grey."""
     return ft.Button(text, icon=icon, on_click=on_click, disabled=disabled, tooltip=tooltip, height=tapSize,
-                     expand=grow(expand), style=_buttonStyle(ft.Colors.SURFACE_CONTAINER_HIGHEST, ft.Colors.ON_SURFACE))
+                     expand=grow(expand),
+                     style=_buttonStyle(ft.Colors.SURFACE_CONTAINER_HIGHEST, ft.Colors.ON_SURFACE, form))
 
 
 def field(fieldLabel: str, value: str, on_change, width: float | None = None, expand: bool = False,
-          number: bool = True, size: int = 16) -> ft.TextField:
-    """A text field: a filled grey box with rounded corners, outlined while typing."""
+          number: bool = True, size: int = 16, *, form: Form) -> ft.TextField:
+    """A text field: a filled grey box, nearly square in Talon and well rounded in Ambrosia, outlined while
+    typing."""
+    corner = 4 if form.cut else 16
     return ft.TextField(label=fieldLabel, value=value, on_change=on_change, width=width, expand=grow(expand),
                         keyboard_type=ft.KeyboardType.NUMBER if number else ft.KeyboardType.TEXT,
-                        filled=True, fill_color=ft.Colors.SURFACE_CONTAINER_HIGH, border_radius=12,
-                        border=ft.OutlineInputBorder(border_radius=12), border_color=ft.Colors.TRANSPARENT,
+                        filled=True, fill_color=ft.Colors.SURFACE_CONTAINER_HIGH, border_radius=corner,
+                        border=ft.OutlineInputBorder(border_radius=corner), border_color=ft.Colors.TRANSPARENT,
                         focused_border_color=ft.Colors.OUTLINE, text_size=size,
                         label_style=ft.TextStyle(color=ft.Colors.ON_SURFACE_VARIANT),
                         cursor_color=ft.Colors.PRIMARY)
@@ -235,7 +288,7 @@ def header(titleText: str, subtitle: ft.Control | str | None = None, leading: ft
 
 
 def statTile(name: str, value: str, detail: str | None = None, icon: ft.IconData | None = None,
-             expand: bool = True, size: int = 22) -> ft.Container:
+             expand: bool = True, size: int = 22, *, form: Form) -> ft.Card:
     """A number with its label over it and a detail under it (the Week tab's tiles, an exercise's PRs). Put it in
     a row: it takes its share of the row's width."""
     parts: list[ft.Control] = [label(name), big(value, size)]
@@ -243,7 +296,7 @@ def statTile(name: str, value: str, detail: str | None = None, icon: ft.IconData
         line = quiet(detail, size=12)
         parts.append(ft.Row([ft.Icon(icon, size=14, color=ft.Colors.ON_SURFACE_VARIANT), line], spacing=4, tight=True)
                      if icon else line)
-    return card(ft.Column(parts, spacing=4), padding=14, expand=grow(expand))
+    return card(ft.Column(parts, spacing=4), padding=14, expand=grow(expand), form=form)
 
 
 def screen(parts: list[ft.Control]) -> ft.Column:

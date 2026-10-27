@@ -7,7 +7,18 @@ import flet as ft
 from ambrosia.screens.addFood import AddScreen, AmountScreen, LabelScreen
 from ambrosia.screens.common import ComingSoon, FailedScreen, StartingScreen, backButton
 from ambrosia.screens.history import HistoryScreen, HistoryTab
-from ambrosia.screens.look import appMark, backdrop, card, goldEdge, header, indicator, pagePadding, screen
+from ambrosia.screens.look import (
+    appMark,
+    backdrop,
+    card,
+    goldEdge,
+    header,
+    headroom,
+    indicator,
+    indicatorShape,
+    pagePadding,
+    screen,
+)
 from ambrosia.screens.targets import ImportTargetsScreen, TargetsTab
 from ambrosia.screens.today import TodayTab
 from ambrosia.screens.week import WeekTab
@@ -45,12 +56,13 @@ def AmbrosiaApp(app, model):
     body = screens.get(model.screen, StartingScreen)(app, model)
     if model.screen != "main":  # the tabs bring their own margins, so their bar can reach the edges
         body = Centred(body, app.mode == "pc")
-    return ft.SafeArea(backdrop(body), expand=True)
+    return ft.SafeArea(backdrop(body, app.mode == "pc"), expand=True)
 
 
 @ft.component
 def Centred(body, wide: bool):
-    """A screen with its side margins; on the PC, kept to a readable width in the middle of the window."""
+    """A screen with its side margins and room at the top for the katana laid across it (AM9.4); on the PC, kept
+    to a readable width in the middle of the window."""
     width, setWidth = ft.use_state(0.0)
     side = max(pagePadding, (width - pcContentWidth) / 2) if wide and width else pagePadding
 
@@ -58,7 +70,7 @@ def Centred(body, wide: bool):
         if abs(e.width - width) > 1:
             setWidth(e.width)
 
-    return ft.Container(body, expand=True, padding=ft.Padding.only(left=side, right=side, top=8),
+    return ft.Container(body, expand=True, padding=ft.Padding.only(left=side, right=side, top=headroom(wide)),
                         on_size_change=resized if wide else None)
 
 
@@ -73,7 +85,7 @@ def PhoneMain(app, model):
     bar = ft.NavigationBar(destinations=[ft.NavigationBarDestination(icon=icon, selected_icon=picked, label=label)
                                          for _, label, icon, picked in phoneTabs],
                            selected_index=selected, on_change=switch, bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
-                           indicator_color=indicator, elevation=0, height=72,
+                           indicator_color=indicator, indicator_shape=indicatorShape, elevation=0, height=72,
                            label_behavior=ft.NavigationBarLabelBehavior.ALWAYS_SHOW)
     return ft.Column([Centred(tabScreens[names[selected]](app, model), False), goldEdge(), bar], spacing=0,
                      expand=True)
@@ -94,7 +106,8 @@ def PcMain(app, model):
     rail = ft.NavigationRail(destinations=[ft.NavigationRailDestination(icon=icon, selected_icon=picked, label=label)
                                            for _, label, icon, picked in pcTabs],
                              selected_index=selected, on_change=switch, bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
-                             indicator_color=indicator, label_type=ft.NavigationRailLabelType.ALL, min_width=88,
+                             indicator_color=indicator, indicator_shape=indicatorShape,
+                             label_type=ft.NavigationRailLabelType.ALL, min_width=88,
                              group_alignment=-0.85,
                              leading=ft.Container(appMark(44), padding=ft.Padding.only(top=12, bottom=8)))
     return ft.Row([rail, goldEdge(vertical=True), Centred(tabScreens[names[selected]](app, model), True)], spacing=0,

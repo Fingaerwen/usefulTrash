@@ -17,7 +17,7 @@ from gym.screens.common import (
 )
 from gym.screens.history import HistoryScreen, HistoryTab
 from gym.screens.importPlan import ImportPlanScreen
-from gym.screens.look import backdrop, indicator, pagePadding, redEdge
+from gym.screens.look import backdrop, indicator, indicatorShape, pagePadding, redEdge
 from gym.screens.plans import PlansTab
 from gym.screens.problems import ProblemsScreen
 from gym.screens.progress import ProgressTab
@@ -49,7 +49,7 @@ def GymApp(app, model):
     body = screen(app, model)
     if model.screen != "main":  # the tabs bring their own margins, so their bar can reach the edges
         body = Centred(body, app.mode == "pc")
-    return ft.SafeArea(backdrop(body), expand=True)
+    return ft.SafeArea(backdrop(body, app.mode == "pc"), expand=True)
 
 
 @ft.component
@@ -78,7 +78,7 @@ def PhoneMain(app, model):
     bar = ft.NavigationBar(destinations=[ft.NavigationBarDestination(icon=icon, selected_icon=picked, label=label)
                                          for _, label, icon, picked in phoneTabs],
                            selected_index=selected, on_change=switch, bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
-                           indicator_color=indicator, elevation=0, height=72,
+                           indicator_color=indicator, indicator_shape=indicatorShape, elevation=0, height=72,
                            label_behavior=ft.NavigationBarLabelBehavior.ALWAYS_SHOW)
     return ft.Column([Centred(tabBody(app, model, phoneTabs, selected), False), redEdge(), bar], spacing=0, expand=True)
 
@@ -95,7 +95,7 @@ def PcMain(app, model):
     rail = ft.NavigationRail(destinations=[ft.NavigationRailDestination(icon=icon, selected_icon=picked, label=label)
                                            for _, label, icon, picked in pcTabs],
                              selected_index=selected, on_change=switch, bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
-                             indicator_color=indicator,
+                             indicator_color=indicator, indicator_shape=indicatorShape,
                              label_type=ft.NavigationRailLabelType.ALL, min_width=88, group_alignment=-0.85,
                              leading=ft.Container(appMark(44), padding=ft.Padding.only(top=12, bottom=8)))
     return ft.Row([rail, redEdge(vertical=True), Centred(tabBody(app, model, pcTabs, selected), True)], spacing=0,

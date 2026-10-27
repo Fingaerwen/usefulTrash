@@ -1,5 +1,5 @@
 """The Week tab (apps/diet/docs/plan.md 4a), as sketched: the week's averages against their targets, each day's
-kcal as a bar with its target as a line (T training day, R rest day), and your weight from Talos."""
+kcal as a bar with its target as a line (T training day, R rest day), and your weight from Talon."""
 
 import datetime as dt
 
@@ -54,7 +54,7 @@ def WeekTab(app, model):
                  average(week.averageProteinG, week.averageTargetProteinG, " g")),
     ], spacing=gap)
     if week.weightKg is None:
-        weight = card(quiet("No weigh-ins in Talos this week.", size=14))
+        weight = card(quiet("No weigh-ins in Talon this week.", size=14))
     else:
         change = "" if week.weightChangeKg is None else f"{week.weightChangeKg:+.1f} kg".replace("-", "−")
         weight = card(ft.Row([
@@ -73,6 +73,6 @@ def WeekTab(app, model):
         label("Days"),
         card(ft.Column([ft.Row([dayBar(day) for day in week.days], alignment=ft.MainAxisAlignment.SPACE_AROUND),
                         faint("The gold line is the day's target. T training day, R rest day.")], spacing=10)),
-        label("Body weight (from Talos)"),
+        label("Body weight (from Talon)"),
         weight,
     ])

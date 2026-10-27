@@ -11,7 +11,7 @@ problems the user pastes back to you.
 
 ## What the app does with a targets file
 
-- **Two kinds of day.** A **training day** is a weekday with a fixed session in the user's gym plan (Talos, the
+- **Two kinds of day.** A **training day** is a weekday with a fixed session in the user's gym plan (Talon, the
   gym app), or the flex day once a workout is logged there; every other day is a **rest day**. Each kind has
   its own kcal, protein, fat and carbs. Give both, even if they're the same.
 - **From the day it's imported.** A new file replaces the current targets from that day on, and the changes

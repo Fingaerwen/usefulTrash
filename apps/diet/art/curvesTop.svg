@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="120 -20 300 220" width="300" height="220">
+  <!-- Ambrosia's soft lines at the top right (apps/diet/docs/plan.md AM9.2): a faint light-pink ribbon and two
+       flowing curves, the softened mirror of Talon's crisp red line. In a phone screen's coordinates (390 wide),
+       so it sits 30 px past the right edge and 20 px above the top. tools/makeArt.py renders it. -->
+  <defs>
+    <linearGradient id="softA" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#FFB8DD" stop-opacity="0"/>
+      <stop offset="0.55" stop-color="#FFD6EC" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#FFB8DD" stop-opacity="0.1"/>
+    </linearGradient>
+    <linearGradient id="softB" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#FFB8DD" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#FFB8DD" stop-opacity="0.6"/>
+      <stop offset="1" stop-color="#FFB8DD" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <path d="M 120 -20 C 190 70, 270 40, 330 110 C 360 145, 380 150, 420 150 L 420 200 C 370 196, 340 180, 310 150 C 250 90, 180 110, 120 -20 Z" fill="#FFB8DD" fill-opacity="0.07"/>
+  <path d="M 120 -20 C 190 70, 270 40, 330 110 C 360 145, 380 150, 420 150" fill="none" stroke="url(#softA)" stroke-width="2" stroke-linecap="round"/>
+  <path d="M 150 -20 C 215 50, 280 24, 340 84 C 368 112, 390 118, 420 116" fill="none" stroke="url(#softB)" stroke-width="1.2" stroke-linecap="round"/>
+</svg>

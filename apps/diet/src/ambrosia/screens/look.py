@@ -1,23 +1,26 @@
-"""Ambrosia's look (apps/diet/docs/plan.md AM7.1, AM7.3): the suite's black and shades (usefulShared.look) with
-bold, sharp, flashy gold and light pink, all behind the content. Dark mode follows the phone: black underneath,
-cards with a pink undertone fading from a pink corner, metallic-gold streaks with a pale shine and anime-style
-sparkles, light-pink glows, and a goddess drawn in anime style, large and faint behind the lower right (a
-placeholder you may replace, AM7.3). Light mode mirrors it. Text, ticks and the main buttons are never gold or
-pink.
+"""Ambrosia's look (apps/diet/docs/plan.md AM7.1, AM9): the suite's black and shades (usefulShared.look), and the
+soft half of the suite's mirrored opposites (AM9.1): round corners, a light pink that carries the glows and soft
+flowing lines, and one thing sharp and lethal, gold katanas. It's Talon's backdrop mirrored and softened:
+light-pink glows top right and low left, soft curves where Talon has its crisp line and slashes, and the goddess
+of harmony faint behind the lower left, facing left towards Talon, with a drawn katana resting over her shoulder
+and another laid across the top of every screen (AM9.3, AM9.4). Cards are see-through with a blur, fading from a
+pink top-right corner. Dark only (AM9.5). Text, ticks and the main buttons are never gold or pink.
 """
+
+import math
+from functools import partial
 
 import flet as ft
 
+from usefulShared import look as suite
 from usefulShared.look import (  # the suite's pieces, used by Ambrosia's screens through here
+    Form,
     accent,
-    accentEdge,
     big,
-    card,
     chartFade,
     chevron,
     dot,
     faint,
-    field,
     filling,
     gap,
     grow,
@@ -27,30 +30,34 @@ from usefulShared.look import (  # the suite's pieces, used by Ambrosia's screen
     iconButton,
     indicator,
     label,
-    listCard,
     listRow,
-    mainButton,
     makeTheme,
-    markFill,
     pagePadding,
-    pill,
     quiet,
-    radius,
     screen,
-    segments,
-    softButton,
-    statTile,
-    streak,
     tapSize,
     title,
     track,
 )
 
-# The shades, darkest first in dark mode; under the black and white each leans towards pink.
+# Ambrosia's shapes (AM9.1): all four corners well rounded, the card's pink from the top right
+form = Form(cut=False, corner=24, small=20, button=26, fadeFrom=ft.Alignment.TOP_RIGHT, topEdge=False)
+card = partial(suite.card, form=form)
+listCard = partial(suite.listCard, form=form)
+statTile = partial(suite.statTile, form=form)
+pill = partial(suite.pill, form=form)
+segments = partial(suite.segments, form=form)
+mainButton = partial(suite.mainButton, form=form)
+softButton = partial(suite.softButton, form=form)
+field = partial(suite.field, form=form)
+markFill = partial(suite.markFill, form=form)
+indicatorShape = suite.indicatorShape(form=form)
+
+# The shades, darkest first, each leaning a little towards pink under the black and white.
 darkShades = {
     "surface": "#000000",
     "surface_container_lowest": "#0A0609",
-    "surface_container_low": "#1A0F17",  # cards
+    "surface_container_low": "#1C1019",  # cards
     "surface_container": "#21131D",
     "surface_container_high": "#2D1828",  # fields, chips, raised parts in a card
     "surface_container_highest": "#3D2036",  # what's picked: a segment
@@ -61,88 +68,72 @@ darkShades = {
     "primary": "#FFFFFF",
     "on_primary": "#000000",
 }
-lightShades = {
-    "surface": "#FFFFFF",
-    "surface_container_lowest": "#FFFAFD",
-    "surface_container_low": "#FBEEF6",
-    "surface_container": "#F7E6F1",
-    "surface_container_high": "#F2DDEB",
-    "surface_container_highest": "#E9CDE0",
-    "outline_variant": "#F2DCEA",
-    "outline": "#9A9A9A",
-    "on_surface_variant": "#5E5E5E",
-    "on_surface": "#0A0A0A",
-    "primary": "#000000",
-    "on_primary": "#FFFFFF",
-}
-# Gold and pink (AM7.1, AM7.3), in the theme's tertiary roles: gold itself (streaks, lines, bars, the goblet),
-# its pale shine (on_tertiary_fixed: the bright edge of a streak, the sparkles), pink (the picked tab, raised
-# cards, tracks), a card's pink corner, and the glows' light pink.
+# Gold and pink (AM9.2), in the theme's tertiary roles: gold itself (the katanas' colour, the edge along the tab
+# bar), its pale shine (on_tertiary_fixed: the edge's bright point), a soft pink (the picked tab, raised cards,
+# tracks), a card's pink corner, and the glows' light pink.
 darkAccents = {"tertiary": "#FFC72C", "on_tertiary": "#000000", "on_tertiary_fixed": "#FFF4B8",
-               "tertiary_container": "#86285F", "on_tertiary_container": "#FFE3F3",
-               "tertiary_fixed": "#40152F", "tertiary_fixed_dim": "#FF8AD0"}
-lightAccents = {"tertiary": "#D69A00", "on_tertiary": "#FFFFFF", "on_tertiary_fixed": "#FFD54A",
-                "tertiary_container": "#FFCDEA", "on_tertiary_container": "#4A0D2F",
-                "tertiary_fixed": "#FFEAF6", "tertiary_fixed_dim": "#FF9BD6"}
+               "tertiary_container": "#7A3A62", "on_tertiary_container": "#FFE3F3",
+               "tertiary_fixed": "#45223D", "tertiary_fixed_dim": "#FFB0DA"}
 
-goldEdge = accentEdge  # the sharp gold line along the tab bar
-goddessImage = "goddess.webp"  # in src/assets, made by apps/diet/makeGoddess.py
-
-
-def lightTheme() -> ft.Theme:
-    return makeTheme(lightShades, lightAccents)
+goddessImage = "goddess.webp"  # in src/assets, made by tools/makeArt.py from apps/diet/art/goddess.svg
+katanaImage = "katana.webp"  # apps/diet/art/katana.svg, lying flat, the hilt on the left
+curvesTopImage, curvesBottomImage = "curvesTop.webp", "curvesBottom.webp"
 
 
 def darkTheme() -> ft.Theme:
+    """The one theme: Ambrosia is dark only (AM9.5)."""
     return makeTheme(darkShades, darkAccents)
 
 
-def sparkle(size: float, **place) -> ft.Container:
-    """An anime-style twinkle: a four-point star of thin gold rays fading out, around a bright core."""
-    shine = ft.Colors.ON_TERTIARY_FIXED
-    ray = 1.6
-    core = size * 0.22
-    return ft.Container(ft.Stack([
-        ft.Container(width=size, height=ray, top=(size - ray) / 2, gradient=ft.LinearGradient(
-            colors=[accent(0.0, shine), accent(1.0, shine), accent(0.0, shine)])),
-        ft.Container(width=ray, height=size, left=(size - ray) / 2, gradient=ft.LinearGradient(
-            begin=ft.Alignment.TOP_CENTER, end=ft.Alignment.BOTTOM_CENTER,
-            colors=[accent(0.0, shine), accent(1.0, shine), accent(0.0, shine)])),
-        ft.Container(width=core, height=core, left=(size - core) / 2, top=(size - core) / 2, border_radius=core / 2,
-                     bgcolor=shine, shadow=ft.BoxShadow(blur_radius=size * 0.4, color=accent(0.9))),
-    ], width=size, height=size), width=size, height=size, **place)
+def goldEdge(vertical: bool = False) -> ft.Container:
+    """A razor-thin gold line along the tab bar's top (or the PC view's rail's side), with a pale shine at its
+    brightest point, mirrored from Talon's red edge (65% along instead of 35%)."""
+    gold, shine = ft.Colors.TERTIARY, ft.Colors.ON_TERTIARY_FIXED
+    gradient = ft.LinearGradient(begin=ft.Alignment.TOP_CENTER if vertical else ft.Alignment.CENTER_LEFT,
+                                 end=ft.Alignment.BOTTOM_CENTER if vertical else ft.Alignment.CENTER_RIGHT,
+                                 colors=[accent(0.12, gold), accent(0.9, gold), accent(1.0, shine), accent(0.9, gold),
+                                         accent(0.12, gold)], stops=[0.0, 0.55, 0.65, 0.75, 1.0])
+    return ft.Container(width=1.5 if vertical else None, height=None if vertical else 1.5, gradient=gradient)
 
 
-def backdrop(content: ft.Control) -> ft.Control:
-    """The screen's background: black, a light-pink glow over the top and another low on the right, a sharp
-    metallic-gold blade with a pale shine on its edge and a double crisp line across the top corner, sparkles
-    around it, and thin pink and gold slashes near the bottom. Nothing in it can be tapped; the content sits on
-    top."""
-    pink, gold, shine = ft.Colors.TERTIARY_FIXED_DIM, ft.Colors.TERTIARY, ft.Colors.ON_TERTIARY_FIXED
+def headroom(wide: bool) -> int:
+    """Room above every screen's content for the katana laid across the top, so it never crosses the title."""
+    return 60 if wide else 34
+
+
+def katana(width: float, angleDegrees: float, **place) -> ft.Image:
+    """A drawn katana, lying at an angle around its hilt's end (AM9.4)."""
+    return ft.Image(src=katanaImage, width=width, height=width * 0.06, fit=ft.BoxFit.FILL,
+                    rotate=ft.Rotate(math.radians(angleDegrees), alignment=ft.Alignment.CENTER_LEFT), **place)
+
+
+def goddess(height: float, opacity: float, left: float, bottom: float) -> list[ft.Control]:
+    """The goddess (AM9.3) and the katana resting over her shoulder, placed together: the katana's hilt at her
+    front and its blade over her back shoulder, rising behind her to the right (the drawing is 600 by 900)."""
+    scale = height / 900
+    width = 783 * scale
+    return [ft.Image(src=goddessImage, height=height, opacity=opacity, left=left, bottom=bottom),
+            katana(width, -30, left=left + 117 * scale, bottom=bottom + 290 * scale - width * 0.03)]
+
+
+def backdrop(content: ft.Control, wide: bool = False) -> ft.Control:
+    """The screen's background: black, a light-pink glow over the top right and another low on the left, soft
+    curves at the top right and low on the right, the goddess with her katana faint behind the lower left, and a
+    second katana laid across the top, larger in the PC view (wide), clear of its rail. Nothing in it can be
+    tapped; the content sits on top."""
+    pink = ft.Colors.TERTIARY_FIXED_DIM
     layers: list[ft.Control] = [
         ft.Container(bgcolor=ft.Colors.SURFACE, **filling),
         ft.Container(**filling, gradient=ft.RadialGradient(
-            center=ft.Alignment(-0.7, -1.1), radius=1.3,
-            colors=[accent(0.52, pink), accent(0.18, pink), accent(0.0, pink)], stops=[0.0, 0.42, 1.0])),
-        # Washes are pink: gold spread thin over black turns brown, so gold stays sharp (lines, edges, sparkles).
+            center=ft.Alignment(0.6, -1.1), radius=1.3,
+            colors=[accent(0.55, pink), accent(0.2, pink), accent(0.0, pink)], stops=[0.0, 0.42, 1.0])),
+        # Washes are pink: gold spread thin over black turns brown, so gold stays sharp (the katanas, the edge).
         ft.Container(**filling, gradient=ft.RadialGradient(
-            center=ft.Alignment(1.1, 0.95), radius=1.05, colors=[accent(0.22, pink), accent(0.0, pink)])),
-        # Long enough that their ends stay off even a wide PC window; centred 200 px in from the right edge.
-        streak(2800, 210, [accent(0.0, shine), accent(0.95, shine), accent(0.7, gold), accent(0.16, gold),
-                           accent(0.0, gold)], [0.0, 0.012, 0.05, 0.2, 0.42], top=-95, right=-1200),
-        streak(2800, 3.5, [accent(0.0, shine), accent(1.0, shine), accent(0.4, gold)], [0.38, 0.55, 0.72],
-               across=False, top=150, right=-1200),
-        streak(2800, 1.5, [accent(0.0, gold), accent(0.9, gold), accent(0.0, gold)], [0.4, 0.58, 0.75],
-               across=False, top=162, right=-1200),
-        # The goddess (AM7.3): drawn for the app, apps/diet/art/goddess.svg; large and faint, lower right.
-        ft.Image(src=goddessImage, height=560, fit=ft.BoxFit.CONTAIN, opacity=0.5, right=-50, bottom=36),
-        sparkle(32, top=54, right=114), sparkle(16, top=28, right=44), sparkle(22, top=126, right=20),
-        sparkle(12, top=96, right=178),
-        streak(520, 2, [accent(0.0, pink), accent(0.85, pink), accent(0.0, pink)], [0.0, 0.5, 1.0], across=False,
-               bottom=190, left=-150),
-        streak(380, 1.5, [accent(0.0, gold), accent(0.8, gold), accent(0.0, gold)], [0.0, 0.5, 1.0], across=False,
-               bottom=168, left=-110),
-        sparkle(20, bottom=212, left=94),
+            center=ft.Alignment(-1.1, 0.95), radius=1.05, colors=[accent(0.26, pink), accent(0.0, pink)])),
+        ft.Image(src=curvesTopImage, width=300, height=220, right=-30, top=-20),
+        ft.Image(src=curvesBottomImage, width=260, height=130, right=-30, bottom=104),
+        *(goddess(640, 0.7, 58, -40) if wide else goddess(540, 0.6, -40, 70)),
+        katana(700, 1, left=38, top=-8) if wide else katana(480, 2, left=-70, top=-6),
     ]
     return ft.Stack([*layers, ft.Container(content, **filling)], expand=True, clip_behavior=ft.ClipBehavior.HARD_EDGE)
 

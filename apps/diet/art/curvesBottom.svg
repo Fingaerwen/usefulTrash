@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="160 610 260 130" width="260" height="130">
+  <!-- Ambrosia's soft lines low on the right (apps/diet/docs/plan.md AM9.2): two flowing light-pink curves, the
+       softened mirror of Talon's two slashes at the bottom left. In a phone screen's coordinates (390 by 844),
+       so it sits 30 px past the right edge. tools/makeArt.py renders it. -->
+  <defs>
+    <linearGradient id="softB" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#FFB8DD" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#FFB8DD" stop-opacity="0.6"/>
+      <stop offset="1" stop-color="#FFB8DD" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <path d="M 160 700 C 230 640, 300 690, 420 620" fill="none" stroke="url(#softB)" stroke-width="2" stroke-linecap="round"/>
+  <path d="M 200 730 C 260 690, 320 720, 420 668" fill="none" stroke="url(#softB)" stroke-width="1.4" stroke-linecap="round"/>
+</svg>

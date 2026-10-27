@@ -15,7 +15,7 @@ from pathlib import Path  # noqa: E402
 import flet as ft  # noqa: E402
 
 from gym.model import appName  # noqa: E402
-from gym.screens.look import darkTheme, lightTheme  # noqa: E402
+from gym.screens.look import darkTheme  # noqa: E402
 from gym.screens.root import GymApp  # noqa: E402
 from usefulShared.platform.appLog import AppLog  # noqa: E402
 
@@ -46,8 +46,8 @@ class _PhoneServices:
 
 def main(page: ft.Page):
     page.title = appName
-    page.theme_mode = ft.ThemeMode.SYSTEM  # dark mode follows the phone (G1)
-    page.theme, page.dark_theme = lightTheme(), darkTheme()
+    page.theme_mode = ft.ThemeMode.DARK  # dark only, whatever the phone says (LK1.5)
+    page.theme = page.dark_theme = darkTheme()
     config = loadPublicConfig()
 
     if page.web:

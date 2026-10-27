@@ -1,5 +1,6 @@
-"""The look (LK1.1, LK1.2, LK1.3): black, white and greys with red woven into the background; and the screen
-test kit's checks for what Flutter refuses to draw (its grey box) and what the PC view's font can't write."""
+"""The look (LK1.1 to LK1.5): black, white and greys with red woven into the background, dark only, corners cut,
+and the screen test kit's checks for what Flutter refuses to draw (its grey box) and what the PC view's font can't
+write."""
 
 import dataclasses
 
@@ -7,7 +8,7 @@ import flet as ft
 import pytest
 from screenTestKit import layoutProblems, undrawable
 
-from gym.screens.look import darkReds, darkShades, darkTheme, lightReds, lightShades, lightTheme, mainButton
+from gym.screens.look import card, darkReds, darkShades, darkTheme, form, mainButton, pill
 
 textRoles = ("outline", "on_surface_variant", "on_surface", "primary", "on_primary")  # never red (LK1.3)
 
@@ -19,30 +20,40 @@ def rgb(shade: str) -> tuple[int, int, int]:
 def testShadesAreGreysLeaningTowardsRed():
     """Black with shades of black and grey (LK1.2), each leaning a little towards red (LK1.3): never more red
     than a tint. Text, ticks and the main buttons stay pure greys."""
-    assert darkShades.keys() == lightShades.keys()
-    for shades in (darkShades, lightShades):
-        for role, shade in shades.items():
-            red, green, blue = rgb(shade)
-            if role in textRoles or role == "surface":
-                assert red == green == blue, (role, shade)
-            else:
-                leansRed = red >= max(green, blue) and red - min(green, blue) <= 24 and abs(green - blue) <= 4
-                assert leansRed, (role, shade)
-    assert (darkShades["surface"], lightShades["surface"]) == ("#000000", "#FFFFFF")  # black, mirrored in light
-    assert darkTheme().color_scheme.primary == "#FFFFFF" and lightTheme().color_scheme.primary == "#000000"
+    for role, shade in darkShades.items():
+        red, green, blue = rgb(shade)
+        if role in textRoles or role == "surface":
+            assert red == green == blue, (role, shade)
+        else:
+            leansRed = red >= max(green, blue) and red - min(green, blue) <= 24 and abs(green - blue) <= 4
+            assert leansRed, (role, shade)
+    assert darkShades["surface"] == "#000000"
+    assert darkTheme().color_scheme.primary == "#FFFFFF"
 
 
 def testTheRedsLiveInTheirOwnRoles():
     """The reds are only in the tertiary roles, which nothing else uses (LK1.3), and they are reds."""
-    for reds, theme in ((darkReds, darkTheme()), (lightReds, lightTheme())):
-        roles = {field.name for field in dataclasses.fields(theme.color_scheme)}
-        assert set(reds) <= {name for name in roles if name.startswith(("tertiary", "on_tertiary"))}
-        for role, shade in reds.items():
-            if role == "on_tertiary":
-                continue  # black or white on red
-            red, green, blue = rgb(shade)
-            assert red > green and red > blue, (role, shade)
-            assert getattr(theme.color_scheme, role) == shade
+    theme = darkTheme()
+    roles = {field.name for field in dataclasses.fields(theme.color_scheme)}
+    assert set(darkReds) <= {name for name in roles if name.startswith(("tertiary", "on_tertiary"))}
+    for role, shade in darkReds.items():
+        if role == "on_tertiary":
+            continue  # black on red
+        red, green, blue = rgb(shade)
+        assert red > green and red > blue, (role, shade)
+        assert getattr(theme.color_scheme, role) == shade
+
+
+def testCornersAreCutAndCardsSeeThrough():
+    """Talon's half of the mirrored opposites (LK1.4): cards, chips and buttons have two corners cut (top left,
+    bottom right), and a card is see-through with a blur, so the knight behind shows faintly."""
+    panel = card(ft.Text("Lat pulldown"))
+    assert isinstance(panel.shape, ft.BeveledRectangleBorder)
+    assert (panel.shape.radius.top_left, panel.shape.radius.top_right) == (form.corner, 0)
+    assert panel.content.blur and panel.content.border.top.width == 1  # the blur, and the thin red top edge
+    assert isinstance(pill("3M").shape, ft.BeveledRectangleBorder)
+    assert isinstance(mainButton("Save", None).style.shape, ft.BeveledRectangleBorder)
+    assert card(ft.Text("Done"), hollow=True).content.blur is None  # done exercises recede, no blur
 
 
 @pytest.mark.parametrize("child", [

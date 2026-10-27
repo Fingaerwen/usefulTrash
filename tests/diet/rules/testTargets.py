@@ -145,7 +145,7 @@ def testTrainingAndRestDaysFollowTheGymPlan():
                             "planJson": {"cycle": []}}) is None
 
 
-def testTrainedMeansSomethingDoneInTalos():
+def testTrainedMeansSomethingDoneInTalon():
     day = dt.date(2026, 10, 26)
     rows = [{"date": day, "sets": [{"reps": 8}], "minutes": None, "skipped": False, "deleted": False},
             {"date": day + dt.timedelta(1), "sets": [], "minutes": None, "skipped": True, "deleted": False},

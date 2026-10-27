@@ -1,5 +1,5 @@
 """The Week tab (apps/diet/docs/plan.md 4a): each day's kcal against its target, the week's averages, and your
-body weight from Talos's weigh-ins. Weeks run Monday to Sunday, like Talos's (plan 8)."""
+body weight from Talon's weigh-ins. Weeks run Monday to Sunday, like Talon's (plan 8)."""
 
 import datetime as dt
 from collections.abc import Callable, Iterable, Mapping
@@ -76,5 +76,5 @@ def _average(weights: Mapping[dt.date, float], monday: dt.date) -> tuple[float |
 
 
 def weighIns(bodyWeightRows: Iterable[Mapping[str, Any]]) -> dict[dt.date, float]:
-    """Talos's weigh-ins (bodyWeight rows that aren't deleted), by day."""
+    """Talon's weigh-ins (bodyWeight rows that aren't deleted), by day."""
     return {row["date"]: row["weightKg"] for row in bodyWeightRows if not row.get("deleted")}

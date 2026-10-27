@@ -51,6 +51,7 @@ from gym.screens.look import (
     pill,
     quiet,
     screen,
+    shaped,
     softButton,
     tapSize,
     title,
@@ -117,7 +118,7 @@ def WorkoutProgress(view):
     return card(ft.Column([
         ft.Row([ft.Text(words, weight=ft.FontWeight.W_600), quiet(f"{round(fraction * 100)}%")],
                alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-        ft.ProgressBar(value=fraction, bar_height=6, border_radius=3, color=ft.Colors.PRIMARY, bgcolor=track),
+        ft.ProgressBar(value=fraction, bar_height=6, border_radius=0, color=ft.Colors.PRIMARY, bgcolor=track),
     ], spacing=10), padding=ft.Padding.symmetric(horizontal=16, vertical=14))
 
 
@@ -210,14 +211,16 @@ def ExerciseRow(app, line: ExerciseLine, view=None):
                 hollow=done or skipped)
 
 
-def NewMark(line: ExerciseLine, undo) -> ft.Container:
-    """"new" beside a step up (UN1.1); a tap means not today, and again takes the step up after all."""
+def NewMark(line: ExerciseLine, undo) -> ft.Card:
+    """"new" beside a step up (UN1.1), a deep red chip with cut corners (LK1.4); a tap means not today, and again
+    takes the step up after all."""
     words = "not today" if line.declined else "new"
-    return ft.Container(ft.Row([ft.Icon(ft.Icons.UNDO if line.declined else ft.Icons.ARROW_UPWARD, size=13),
-                                ft.Text(words, size=12, weight=ft.FontWeight.W_600)], spacing=3, tight=True),
-                        bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST, border_radius=8,
-                        padding=ft.Padding.symmetric(horizontal=8, vertical=3), ink=True, on_click=undo,
-                        tooltip=f"{line.exercise.name}: {'take the step up' if line.declined else 'not today'}")
+    inner = ft.Container(ft.Row([ft.Icon(ft.Icons.UNDO if line.declined else ft.Icons.ARROW_UPWARD, size=13),
+                                 ft.Text(words, size=12, weight=ft.FontWeight.W_600)], spacing=3, tight=True),
+                         bgcolor=ft.Colors.TERTIARY_CONTAINER, padding=ft.Padding.symmetric(horizontal=8, vertical=3),
+                         ink=True, on_click=undo,
+                         tooltip=f"{line.exercise.name}: {'take the step up' if line.declined else 'not today'}")
+    return shaped(inner, 5)
 
 
 @ft.component
@@ -254,7 +257,7 @@ def RestTimer(app, model):
         ft.Row([ft.Icon(ft.Icons.TIMER_OUTLINED, size=26), words,
                 softButton("+30 s", more, tooltip="Add 30 seconds"),
                 ft.IconButton(ft.Icons.CLOSE, tooltip="Stop the rest timer", on_click=stop)], spacing=12),
-        ft.ProgressBar(value=fraction, bar_height=4, border_radius=2,
+        ft.ProgressBar(value=fraction, bar_height=4, border_radius=0,
                        color=ft.Colors.TERTIARY, bgcolor=track),  # the rest timer's bar is red (LK1.3)
     ], spacing=10), raised=True, padding=ft.Padding.only(left=16, top=10, right=8, bottom=14)),
         padding=ft.Padding.only(top=8, bottom=8))
@@ -314,7 +317,7 @@ def HowTo(exercise):
         parts += [numbered("•", cue) for cue in exercise.form]
     if not parts:
         parts.append(quiet("Your plan has no how-to for this exercise."))
-    return ft.Container(ft.Column(parts, spacing=6), bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH, border_radius=12,
+    return ft.Container(ft.Column(parts, spacing=6), bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH, border_radius=4,
                         padding=14, margin=ft.Margin.only(right=10))
 
 

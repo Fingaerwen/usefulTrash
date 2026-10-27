@@ -1,0 +1,180 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-160 0 760 900" width="760" height="900">
+  <!-- Talon's war god (docs/plan.md LK1.4): an angelic knight in bulky gothic power armour, crimson with black
+       trim, in profile facing right. A domed pauldron with a thick rim and a winged-sword sign, a helmet with a
+       grilled rebreather and a glowing eye lens, a raised collar, a raised wing of blade-like feathers, a spiked
+       halo, and a western longsword held upright in front, its edges lit red. Drawn for the app, a placeholder
+       until you pick final art. tools/makeArt.py renders it to src/assets/talon.webp. -->
+  <defs>
+    <path id="feather" d="M 0 0 C 60 -16, 180 -14, 300 0 C 180 8, 60 10, 0 0 Z"/>
+    <path id="spike" d="M -7 -148 L 0 -184 L 7 -148 Z"/>
+    <linearGradient id="primary" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2A0508"/>
+      <stop offset="0.55" stop-color="#7A0F17"/>
+      <stop offset="1" stop-color="#C1121F"/>
+    </linearGradient>
+    <linearGradient id="secondary" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4A0D13"/>
+      <stop offset="1" stop-color="#E3242B"/>
+    </linearGradient>
+    <linearGradient id="covert" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#8A1018"/>
+      <stop offset="1" stop-color="#FF4D57"/>
+    </linearGradient>
+    <linearGradient id="armour" x1="0" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#A8141E"/>
+      <stop offset="0.45" stop-color="#6A0B12"/>
+      <stop offset="1" stop-color="#2A0508"/>
+    </linearGradient>
+    <linearGradient id="armourDark" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#5A0A10"/>
+      <stop offset="1" stop-color="#1A0306"/>
+    </linearGradient>
+    <linearGradient id="steel" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7A7A7A"/>
+      <stop offset="0.5" stop-color="#F5F5F5"/>
+      <stop offset="1" stop-color="#5E5E5E"/>
+    </linearGradient>
+    <radialGradient id="aura" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FF2633" stop-opacity="0.3"/>
+      <stop offset="0.55" stop-color="#C1121F" stop-opacity="0.1"/>
+      <stop offset="1" stop-color="#C1121F" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="lens" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FFE0E2"/>
+      <stop offset="0.3" stop-color="#FF2633"/>
+      <stop offset="1" stop-color="#FF2633" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="fadeDown" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.62" stop-color="white"/>
+      <stop offset="0.97" stop-color="black"/>
+    </linearGradient>
+    <mask id="fade" maskUnits="userSpaceOnUse" x="-160" y="0" width="760" height="900">
+      <rect x="-160" y="0" width="760" height="900" fill="url(#fadeDown)"/>
+    </mask>
+  </defs>
+
+  <circle cx="330" cy="250" r="260" fill="url(#aura)"/>
+
+  <!-- A spiked halo behind the helmet -->
+  <g transform="translate(336 250)" fill="#4A0D13" stroke="#E3242B" stroke-width="1.2" stroke-opacity="0.8">
+    <use href="#spike" transform="rotate(0)"/><use href="#spike" transform="rotate(22.5)"/>
+    <use href="#spike" transform="rotate(45)"/><use href="#spike" transform="rotate(67.5)"/>
+    <use href="#spike" transform="rotate(90)"/><use href="#spike" transform="rotate(112.5)"/>
+    <use href="#spike" transform="rotate(135)"/><use href="#spike" transform="rotate(157.5)"/>
+    <use href="#spike" transform="rotate(180)"/><use href="#spike" transform="rotate(202.5)"/>
+    <use href="#spike" transform="rotate(225)"/><use href="#spike" transform="rotate(247.5)"/>
+    <use href="#spike" transform="rotate(270)"/><use href="#spike" transform="rotate(292.5)"/>
+    <use href="#spike" transform="rotate(315)"/><use href="#spike" transform="rotate(337.5)"/>
+  </g>
+  <circle cx="336" cy="250" r="148" fill="none" stroke="#4A0D13" stroke-width="7"/>
+  <circle cx="336" cy="250" r="148" fill="none" stroke="#FF4D57" stroke-width="1.4" stroke-opacity="0.8"/>
+
+  <g mask="url(#fade)">
+    <!-- The wing, raised and spread back: an arm from the power pack, long feathers hanging from it, short
+         coverts over their roots -->
+    <g fill="url(#primary)" stroke="#FF4D57" stroke-width="0.8" stroke-opacity="0.55">
+      <use href="#feather" transform="translate(224.5 360.3) rotate(160.0) scale(0.63 1.25)"/>
+      <use href="#feather" transform="translate(213.2 327.4) rotate(165.6) scale(0.67 1.25)"/>
+      <use href="#feather" transform="translate(202.1 297.5) rotate(171.1) scale(0.71 1.25)"/>
+      <use href="#feather" transform="translate(191.2 270.6) rotate(176.7) scale(0.76 1.25)"/>
+      <use href="#feather" transform="translate(180.5 246.5) rotate(182.2) scale(0.80 1.25)"/>
+      <use href="#feather" transform="translate(170.0 225.4) rotate(187.8) scale(0.84 1.25)"/>
+      <use href="#feather" transform="translate(159.7 207.1) rotate(193.3) scale(0.88 1.25)"/>
+      <use href="#feather" transform="translate(149.6 191.8) rotate(198.9) scale(0.92 1.25)"/>
+      <use href="#feather" transform="translate(139.7 179.5) rotate(204.4) scale(0.96 1.25)"/>
+      <use href="#feather" transform="translate(130.0 170.0) rotate(210.0) scale(1.00 1.25)"/>
+    </g>
+    <g fill="url(#covert)" stroke="#2A0508" stroke-width="1">
+      <use href="#feather" transform="translate(224.5 360.3) rotate(160.0) scale(0.32 1.7)"/>
+      <use href="#feather" transform="translate(213.2 327.4) rotate(165.6) scale(0.34 1.7)"/>
+      <use href="#feather" transform="translate(202.1 297.5) rotate(171.1) scale(0.35 1.7)"/>
+      <use href="#feather" transform="translate(191.2 270.6) rotate(176.7) scale(0.37 1.7)"/>
+      <use href="#feather" transform="translate(180.5 246.5) rotate(182.2) scale(0.39 1.7)"/>
+      <use href="#feather" transform="translate(170.0 225.4) rotate(187.8) scale(0.40 1.7)"/>
+      <use href="#feather" transform="translate(159.7 207.1) rotate(193.3) scale(0.42 1.7)"/>
+      <use href="#feather" transform="translate(149.6 191.8) rotate(198.9) scale(0.44 1.7)"/>
+      <use href="#feather" transform="translate(139.7 179.5) rotate(204.4) scale(0.45 1.7)"/>
+      <use href="#feather" transform="translate(130.0 170.0) rotate(210.0) scale(0.47 1.7)"/>
+    </g>
+    <path fill="none" stroke="#5A0A10" stroke-width="16" stroke-linecap="round" d="M 236 396 Q 178 210 130 170"/>
+    <path fill="none" stroke="#FF4D57" stroke-width="2.5" stroke-linecap="round" d="M 228 392 Q 172 212 126 164"/>
+
+    <!-- The power pack behind the shoulders, two vents -->
+    <path fill="url(#armourDark)" stroke="#E3242B" stroke-width="1.5" d="M 176 404 L 252 382 L 270 566 L 190 584 Z"/>
+    <rect x="186" y="358" width="22" height="40" rx="5" fill="#1A0306" stroke="#E3242B" stroke-width="1.5"/>
+    <rect x="218" y="350" width="22" height="40" rx="5" fill="#1A0306" stroke="#E3242B" stroke-width="1.5"/>
+
+    <!-- The breastplate, bulky and curved -->
+    <path fill="url(#armour)" d="
+      M 300 380 C 360 372, 420 392, 458 440
+      C 486 478, 490 540, 478 600 L 472 900 L 250 900 L 246 600
+      C 240 520, 250 440, 300 380 Z"/>
+    <path fill="none" stroke="#FF4D57" stroke-width="2.5" d="M 300 380 C 360 372, 420 392, 458 440 C 486 478, 490 540, 478 600"/>
+    <path fill="none" stroke="#1A0306" stroke-width="3" d="M 330 640 L 470 650 M 326 680 L 468 690 M 322 720 L 466 730"/>
+
+    <!-- The raised collar: a cowl rising behind the head, a gorget in front -->
+    <path fill="url(#armourDark)" stroke="#E3242B" stroke-width="1.5" d="M 234 394 C 222 340, 232 296, 262 278 L 282 292 C 262 318, 258 352, 266 388 Z"/>
+    <path fill="url(#armour)" stroke="#0B0304" stroke-width="2" d="M 262 382 C 272 352, 302 338, 342 340 C 372 342, 394 354, 404 374 L 396 396 C 362 376, 302 376, 270 402 Z"/>
+
+    <!-- The domed pauldron with its thick black rim and a winged-sword sign -->
+    <path fill="url(#armour)" d="M 184 478 C 178 410, 236 366, 306 364 C 378 364, 428 404, 432 468 Z"/>
+    <path fill="#0B0304" d="M 178 470 C 228 502, 382 502, 436 460 L 440 482 C 386 528, 224 528, 174 494 Z"/>
+    <path fill="none" stroke="#FF4D57" stroke-width="2" d="M 178 470 C 228 502, 382 502, 436 460"/>
+    <path fill="none" stroke="#FF8A92" stroke-width="3" stroke-linecap="round" stroke-opacity="0.65" d="M 212 422 C 240 390, 290 376, 334 378"/>
+    <g fill="none" stroke="#FFB3B8" stroke-width="2.4" stroke-linecap="round" stroke-opacity="0.85">
+      <path d="M 308 402 L 308 462 M 296 450 L 320 450"/>
+      <path d="M 304 426 C 290 414, 276 412, 262 418 C 274 422, 286 428, 304 436"/>
+      <path d="M 312 426 C 326 414, 340 412, 354 418 C 342 422, 330 428, 312 436"/>
+    </g>
+
+    <!-- The arm, forward to the sword's grip -->
+    <path fill="url(#armourDark)" d="M 236 508 L 332 514 L 342 596 L 256 600 Z"/>
+    <ellipse cx="336" cy="604" rx="26" ry="22" fill="#1A0306" stroke="#E3242B" stroke-width="1.5"/>
+    <path fill="url(#armour)" d="M 330 576 L 462 588 L 464 638 L 334 630 Z"/>
+    <path fill="none" stroke="#FF4D57" stroke-width="2" d="M 330 576 L 462 588"/>
+    <path fill="none" stroke="#1A0306" stroke-width="2" d="M 380 582 L 382 634 M 420 586 L 421 636"/>
+
+    <!-- The helmet: a dome, a jutting brow, a round eye lens and a grilled rebreather -->
+    <path fill="url(#armour)" d="
+      M 252 334 C 238 286, 240 206, 278 170
+      C 316 136, 380 142, 406 184
+      L 418 210 L 402 220 L 404 248
+      L 436 258 L 444 286 L 434 314 L 408 324
+      L 396 344 L 362 354
+      C 330 356, 298 350, 278 344 Z"/>
+    <path fill="#1A0306" fill-opacity="0.72" d="
+      M 252 334 C 246 300, 246 278, 250 260
+      C 300 270, 350 272, 400 264 L 406 324
+      L 396 344 L 362 354 C 330 356, 298 350, 278 344 Z"/>
+    <path fill="none" stroke="#FF4D57" stroke-width="2.5" stroke-linejoin="miter" d="M 278 170 C 316 136, 380 142, 406 184 L 418 210 L 402 220"/>
+    <path fill="none" stroke="#0B0304" stroke-width="10" stroke-opacity="0.6" d="M 286 164 C 330 144, 374 152, 396 180"/>
+    <path fill="none" stroke="#0B0304" stroke-width="2.5" d="M 336 266 L 352 352 M 404 248 L 406 324"/>
+    <circle cx="304" cy="282" r="22" fill="url(#armourDark)" stroke="#E3242B" stroke-width="1.5"/>
+    <circle cx="304" cy="282" r="11" fill="none" stroke="#FF4D57" stroke-width="1.2" stroke-opacity="0.7"/>
+    <circle cx="390" cy="236" r="26" fill="url(#lens)"/>
+    <circle cx="390" cy="236" r="8" fill="#FF2633" stroke="#0B0304" stroke-width="2"/>
+    <circle cx="392" cy="234" r="2.5" fill="#FFE0E2"/>
+    <path fill="none" stroke="#FF4D57" stroke-width="2" stroke-linejoin="miter" d="M 404 248 L 436 258 L 444 286 L 434 314 L 408 324"/>
+    <g stroke="#0B0304" stroke-width="3" stroke-linecap="round">
+      <path d="M 414 270 L 436 274 M 414 284 L 440 287 M 414 298 L 438 300 M 414 311 L 432 312"/>
+    </g>
+
+    <!-- The longsword, upright in front: steel with a red-lit edge, a curved crossguard, a wheel pommel -->
+    <path fill="none" stroke="#FF2633" stroke-width="7" stroke-opacity="0.25" d="M 478 36 L 490 120 L 491 552 L 465 552 L 466 120 Z"/>
+    <path fill="url(#steel)" d="M 478 36 L 490 120 L 491 552 L 465 552 L 466 120 Z"/>
+    <path fill="none" stroke="#7A7A7A" stroke-width="3" d="M 478 150 L 478 540"/>
+    <path fill="none" stroke="#FF4D57" stroke-width="1.2" d="M 478 36 L 490 120 L 491 552 M 478 36 L 466 120 L 465 552"/>
+    <path fill="url(#steel)" stroke="#0B0304" stroke-width="1" d="M 416 552 C 440 560, 516 560, 540 552 L 544 563 C 516 573, 440 573, 412 563 Z"/>
+    <circle cx="412" cy="558" r="7" fill="url(#steel)" stroke="#0B0304" stroke-width="1"/>
+    <circle cx="544" cy="558" r="7" fill="url(#steel)" stroke="#0B0304" stroke-width="1"/>
+    <rect x="470" y="570" width="16" height="84" fill="#2A0508"/>
+    <path fill="none" stroke="#7A0F17" stroke-width="2" d="M 470 584 L 486 578 M 470 598 L 486 592 M 470 642 L 486 636"/>
+    <circle cx="478" cy="667" r="14" fill="url(#steel)" stroke="#0B0304" stroke-width="1.5"/>
+    <circle cx="478" cy="667" r="6" fill="none" stroke="#5E5E5E" stroke-width="1.5"/>
+
+    <!-- The gauntlet closed around the grip -->
+    <path fill="url(#armour)" stroke="#0B0304" stroke-width="1.5" d="M 450 588 C 466 580, 496 580, 508 590 L 510 632 C 496 642, 466 642, 452 634 Z"/>
+    <path fill="none" stroke="#1A0306" stroke-width="2" d="M 456 600 L 508 600 M 456 612 L 509 612 M 456 624 L 509 624"/>
+    <path fill="none" stroke="#FF4D57" stroke-width="1.5" d="M 450 588 C 466 580, 496 580, 508 590"/>
+  </g>
+</svg>

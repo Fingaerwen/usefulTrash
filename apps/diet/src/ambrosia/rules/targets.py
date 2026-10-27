@@ -1,7 +1,7 @@
 """Targets (apps/diet/docs/plan.md 4f, AM3.1, AM3.2): the file your Claude project writes, checked with every
-problem in plain words (like Talos's plan import, G8a); the day's targets from the import that applies then
+problem in plain words (like Talon's plan import, G8a); the day's targets from the import that applies then
 plus the bulk-check changes you applied to it; and whether a day is a training day or a rest day, from the
-Talos plan in effect and whether you trained (AM3.2).
+Talon plan in effect and whether you trained (AM3.2).
 
 The bulk check itself (4g) is built at max effort (gate 2); this module only reads its settings.
 """
@@ -237,7 +237,7 @@ def targetsOn(imports: Sequence[TargetsImport], changes: Sequence[AppliedChange]
 
 @dataclass(frozen=True, slots=True)
 class PlanWeek:
-    """What Ambrosia reads from a Talos plan import: each weekday's kind, workout, rest or flex."""
+    """What Ambrosia reads from a Talon plan import: each weekday's kind, workout, rest or flex."""
 
     planImportId: str
     effectiveDate: dt.date
@@ -246,7 +246,7 @@ class PlanWeek:
 
 
 def planWeekFromRow(row: Mapping[str, Any]) -> PlanWeek | None:
-    """A Talos plans row as a week, or None if it can't be read (Talos's own format, plans/planFormat.md)."""
+    """A Talon plans row as a week, or None if it can't be read (Talon's own format, plans/planFormat.md)."""
     week = row.get("planJson", {}).get("week") if isinstance(row.get("planJson"), dict) else None
     if not isinstance(week, list) or len(week) != 7 or not all(isinstance(day, dict) for day in week):
         return None
@@ -255,7 +255,7 @@ def planWeekFromRow(row: Mapping[str, Any]) -> PlanWeek | None:
 
 
 def dayKind(plans: Sequence[PlanWeek], trainedDays: set[dt.date], date: dt.date) -> str:
-    """AM3.2: a weekday with a fixed session in the Talos plan in effect is a training day, the flex day once
+    """AM3.2: a weekday with a fixed session in the Talon plan in effect is a training day, the flex day once
     you've trained on it, a rest day a rest day. Without a plan Ambrosia can read, every day is a training
     day (a bulk needs the food more than the rest)."""
     started = [plan for plan in plans if plan.effectiveDate <= date]
@@ -269,7 +269,7 @@ def dayKind(plans: Sequence[PlanWeek], trainedDays: set[dt.date], date: dt.date)
 
 
 def trainedDays(exerciseLogRows: Iterable[Mapping[str, Any]]) -> set[dt.date]:
-    """The days you trained (4g, AM3.2): at least one exercise done in Talos that day, sets or minutes, not
-    skipped (Talos's own "done")."""
+    """The days you trained (4g, AM3.2): at least one exercise done in Talon that day, sets or minutes, not
+    skipped (Talon's own "done")."""
     return {row["date"] for row in exerciseLogRows
             if not row.get("deleted") and not row.get("skipped") and (row.get("sets") or row.get("minutes") is not None)}
