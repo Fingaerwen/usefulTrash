@@ -10,9 +10,10 @@ from dataclasses import dataclass, field
 
 import flet as ft
 
-from gym.planImporter import PlanImport
+from gym.planImporter import PlanImport, PlanSwitch
 from gym.rules.stats import ChartView, ExerciseDetail, HistoryDay, MonthDiary, ProgressLine, WeekSummary, WeightView
 from gym.rules.today import TodayView
+from gym.state import PlanEntry
 
 appName = "Gym Tracker"
 appVersion = "0.3-alpha"  # the release script checks it matches pyproject.toml (V3a)
@@ -55,7 +56,8 @@ class AppModel:
     downloaded: int = 0  # first download: "Downloading your data… N rows" (14b)
     problems: tuple[str, ...] = ()  # the Problems page's lines (12d)
     planImport: PlanImport | None = None
-    planLines: tuple[str, ...] = ()  # the PC view's Plans tab (SC6.1)
+    planEntries: tuple[PlanEntry, ...] = ()  # the PC view's Plans tab (SC6.1)
+    planSwitch: PlanSwitch | None = None  # switching back to an earlier plan, asked first (SW1.1)
     backupStatus: str = ""  # the PC view's Backup tab: what Back up now or Export CSV just did (BK1.1, EX1.1)
     tab: str = "today"
 

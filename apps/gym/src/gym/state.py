@@ -7,6 +7,7 @@ work out the same answers from the same facts.
 
 import datetime as dt
 from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
 from typing import Any
 
 from gym.rules.facts import ImportedPlan, LoggedExercise, SetDone, StepEdit, WeightEdit
@@ -36,6 +37,17 @@ from gym.rules.stats import (
 )
 from gym.rules.today import TodayView, todayView
 from gym.rules.week import weekStart, weeklyTarget
+
+
+@dataclass(frozen=True, slots=True)
+class PlanEntry:
+    """One line of the PC view's Plans tab (SC6.1): what it says, and for an earlier plan its row and name, so it
+    can be switched back to (SW1.1) or archived (SW1.2)."""
+
+    text: str
+    kind: str  # "active", "later" (taking effect later), "earlier", "archived" or "none"
+    rowId: str | None = None
+    name: str = ""  # "Full Body (v1)"
 
 
 class GymState:
@@ -156,26 +168,32 @@ class GymState:
                 return rowId
         return None
 
-    def planLines(self, today: dt.date) -> tuple[str, ...]:
-        """The PC view's Plans tab (SC6.1): the active plan, any taking effect later, and earlier ones."""
+    def planEntries(self, today: dt.date) -> tuple[PlanEntry, ...]:
+        """The PC view's Plans tab (SC6.1): the active plan, any taking effect later, earlier ones oldest first,
+        then the archived ones (SW1.2), which still count everywhere else."""
         ordered = sorted(self.plans, key=lambda imported: (imported.start.effectiveDate, imported.start.importedAt))
         tookEffect = list({imported.start.effectiveDate: imported for imported in ordered
                            if imported.start.effectiveDate <= today}.values())  # the later import wins a day
-        lines = []
+        active, later, earlier, archived = [], [], [], []
         for index, imported in enumerate(tookEffect):
-            plan, since = imported.plan, imported.start.effectiveDate
+            plan, since, rowId = imported.plan, imported.start.effectiveDate, imported.start.planImportId
             name = f"{plan.name} (v{plan.version})"
             if index == len(tookEffect) - 1:
-                lines.insert(0, f"Active: {name} · since {_shortDate(since)} · {plan.weeklyTarget}/week")
+                text = f"Active: {name} · since {_shortDate(since)} · {plan.weeklyTarget}/week"
+                active.append(PlanEntry(text, "active", rowId, name))
+                continue
+            until = tookEffect[index + 1].start.effectiveDate - dt.timedelta(days=1)
+            stretch = f"{_shortDate(since)} – {_shortDate(until)}"
+            if (self.row("plans", rowId) or {}).get("archived"):
+                archived.append(PlanEntry(f"{name} · {stretch}", "archived", rowId, name))
             else:
-                until = tookEffect[index + 1].start.effectiveDate - dt.timedelta(days=1)
-                lines.append(f"Earlier: {name} · {_shortDate(since)} – {_shortDate(until)}")
+                earlier.append(PlanEntry(f"Earlier: {name} · {stretch}", "earlier", rowId, name))
         for imported in ordered:
             if imported.start.effectiveDate > today:
-                lines.insert(1 if tookEffect else 0,
-                             f"From {_shortDate(imported.start.effectiveDate)}: {imported.plan.name} "
-                             f"(v{imported.plan.version})")
-        return tuple(lines) or ("No plan yet.",)
+                name = f"{imported.plan.name} (v{imported.plan.version})"
+                text = f"From {_shortDate(imported.start.effectiveDate)}: {name}"
+                later.append(PlanEntry(text, "later", imported.start.planImportId, name))
+        return tuple(active + later + earlier + archived) or (PlanEntry("No plan yet.", "none"),)
 
     def row(self, tableName: str, rowId: str) -> dict[str, Any] | None:
         """A stored row, deleted or not (edits start from it)."""

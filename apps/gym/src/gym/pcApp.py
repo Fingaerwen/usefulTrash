@@ -206,7 +206,7 @@ class PcApp(AppBase):
         return None
 
     def afterRefresh(self) -> None:
-        self.model.planLines = self.state.planLines(self.localToday())
+        self.model.planEntries = self.state.planEntries(self.localToday())
         status, problem = self.lastFetch
         last = lastBackup(self._live("backups"))
         old = last is not None and self.clock() - last["madeAt"] >= warnAfter

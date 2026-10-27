@@ -326,3 +326,81 @@ def testAWarningAfter60DaysWithoutABackup(browser, cloud):
     assert backupWarning in browser.texts()
     browser.app.openBanner(backupWarning)
     assert browser.app.model.tab == "backup"
+
+
+# --- Switching back to an earlier plan and archiving (SW1.1, SW1.2) -----------------------------
+
+def twoPlansInCloud(cloud):
+    """Full Body from 14 Sep, then Push Pull Legs from 28 Sep: on Monday 12 Oct, Full Body is an earlier plan."""
+    for name, effective in (("Full Body", dt.date(2026, 9, 14)), ("Push Pull Legs (example)", dt.date(2026, 9, 28))):
+        planJson = dict(json.loads((repoRoot / "plans" / "examplePlan.json").read_text()), name=name)
+        moment = dt.datetime.combine(effective, dt.time(15, 0), tzinfo=dt.UTC)
+        row = {"id": newRowId(), "userId": userA, "updatedAt": moment, "deleted": False, "cloudUpdatedAt": None,
+               "importedAt": moment, "effectiveDate": effective, "startStep": 0, "planJson": planJson,
+               "archived": False}
+        cloud.storeDirectly("plans", toCloud(tablesByName["plans"], row))
+
+
+def testSwitchingBackToAnEarlierPlanAsksFirst(browser, cloud):
+    twoPlansInCloud(cloud)
+    signedIn(browser)
+    browser.app.model.tab = "plans"
+    texts = browser.texts()
+    assert "Active: Push Pull Legs (example) (v1) · since 28 Sep · 3/week" in texts
+    assert "Earlier: Full Body (v1) · 14 Sep – 27 Sep" in texts
+    press(find(browser.screen(), "Switch back to Full Body (v1)", "Container"))
+    assert "Switch to Full Body (v1) from today?" in browser.texts()
+    press(find(browser.screen(), "Cancel", "Button"))
+    assert "Switch to Full Body (v1) from today?" not in browser.texts() and len(cloud.rows["plans"]) == 2
+    press(find(browser.screen(), "Switch back to Full Body (v1)", "Container"))
+    press(find(browser.screen(), "Switch", "Button"))
+    assert len(cloud.rows["plans"]) == 3  # a new import of the same plan: its first stretch stays as it was
+    texts = browser.texts()
+    assert "Switched to Full Body (v1). It takes effect today." in texts
+    assert "Active: Full Body (v1) · since 12 Oct · 3/week" in texts
+    assert "Earlier: Full Body (v1) · 14 Sep – 27 Sep" in texts
+    assert "Earlier: Push Pull Legs (example) (v1) · 28 Sep – 11 Oct" in texts
+
+
+def testSwitchingAfterAWorkoutTodayTakesEffectTomorrow(browser, cloud):
+    twoPlansInCloud(cloud)
+    signedIn(browser)
+    browser.run(browser.app.check(browser.app.model.today.exercises[0]))
+    browser.app.model.tab = "plans"
+    press(find(browser.screen(), "Switch back to Full Body (v1)", "Container"))
+    assert "Switch to Full Body (v1) from tomorrow, since you've logged a workout today?" in browser.texts()
+    press(find(browser.screen(), "Switch", "Button"))
+    texts = browser.texts()
+    assert "Switched to Full Body (v1). It takes effect tomorrow." in texts
+    assert "From 13 Oct: Full Body (v1)" in texts
+    assert "Active: Push Pull Legs (example) (v1) · since 28 Sep · 3/week" in texts
+
+
+def testArchivingTucksAPlanAwayAndUnarchiveBringsItBack(browser, cloud):
+    twoPlansInCloud(cloud)
+    signedIn(browser)
+    browser.app.model.tab = "plans"
+    press(find(browser.screen(), "Archive Full Body (v1)", "Container"))
+    texts = browser.texts()
+    assert "Earlier: Full Body (v1) · 14 Sep – 27 Sep" not in texts and "ARCHIVED (1)" in texts
+    assert [row["archived"] for row in cloud.rows["plans"].values()].count(True) == 1
+    assert len(browser.app.state.plans) == 2  # its weeks still count in Week, History and the charts
+    from screenTestKit import redraw
+
+    from gym.screens.plans import PlansTab
+    tab = draw(PlansTab, browser.app, browser.app.model)
+    press(find(tab, "Show archived plans", "IconButton"))
+    redraw(tab)  # the fold is the tab's own state, kept by a redraw
+    assert "Full Body (v1) · 14 Sep – 27 Sep" in visibleTexts(tab)
+    press(find(tab, "Unarchive Full Body (v1)", "Container"))
+    texts = browser.texts()
+    assert "Earlier: Full Body (v1) · 14 Sep – 27 Sep" in texts and "ARCHIVED (1)" not in texts
+    assert not any(row["archived"] for row in cloud.rows["plans"].values())
+
+
+def testTheActivePlanHasNoSwitchOrArchive(browser, cloud):
+    planInCloud(cloud)
+    signedIn(browser)
+    browser.app.model.tab = "plans"
+    texts = browser.texts()
+    assert "Switch" not in texts and "Archive" not in texts

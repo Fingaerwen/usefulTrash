@@ -9,10 +9,10 @@ import flet as ft
 
 from gym.actions import ActionRefused, GymActions
 from gym.model import AppModel, LogFacts, SyncFacts, problemsReport
-from gym.planImporter import answerQuestions, finishImport, startImport
+from gym.planImporter import answerQuestions, askSwitch, finishImport, startImport, switchBack
 from gym.rules.stats import lastBackupText, summaryBanner, weighInBanner
 from gym.rules.today import ExerciseLine, SetDone, TodayView
-from gym.state import GymState
+from gym.state import GymState, PlanEntry
 from gym.tables import appSchema
 from usefulShared.platform.appLog import AppLog
 
@@ -385,3 +385,30 @@ class AppBase:
     def closePlanImport(self) -> None:
         self.model.planImport = None
         self.model.screen = "main"
+
+    # --- Switching back to an earlier plan and archiving (PC view, SW1.1, SW1.2) --------------
+
+    def askSwitch(self, entry: PlanEntry) -> None:
+        """Switch first asks, since it changes what Today shows."""
+        workoutToday = self.model.today is not None and self.model.today.workoutExists
+        self.model.planSwitch = askSwitch(entry.rowId, entry.name, self.localToday(), workoutToday)
+        self.model.notice = ""
+
+    def cancelSwitch(self) -> None:
+        self.model.planSwitch = None
+
+    async def confirmSwitch(self) -> None:
+        asked, self.model.planSwitch = self.model.planSwitch, None
+        source = self.state.row("plans", asked.rowId) if asked else None
+        if source is None:
+            return
+        row = switchBack(source, self.session.userId(), self.clock(), asked.takesEffect)
+        if await self._act(self.saveRows([("plans", row)])):
+            when = "today" if asked.takesEffect == self.localToday() else "tomorrow"
+            self.model.notice = f"Switched to {asked.name}. It takes effect {when}."
+
+    async def setArchived(self, entry: PlanEntry, archived: bool) -> None:
+        """Archive hides an earlier plan in the Archived list, Unarchive brings it back. Nothing else changes."""
+        row = self.state.row("plans", entry.rowId)
+        if row is not None and bool(row.get("archived")) != archived:
+            await self._act(self.saveRows([("plans", dict(row, archived=archived))]))
