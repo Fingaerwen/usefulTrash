@@ -14,7 +14,7 @@ now = 1_800_000_000.0  # a fixed "now" in seconds since 1970
 
 
 def session(number: int, expiresIn: float = 3600) -> dict:
-    """A made-up Supabase session; the number tells the versions apart."""
+    """A made-up Supabase session. The number tells the versions apart."""
     return {"access_token": f"access{number}", "refresh_token": f"refresh{number}", "expires_at": now + expiresIn,
             "token_type": "bearer", "user": {"id": "user-id", "email": "testAccount", "role": "authenticated"}}
 

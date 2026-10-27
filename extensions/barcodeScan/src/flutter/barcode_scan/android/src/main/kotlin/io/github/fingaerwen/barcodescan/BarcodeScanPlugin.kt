@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Bridge between the Dart side (barcode_scan_service.dart) and ZXing's scanner screen (open source, Apache 2.0):
- * "scanOpen" scans entirely inside the app, nothing over the network; Android asks once for the camera
+ * "scanOpen" scans entirely inside the app, nothing over the network. Android asks once for the camera
  * (Ambrosia AM5.1). Google's code scanner, compared in Phase 0, was left out: its library sends Google usage
  * metrics.
  *
@@ -25,7 +25,7 @@ class BarcodeScanPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activi
     PluginRegistry.ActivityResultListener {
 
     private lateinit var channel: MethodChannel
-    private var activity: Activity? = null  // the current screen; the scanner opens on top of it
+    private var activity: Activity? = null  // the current screen. The scanner opens on top of it
     private var activityBinding: ActivityPluginBinding? = null  // delivers ZXing's result
     private var pendingOpenScan: OneReply? = null  // the request waiting for ZXing's scanner screen
 
@@ -51,7 +51,7 @@ class BarcodeScanPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activi
         }
     }
 
-    /** ZXing's scanner screen; its answer arrives in onActivityResult. */
+    /** ZXing's scanner screen. Its answer arrives in onActivityResult. */
     private fun scanOpen(reply: OneReply) {
         val screen = activity
         if (screen == null) {
@@ -89,7 +89,7 @@ class BarcodeScanPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activi
     private fun failure(errorType: String, message: String?): Map<String, Any?> =
         mapOf("status" to "error", "errorType" to errorType, "message" to (message ?: ""))
 
-    // Keep track of the current screen (the scanner opens on top of it; its answer comes back through it).
+    // Keep track of the current screen (the scanner opens on top of it, its answer comes back through it).
     override fun onAttachedToActivity(binding: ActivityPluginBinding) = attachTo(binding)
 
     override fun onDetachedFromActivityForConfigChanges() = detachFromActivity()

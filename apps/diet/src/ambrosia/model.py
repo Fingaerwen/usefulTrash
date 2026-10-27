@@ -1,5 +1,5 @@
 """What Ambrosia's screens draw (plan 3b: declarative screens): one observable model. The controller
-(appBase.py) changes it; every screen that shows a changed field redraws by itself."""
+(appBase.py) changes it. Every screen that shows a changed field redraws by itself."""
 
 import datetime as dt
 from dataclasses import dataclass, field
@@ -74,7 +74,7 @@ class AppModel:
     """Everything the screens show. Fields are replaced, never changed in place, so each change redraws."""
 
     screen: str = "starting"  # starting, signIn, main, add, amount, label, importTargets, history, problems, failed
-    tab: str = "today"  # phone: today, week, targets; the PC view also history, backup
+    tab: str = "today"  # phone: today, week, targets. The PC view also history, backup
     busy: str = ""
     notice: str = ""
     failure: str = ""

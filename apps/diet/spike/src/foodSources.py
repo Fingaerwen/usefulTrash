@@ -53,7 +53,7 @@ class Food:
     carbsG: float | None = None
     servingG: float | None = None
     packG: float | None = None
-    kcalFromKj: bool = False  # the label only gave kJ; kcal worked out from it
+    kcalFromKj: bool = False  # the label only gave kJ, so kcal was worked out from it
 
     @property
     def complete(self) -> bool:
@@ -80,7 +80,7 @@ async def _getJson(url: str) -> dict:
         from pyodide.http import pyfetch  # only exists in the browser build
 
         try:
-            # A browser sets its own User-Agent; a plain request also needs no extra permission check (CORS).
+            # A browser sets its own User-Agent. A plain request also needs no extra permission check (CORS).
             response = await asyncio.wait_for(pyfetch(url, credentials="omit", cache="no-store"), timeoutSec)
             if response.status == 404:
                 raise NotFound("Open Food Facts answered 404")
@@ -178,7 +178,7 @@ class GenericFoods:
         self.loadSec = time.perf_counter() - started
 
     def search(self, words: str, limit: int = 10) -> list[Food]:
-        """Foods with a word starting with each word searched ("apple" finds apples, not pineapple; "eggs" finds
+        """Foods with a word starting with each word searched ("apple" finds apples, not pineapple, "eggs" finds
         "Egg, whole"), plainest first (see _rank)."""
         if not self.foods:
             self.load()
@@ -202,10 +202,10 @@ _processingWords = {"dried", "dehydrated", "powder", "mix", "sweetened", "breade
 
 
 def _rank(wanted: list[str], source: str, nameWords: list[str], prepared: bool, food: Food) -> tuple:
-    """Sort key, smallest first: every searched word found whole ("salmon" before "salmonberries"); the fewest
+    """Sort key, smallest first: every searched word found whole ("salmon" before "salmonberries"). The fewest
     words not searched for in the name's leading parts that hold the searched ones ("Rice, white, raw" before
-    "Rice crackers"); not a prepared food (USDA's categories); the fewest processing words and brand names (USDA
-    writes brands in capitals); the fewest parts needed; Foundation before SR Legacy; the shortest name."""
+    "Rice crackers"). Not a prepared food (USDA's categories). The fewest processing words and brand names (USDA
+    writes brands in capitals). The fewest parts needed. Foundation before SR Legacy. The shortest name."""
     whole = all(any(_stem(word) == part for word in nameWords) for part in wanted)
     needed, extra, seen = 0, 0, set()
     for index, part in enumerate(_words(piece) for piece in food.name.split(",")):

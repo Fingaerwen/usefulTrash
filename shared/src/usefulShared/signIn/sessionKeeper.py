@@ -136,7 +136,7 @@ class SessionKeeper:
 
     async def freshAccessToken(self) -> str:
         """An access token with at least 5 minutes left, renewing the session first if needed.
-        Raises CloudError: status 0 means offline (the session is kept); "notSignedIn" if there's none."""
+        Raises CloudError: status 0 means offline (the session is kept). "notSignedIn" if there's none."""
         async with self._renewLock:
             if not self.isSignedIn():
                 raise CloudError(401, "notSignedIn", "Not signed in")

@@ -240,7 +240,7 @@ def testWorkoutProgressCountsDoneAndSkipped():
 
 
 def testTheRestTimersTimeLeft():
-    """RT1.1: whole seconds left, rounded up, never below 0; written as minutes and seconds."""
+    """RT1.1: whole seconds left, rounded up, never below 0. Written as minutes and seconds."""
     start = dt.datetime(2026, 10, 12, 18, 0, tzinfo=dt.UTC)
     assert restLeft(start + dt.timedelta(seconds=90), start) == 90
     assert restLeft(start + dt.timedelta(seconds=90), start + dt.timedelta(seconds=0.4)) == 90

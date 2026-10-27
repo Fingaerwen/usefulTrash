@@ -6,7 +6,7 @@ the older one, so the log never grows past about 512 KB. PC view: memory only, s
 the browser. The log never prints, so release builds write nothing to Android's own log.
 
 No secrets or personal details: code logs events and kinds, never values. HTTP errors go in as status,
-code and a short message; tokens only as fingerprints. Every line also passes a scrubber that removes
+code and a short message. Tokens only as fingerprints. Every line also passes a scrubber that removes
 anything token-, key- or email-shaped, plus the current session's own token values, as a safety net.
 """
 

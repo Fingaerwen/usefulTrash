@@ -23,7 +23,7 @@ def testABackupHoldsEveryTableAndItsManifest():
 
 
 def testTheHistoryFileKeepsEveryRowEverBackedUp():
-    """A row gone from the cloud since stays; a row in both keeps its newer edit."""
+    """A row gone from the cloud since stays. A row in both keeps its newer edit."""
     gone = exampleRow("dailySteps", userId=userA, date=dt.date(2026, 10, 1), steps=5000)
     weighIn = exampleRow("bodyWeight", userId=userA, updatedAt=moment, weightKg=81.2)
     first = mergeHistory(None, {"dailySteps": [gone], "bodyWeight": [weighIn]}, appTables, appSchema, moment, "phone")

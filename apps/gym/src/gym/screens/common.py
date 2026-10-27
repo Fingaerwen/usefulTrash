@@ -27,7 +27,7 @@ def Notice(app, model):
 @ft.component
 def Banners(app, model):
     """Banners at the top of any tab (18.4a): not synced, refused changes, update needed, last week's summary
-    (Mondays) and the weigh-in (Fridays); tapping one of the last two opens its tab."""
+    (Mondays) and the weigh-in (Fridays). Tapping one of the last two opens its tab."""
     if not model.banners:
         return ft.Container(visible=False)
     return ft.Column([
@@ -41,8 +41,8 @@ def Banners(app, model):
 
 @ft.component
 def Menu(app, items: tuple[str, ...] = ("problems", "history", "deload", "importPlan", "signOut")):
-    """The ⋮ menu (SC2.1): Problems and Sign out; starting or stopping a deload by hand (WD2.4), hidden while
-    an automatic one runs; the phone also gets History (HI1.1) and "Import a plan file" (G2b-2)."""
+    """The ⋮ menu (SC2.1): Problems and Sign out. Starting or stopping a deload by hand (WD2.4), hidden while
+    an automatic one runs. The phone also gets History (HI1.1) and "Import a plan file" (G2b-2)."""
     async def importPlan(e):
         await app.pickPlanFile()
 
@@ -97,7 +97,7 @@ def FailedScreen(app, model):
 
 @ft.component
 def SignInScreen(app, model):
-    """Sign in with Google (AU1c); the phone shows Google's account picker."""
+    """Sign in with Google (AU1c). The phone shows Google's account picker."""
     async def signIn(e):
         await app.signIn()
 

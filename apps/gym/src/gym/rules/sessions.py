@@ -5,7 +5,7 @@ Pure logic: no screen, database, network or clock.
 
 An exercise on several days progresses separately on each day (WD2.3), so each one shown has a track
 day: the day whose targets it uses and updates. That's the session's own day, which on the flex day is
-the day it makes up; a moved exercise keeps the day it came from (WD3.10).
+the day it makes up. A moved exercise keeps the day it came from (WD3.10).
 
 Also whether a workout counts (WD4.1): at most 30% of its session's exercises skipped or not done.
 """
@@ -32,7 +32,7 @@ class SessionExercise:
 
 def sessionExercises(plan: Plan, weekday: int, stepIndex: int, flexMakesUp: int | None) -> list[SessionExercise]:
     """A day's exercises (WD1.2): its session's own, with the plan's moves for what the flex day makes up
-    this week. A moved exercise leaves its "from" day and joins the end of its "to" day; moved to the flex
+    this week. A moved exercise leaves its "from" day and joins the end of its "to" day. Moved to the flex
     day, it joins the end of the session made up there."""
     exercises = [SessionExercise(exercise, stepIndex) for exercise in plan.steps[stepIndex].exercises]
     if flexMakesUp is None:

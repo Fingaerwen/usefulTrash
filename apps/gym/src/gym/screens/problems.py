@@ -1,6 +1,6 @@
 """The Problems page (plan 12d, DG1.1): version, sync status, refused changes, the log check and recent
 problems in plain words with the technical line underneath. Copy puts the whole report on the
-clipboard for you to paste to me; Clear empties the log. Nothing is ever sent anywhere by itself."""
+clipboard for you to paste to me. Clear empties the log. Nothing is ever sent anywhere by itself."""
 
 import flet as ft
 

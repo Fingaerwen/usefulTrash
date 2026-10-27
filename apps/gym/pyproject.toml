@@ -2,7 +2,7 @@
 # Build with tools/buildRelease.py, which checks the package guard before and after (CS1.1).
 [project]
 name = "gymTracker"
-version = "0.3-alpha"  # the visible version (V3a); gym/model.py's appVersion must match (a test checks)
+version = "0.3-alpha"  # the visible version (V3a). gym/model.py's appVersion must match (a test checks)
 description = "Gym Tracker"
 requires-python = "==3.14.*"  # the Python Flet bundles for Android (R3)
 dependencies = [

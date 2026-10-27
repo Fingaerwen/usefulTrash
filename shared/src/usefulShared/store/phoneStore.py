@@ -1,10 +1,10 @@
-"""The phone's database (plan 14, 14b, 14c; CS1.1).
+"""The phone's database (plan 14, 14b, 14c, CS1.1).
 
 Your rows live in the same tables as in the cloud, plus three phone-only tables: `outbox` (changes
 waiting to be sent), `syncState` (how far fetching has got) and `meta` (whose data this is). Every
 edit goes into its table and the outbox in one transaction, so a saved change can't be lost before
 it's sent. The store runs on the app's main loop only, so it needs no locks (3b). Not encrypted: gym
-data isn't sensitive (T1.1); the sign-in session is kept elsewhere, encrypted.
+data isn't sensitive (T1.1). The sign-in session is kept elsewhere, encrypted.
 
 Edit times and cloud stamps are kept as fixed-width UTC text, so comparing the text compares the times.
 """
@@ -40,7 +40,7 @@ def runPhoneSteps(path: str, steps: Sequence[Sequence[str]]) -> int:
     """Brings the database file at `path` up to date (14c) and returns how many steps ran.
 
     Steps already run are skipped: the file's user_version counts them. Before running any step on an
-    existing database the file is copied; the steps run in one transaction, and if anything fails the
+    existing database the file is copied. The steps run in one transaction, and if anything fails the
     copy is put back, so nothing is lost.
     """
     existed = os.path.exists(path) and os.path.getsize(path) > 0
@@ -76,7 +76,7 @@ def runPhoneSteps(path: str, steps: Sequence[Sequence[str]]) -> int:
             database.execute("rollback")
         database.close()
         if existed:
-            shutil.copyfile(copyPath, path)  # the rollback should have done it; the copy makes sure
+            shutil.copyfile(copyPath, path)  # the rollback should have done it. The copy makes sure
         raise PhoneDatabaseError(f"Upgrading the phone's database failed at step {number}: {problem}") from None
     database.close()
     if existed:
@@ -124,7 +124,7 @@ class PhoneStore:
     # --- Saving an edit (the one write path, CS1.1) ------------------------------------------
 
     def save(self, tableName: str, row: dict[str, Any]) -> dict[str, Any]:
-        """Saves one edit; see saveMany."""
+        """Saves one edit. See saveMany."""
         return self.saveMany([(tableName, row)])[0]
 
     def saveMany(self, edits: Sequence[tuple[str, dict[str, Any]]]) -> list[dict[str, Any]]:
@@ -177,7 +177,7 @@ class PhoneStore:
         changes = []
         for tableName, rowId in entries:
             row = self.row(tableName, rowId) if tableName in self.tables else None
-            if row is None:  # can't happen through save(); an entry without its row has nothing to send
+            if row is None:  # can't happen through save(). An entry without its row has nothing to send
                 with self._transaction() as db:
                     db.execute('delete from "outbox" where "tableName" = ? and "rowId" = ?', (tableName, rowId))
                 continue
@@ -186,13 +186,13 @@ class PhoneStore:
 
     def markSent(self, tableName: str, sent: Sequence[tuple[str, dt.datetime]]) -> None:
         """The cloud has these (row id, edit time) versions. Each leaves the outbox only if the row
-        hasn't been edited again since (14b); otherwise the newer edit still waits."""
+        hasn't been edited again since (14b). Otherwise the newer edit still waits."""
         with self._transaction() as db:
             db.executemany('delete from "outbox" where "tableName" = ? and "rowId" = ? and "updatedAt" = ?',
                            [(tableName, rowId, momentText(updatedAt)) for rowId, updatedAt in sent])
 
     def markRefused(self, tableName: str, rowId: str, updatedAt: dt.datetime, reason: str) -> None:
-        """The cloud refused this version of the row; it isn't sent again until it's edited or retried."""
+        """The cloud refused this version of the row. It isn't sent again until it's edited or retried."""
         with self._transaction() as db:
             db.execute('update "outbox" set "refusedReason" = ? where "tableName" = ? and "rowId" = ? '
                        'and "updatedAt" = ?', (reason[:500], tableName, rowId, momentText(updatedAt)))
@@ -205,7 +205,7 @@ class PhoneStore:
     # --- Fetching ----------------------------------------------------------------------------
 
     def fetchCursor(self, tableName: str) -> dt.datetime | None:
-        """The newest cloud stamp fetched so far in a table; None before the first download."""
+        """The newest cloud stamp fetched so far in a table. None before the first download."""
         found = self._db.execute('select "cloudUpdatedAt" from "syncState" where "tableName" = ?',
                                  (tableName,)).fetchone()
         return dt.datetime.fromisoformat(found[0]) if found else None
@@ -216,7 +216,7 @@ class PhoneStore:
 
         A fetched row replaces the phone's only if it's newer, so the same change arriving twice is
         harmless (14b). A waiting edit that's older than the cloud's version has lost (the newest edit
-        wins) and leaves the outbox; one the cloud already has (same edit time) leaves it too.
+        wins) and leaves the outbox. One the cloud already has (same edit time) leaves it too.
         """
         table = self.tables[tableName]
         owner = self.owner()
@@ -224,7 +224,7 @@ class PhoneStore:
         with self._transaction() as db:
             for row in rows:
                 if owner is not None and row["userId"] != owner:
-                    continue  # row-level security makes this impossible; never mix accounts anyway
+                    continue  # row-level security makes this impossible. Never mix accounts anyway
                 existing = self.row(tableName, row["id"])
                 editText = momentText(row["updatedAt"])
                 if existing is None or row["updatedAt"] > existing["updatedAt"]:
@@ -257,7 +257,7 @@ class PhoneStore:
                        'on conflict ("key") do update set "value" = excluded."value"', (key, value))
 
     def owner(self) -> str | None:
-        """The account whose data this database holds; None until the first sign-in."""
+        """The account whose data this database holds. None until the first sign-in."""
         return self.meta("userId")
 
     def claimFor(self, userId: str) -> bool:

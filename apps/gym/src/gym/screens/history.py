@@ -11,9 +11,9 @@ restyled (LK1.2):
     │ best 3×12 @ 27.5 · 8 sessions                │
     └ Body weight             82.0 to 81.2 kg −0.8 ┘
 
-The phone opens it from ⋮, the PC view has it as a tab; both list every day since the plan began, a month at
+The phone opens it from ⋮, the PC view has it as a tab. Both list every day since the plan began, a month at
 a time (HI1.2). A day opens laid out like Today: its exercises, steps and weigh-in, and "Delete this
-workout"; the phone edits only its last 7 days (19.1f-1), so older ones open read-only. In Months, tapping an
+workout". The phone edits only its last 7 days (19.1f-1), so older ones open read-only. In Months, tapping an
 exercise (or the body weight) unfolds its chart, one point per month. All time has every exercise's full
 chart with its PRs, and the body weight's (DI1.2).
 """
@@ -45,7 +45,7 @@ from gym.screens.look import (
 from gym.screens.today import ExerciseRow, _kilograms, _steps
 from gym.screens.weight import dayText
 
-beforeThePlan = "before your plan"  # what History says of a day before the first plan; such days are left out
+beforeThePlan = "before your plan"  # what History says of a day before the first plan. Such days are left out
 
 
 def monthText(month: dt.date) -> str:
@@ -127,8 +127,8 @@ def dayHeading(app, view) -> ft.Row:
 
 @ft.component
 def DayEditor(app, model, view):
-    """A past day laid out like Today (HI1.1): its exercises, its steps and weigh-in, and Delete this workout;
-    read-only when it's too far back to edit here (HI1.2)."""
+    """A past day laid out like Today (HI1.1): its exercises, its steps and weigh-in, and Delete this workout.
+    Read-only when it's too far back to edit here (HI1.2)."""
     date = view.date
     if not app.canEditDay(date):
         return DayView(app, view)
@@ -184,7 +184,7 @@ def DayEditor(app, model, view):
 
 @ft.component
 def DayView(app, view):
-    """A day too far back to edit on the phone (HI1.2): what was done, read-only; the PC view edits it."""
+    """A day too far back to edit on the phone (HI1.2): what was done, read-only. The PC view edits it."""
     date = view.date
     parts: list[ft.Control] = [dayHeading(app, view)]
     if not view.hasPlan:
@@ -210,7 +210,7 @@ def DayView(app, view):
 
 @ft.component
 def Diary(app, model):
-    """The months (DI1.1): each exercise's month, then the body weight's; a tap unfolds its chart."""
+    """The months (DI1.1): each exercise's month, then the body weight's. A tap unfolds its chart."""
     diary = model.diary
     if diary is None:
         return quiet("Loading…")
@@ -244,7 +244,7 @@ def DiaryEntry(app, line):
 @ft.component
 def AllTime(app, model):
     """Every exercise's full chart since the start with its PRs (the plan's first, then past ones), then the
-    body weight's (DI1.2); the Charts tab is for one exercise up close."""
+    body weight's (DI1.2). The Charts tab is for one exercise up close."""
     today = app.localToday()
     parts: list[ft.Control] = []
     for line in (*model.progress, *model.pastProgress):

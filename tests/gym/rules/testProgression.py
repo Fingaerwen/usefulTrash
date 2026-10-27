@@ -24,7 +24,7 @@ def barbell(exerciseId, sets=3, repsMin=6, repsMax=10, weightKg=25, **settings):
 def planFile(benchKg=25, extensionKg=20) -> dict:
     """Upper (bench per side, overhead extension, pull-up), Lower (squat), Push (extension again, press),
     Pull (row), Lower B (curl, wrist curl), a flex day making up Upper, Pull, Push, Lower, Lower B, with
-    Friday's wrist curl moving to Saturday when it makes up Monday; Sunday rest."""
+    Friday's wrist curl moving to Saturday when it makes up Monday. Sunday rest."""
     extension = {"exerciseId": "extension", "name": "Overhead Extension", "equipment": "dumbbell", "dumbbells": 1,
                  "incrementKg": 2, "repsMin": 10, "repsMax": 15, "weightKg": extensionKg}
     return {"planId": "test", "name": "Test", "version": 1, "weeklyTarget": 5, "week": [
@@ -203,7 +203,7 @@ def testANewDayStartsAtTheLatestWeightFromAnyDay():
 
 
 def testTheFlexDayUsesTheTargetsOfTheDayItMakesUp():
-    """Monday missed; Saturday does Upper, so Monday's bench target moves on."""
+    """Monday missed. Saturday does Upper, so Monday's bench target moves on."""
     history = History().log(5, stepIndex=mon, bench=sets([8, 8, 8]))
     assert history.target(7, "bench", mon) == Target(25, 9)
     assert history.target(7, "bench", sat) == Target(25, 6)
@@ -285,7 +285,7 @@ def testASecondWeightChangeKeepsWhatTheFirstDid():
 
 
 def testALaterWeightChangeLeavesAnEarlierOneInPlace():
-    """Setting the same weight again restarts that day (WD3.7), clearing a miss; a later change doesn't undo
+    """Setting the same weight again restarts that day (WD3.7), clearing a miss. A later change doesn't undo
     that, so the next miss is the first in a row, not the second."""
     history = History().log(0, bench=sets([10, 10, 10])).log(7, bench=sets([5, 5, 6], 26.25))  # a miss at 26.25
     history.edits.append(WeightEdit("bench", mon, 26.25, day(14)))
@@ -404,7 +404,7 @@ def testIsolationLiftsDontStartADeload():
 
 
 def testWeekEightIsADeloadAtTheLatest():
-    """Week 1 is the week of the first workout; week 8 starts 7 weeks later."""
+    """Week 1 is the week of the first workout. Week 8 starts 7 weeks later."""
     history = History().log(2, bench=sets([8, 8, 8]))
     result = history.training(3)
     assert result.nextDeload == Deload(day(49), "week8")

@@ -51,7 +51,7 @@ class NativeGoogleSignInPlugin : FlutterPlugin, MethodChannel.MethodCallHandler,
 
     private lateinit var channel: MethodChannel
     private lateinit var appContext: Context
-    private var activity: Activity? = null  // the current screen; Google's account picker needs one
+    private var activity: Activity? = null  // the current screen. Google's account picker needs one
     private var activityBinding: ActivityPluginBinding? = null  // delivers the Drive consent screen's result
     private var pendingDriveConsent: OneReply? = null  // the request waiting for Google's Drive consent screen
     private var pendingDriveConsentSince = 0L  // when that screen was opened (SystemClock.elapsedRealtime)
@@ -166,9 +166,9 @@ class NativeGoogleSignInPlugin : FlutterPlugin, MethodChannel.MethodCallHandler,
      * and hands out access tokens that last about an hour. Asking again later returns a fresh one without
      * showing anything, as long as the permission wasn't removed.
      *
-     * interactive = false: never shows a screen; replies "needsConsent" if Google wants to ask first.
+     * interactive = false: never shows a screen. Replies "needsConsent" if Google wants to ask first.
      * interactive = true: shows Google's consent screen when needed and replies once it closes.
-     * accountEmail: the Google account the permission is for (the signed-in account); empty = Google asks.
+     * accountEmail: the Google account the permission is for (the signed-in account). Empty = Google asks.
      */
     private fun getDriveAccess(interactive: Boolean, accountEmail: String, reply: OneReply) {
         val currentActivity = activity
@@ -197,7 +197,7 @@ class NativeGoogleSignInPlugin : FlutterPlugin, MethodChannel.MethodCallHandler,
             .addOnFailureListener { e -> reply.send(describeAuthorizationError(e)) }
     }
 
-    /** Opens Google's consent screen; its result arrives in onActivityResult. */
+    /** Opens Google's consent screen. Its result arrives in onActivityResult. */
     private fun showDriveConsent(result: AuthorizationResult, reply: OneReply) {
         val screen = activity
         val consentScreen = result.pendingIntent

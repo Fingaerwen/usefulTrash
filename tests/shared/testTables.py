@@ -92,7 +92,7 @@ def testMomentsAreFixedWidthUtcText():
 
 
 def testCloudAnswersInPostgresFormatAreRead():
-    """The Data API leaves out trailing zeros of fractions; numeric comes as a JSON number."""
+    """The Data API leaves out trailing zeros of fractions. Numeric comes as a JSON number."""
     data = toCloud(bodyWeight, exampleRow("bodyWeight"))
     data.update(updatedAt="2026-10-12T07:00:00.12+00:00", cloudUpdatedAt="2026-10-12T07:00:01+00:00", weightKg=81)
     row = fromCloud(bodyWeight, data)

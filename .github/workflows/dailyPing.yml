@@ -1,8 +1,8 @@
 # Daily database ping (plan 12: K1c, RL2.1, F15.1): keeps the free Supabase project from pausing.
 # It calls the harmless ping function (cloud/001) with only the public address and the publishable key,
 # from the GitHub Actions variables SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY (Settings > Secrets and
-# variables > Actions > Variables; public by design, so variables, not secrets). No third-party actions,
-# just curl, and it prints only the results. GitHub shows a step's variables in its log; both are
+# variables > Actions > Variables. Public by design, so variables, not secrets). No third-party actions,
+# just curl, and it prints only the results. GitHub shows a step's variables in its log. Both are
 # already public in the PC view's website files.
 name: dailyPing
 

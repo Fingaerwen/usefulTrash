@@ -31,7 +31,7 @@ class FakeClock:
 
 
 def exampleRow(tableName: str, userId: str = userA, updatedAt: dt.datetime = startOfTests, **columns: Any) -> dict:
-    """A valid row for the table; keyword arguments override columns. One-per-day rows get their real ID."""
+    """A valid row for the table. Keyword arguments override columns. One-per-day rows get their real ID."""
     table = tablesByName[tableName]
     values: dict[str, Any] = {
         "plans": {"importedAt": updatedAt, "effectiveDate": dt.date(2026, 10, 12), "startStep": 0,

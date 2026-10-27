@@ -2,11 +2,11 @@ import 'package:flet/flet.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-// Browser half (Google Identity Services); on Android the stub is compiled instead.
+// Browser half (Google Identity Services). On Android the stub is compiled instead.
 import 'google_web_sign_in_stub.dart' if (dart.library.js_interop) 'google_web_sign_in.dart';
 
-/// Receives method calls from Python. On Android they go unchanged to the Kotlin plugin;
-/// in the browser (PC view) they're answered by Google's website sign-in.
+/// Receives method calls from Python. On Android they go unchanged to the Kotlin plugin.
+/// In the browser (PC view) they're answered by Google's website sign-in.
 /// Nothing is logged here: the answer to "getIdToken" carries the Google ID token.
 class NativeGoogleSignInService extends FletService {
   NativeGoogleSignInService({required super.control});

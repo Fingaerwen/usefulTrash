@@ -1,7 +1,7 @@
-"""Makes Gym Tracker's release signing key, once (plan 12b, "Signing key"; G3a, F20).
+"""Makes Gym Tracker's release signing key, once (plan 12b, "Signing key", G3a, F20).
 
 The key file and a random password go straight into a private folder outside the repo that only you
-can read; the password is never shown, never typed and never on a command line (keytool gets it through
+can read. The password is never shown, never typed and never on a command line (keytool gets it through
 the environment). The certificate's name holds no personal details ("CN=Gym Tracker"), because anyone
 can read it from the APK. At the end it prints the certificate's public fingerprints: the SHA-1 one is
 what Google Cloud asks for when you add the Android sign-in client, and the SHA-256 one is saved in the
@@ -55,12 +55,12 @@ def main() -> int:
         return 1
     keytool = findKeytool()
     if keytool is None:
-        print("❌ keytool not found (it comes with Java; Flet installs one into ~/java for Android builds).")
+        print("❌ keytool not found (it comes with Java, Flet installs one into ~/java for Android builds).")
         return 1
 
     signingFolder.mkdir(parents=True, exist_ok=True)
     os.chmod(signingFolder, stat.S_IRWXU)  # 700: only you
-    password = secrets.token_urlsafe(32)  # 256 random bits; never printed
+    password = secrets.token_urlsafe(32)  # 256 random bits. Never printed
     environment = {**os.environ, "USEFULTRASH_SIGNING_PASSWORD": password}
     made = subprocess.run(
         [keytool, "-genkeypair", "-keystore", str(keystorePath), "-storetype", "PKCS12", "-alias", alias,

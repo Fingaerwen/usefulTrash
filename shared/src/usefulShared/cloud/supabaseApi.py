@@ -6,9 +6,9 @@ Rules for this module:
 - Redirects are refused, so the key and tokens can never be forwarded to another address.
 - Tokens only travel to Supabase and back to the caller: never in URLs, error messages or the log.
 - Every request gives up after 15 seconds, so a weak connection can't stall sync (SY2.2).
-- On the phone requests go through urllib in a worker thread, so the screen never waits (3b); in the
+- On the phone requests go through urllib in a worker thread, so the screen never waits (3b). In the
   browser (PC view: Pyodide, no sockets or threads) through the browser's own fetch, same rules.
-- Only the public address and publishable key are used (K2a); row-level security limits every table
+- Only the public address and publishable key are used (K2a). Row-level security limits every table
   call to the signed-in user's own rows.
 """
 
@@ -36,7 +36,7 @@ class CloudError(Exception):
 
     def __init__(self, statusCode: int, errorCode: str, message: str):
         super().__init__(f"{statusCode} {errorCode}: {message}")
-        self.statusCode = statusCode  # HTTP status; 0 = no answer (network problem)
+        self.statusCode = statusCode  # HTTP status. 0 = no answer (network problem)
         self.errorCode = errorCode
         self.message = message
 
@@ -53,7 +53,7 @@ class CloudError(Exception):
 
 def readCloudError(statusCode: int, rawBody: bytes) -> CloudError:
     """Turns an error answer into a CloudError. Supabase Auth answers {"error_code", "msg"} or the
-    OAuth style {"error", "error_description"}; the Data API answers {"code", "message"}."""
+    OAuth style {"error", "error_description"}. The Data API answers {"code", "message"}."""
     try:
         body = json.loads(rawBody or b"{}")
     except ValueError:
@@ -67,7 +67,7 @@ def readCloudError(statusCode: int, rawBody: bytes) -> CloudError:
 
 def makeNoncePair() -> tuple[str, str]:
     """Returns (rawNonce, hashedNonce): a one-time random value and its SHA-256 hex hash. Google gets
-    the hash and puts it inside the ID token; Supabase gets the raw value, hashes it and checks they
+    the hash and puts it inside the ID token. Supabase gets the raw value, hashes it and checks they
     match, so a stolen ID token can't be replayed in another sign-in (F9)."""
     rawNonce = secrets.token_urlsafe(32)  # 256 random bits from the OS
     return rawNonce, hashlib.sha256(rawNonce.encode("ascii")).hexdigest()
@@ -86,13 +86,13 @@ _opener = urllib.request.build_opener(_RefuseRedirects)
 
 
 def _urllibCall(method: str, url: str, headers: dict[str, str], body: bytes | None) -> tuple[int, bytes]:
-    """Sends one request with urllib (blocking; runs in a worker thread)."""
+    """Sends one request with urllib (blocking, runs in a worker thread)."""
     request = urllib.request.Request(url, data=body, headers=headers, method=method)
     try:
         with _opener.open(request, timeout=requestTimeoutSec) as response:
             return response.status, response.read()
     except urllib.error.HTTPError as err:
-        # An answer, just not a happy one (or a refused redirect); the caller reads it.
+        # An answer, just not a happy one (or a refused redirect). The caller reads it.
         try:
             return err.code, err.read()
         except OSError:
@@ -105,7 +105,7 @@ def _urllibCall(method: str, url: str, headers: dict[str, str], body: bytes | No
 
 async def urllibTransport(method: str, url: str, headers: dict[str, str], body: bytes | None) -> tuple[int, bytes]:
     """The phone's transport: urllib in a worker thread, so the app's loop never waits on the network.
-    urllib's timeout covers each wait for data; the overall limit here covers a slow trickle too."""
+    urllib's timeout covers each wait for data. The overall limit here covers a slow trickle too."""
     try:
         return await asyncio.wait_for(asyncio.to_thread(_urllibCall, method, url, headers, body),
                                       requestTimeoutSec + 1)
@@ -114,7 +114,7 @@ async def urllibTransport(method: str, url: str, headers: dict[str, str], body: 
 
 
 async def fetchTransport(method: str, url: str, headers: dict[str, str], body: bytes | None) -> tuple[int, bytes]:
-    """The browser's transport (PC view). The browser checks certificates itself; redirects are refused
+    """The browser's transport (PC view). The browser checks certificates itself. Redirects are refused
     ("error"), cookies are never sent and nothing is cached, matching the phone's rules."""
     from pyodide.http import pyfetch  # only exists in the browser build
 
@@ -138,7 +138,7 @@ async def fetchTransport(method: str, url: str, headers: dict[str, str], body: b
 
 class SupabaseApi:
     """One Supabase project: Auth for sign-in, the Data API for table rows. Signed-in calls add the
-    user's access token; anonymous calls carry only the publishable key."""
+    user's access token. Anonymous calls carry only the publishable key."""
 
     def __init__(self, projectUrl: str, publishableKey: str, transport: Transport | None = None):
         if not projectUrl.startswith("https://"):
@@ -149,7 +149,7 @@ class SupabaseApi:
 
     async def _send(self, method: str, path: str, body: Any = None, accessToken: str | None = None,
                     prefer: str | None = None) -> Any:
-        """Sends one request to projectUrl + path; returns the parsed JSON answer (None if empty)."""
+        """Sends one request to projectUrl + path. Returns the parsed JSON answer (None if empty)."""
         headers = {"apikey": self.publishableKey, "Accept": "application/json"}
         data = None
         if body is not None:

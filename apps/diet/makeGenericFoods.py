@@ -3,9 +3,9 @@ number (its fdc_id, so a food you've used keeps its ID when USDA publishes new d
 and carbs per 100 g, and whether USDA files it as a prepared food (for the search's ranking). Writes
 src/ambrosia/data/genericFoods.tsv.gz, bundled with the app. First made in Phase 0 (spike/).
 
-The data is public domain (CC0 1.0); USDA asks for credit: "U.S. Department of Agriculture, Agricultural
+The data is public domain (CC0 1.0). USDA asks for credit: "U.S. Department of Agriculture, Agricultural
 Research Service. FoodData Central." Uses SR Legacy (7,793 foods, the classic reference list) and the
-Foundation foods (newer lab values for common foods; only rows of type foundation_food). The zips are read as
+Foundation foods (newer lab values for common foods, only rows of type foundation_food). The zips are read as
 they are, nothing is extracted. A food without all four values is left out, so are baby foods, and a name in
 both lists is kept once, with the Foundation values (the newer lab analyses).
 
@@ -23,7 +23,7 @@ from pathlib import Path
 outputPath = Path(__file__).resolve().parent / "src" / "ambrosia" / "data" / "genericFoods.tsv.gz"
 
 protein, fat, carbs = "1003", "1004", "1005"  # USDA nutrient IDs: grams per 100 g
-# kcal per 100 g, in order of preference: SR Legacy has "Energy"; most Foundation foods only have the Atwater ones.
+# kcal per 100 g, in order of preference: SR Legacy has "Energy". Most Foundation foods only have the Atwater ones.
 kcalIds = ("1008", "2048", "2047")
 wantedIds = {protein, fat, carbs, *kcalIds}
 leftOut = {"Baby Foods"}

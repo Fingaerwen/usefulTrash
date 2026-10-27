@@ -120,7 +120,7 @@ Future<Map<String, dynamic>> webGetIdToken(String serverClientId, String hashedN
   try {
     _gisInitialize(_IdConfiguration(
       client_id: serverClientId,
-      nonce: hashedNonce,  // goes into the ID token; Supabase gets the raw value and compares
+      nonce: hashedNonce,  // goes into the ID token. Supabase gets the raw value and compares
       auto_select: false,
       cancel_on_tap_outside: true,
       ux_mode: 'popup',

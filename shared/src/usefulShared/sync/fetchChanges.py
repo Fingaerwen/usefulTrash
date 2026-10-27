@@ -19,7 +19,7 @@ beforeEverything = dt.datetime(1970, 1, 1, tzinfo=dt.UTC)  # where a first downl
 
 
 class FetchingCloud(Protocol):
-    """The one cloud call fetching needs (SupabaseApi has it; tests use a stand-in)."""
+    """The one cloud call fetching needs (SupabaseApi has it, tests use a stand-in)."""
 
     async def fetchRows(self, table: str, columns: Sequence[str], since: str, after: tuple[str, str] | None,
                         limit: int, accessToken: str) -> list[dict]: ...

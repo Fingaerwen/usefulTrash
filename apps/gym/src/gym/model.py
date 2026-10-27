@@ -1,5 +1,5 @@
 """What the screens draw (plan 3b: declarative screens): one observable model per app. The controller
-(phoneApp.py or pcApp.py) changes it; every screen that shows a changed field redraws by itself.
+(phoneApp.py or pcApp.py) changes it. Every screen that shows a changed field redraws by itself.
 
 Also the Problems report (12d, DG1.1): plain words for each kind of problem, with the technical line
 underneath, and nothing secret or personal in it (no tokens, no email address, no row values).
@@ -25,7 +25,7 @@ class AppModel:
     """Everything the screens show. Fields are replaced, never changed in place, so each change redraws."""
 
     screen: str = "starting"  # starting, signIn, downloading, main, problems, importPlan or failed
-    busy: str = ""  # what's running right now ("Signing in…"); buttons wait while it's set
+    busy: str = ""  # what's running right now ("Signing in…"). Buttons wait while it's set
     notice: str = ""  # a message shown once, like a refused entry or a sign-in problem
     failure: str = ""  # why the app can't start (screen "failed")
     today: TodayView | None = None
@@ -43,7 +43,7 @@ class AppModel:
     weightRange: str = "3M"  # the Weight tab (SC5.1)
     weight: WeightView | None = None
     historyMode: str = "days"  # History (HI1.1): "days" or "months" (the diary, DI1.1)
-    historyMonth: dt.date | None = None  # the month shown (the PC view's days, and the diary); None = this month
+    historyMonth: dt.date | None = None  # the month shown (the PC view's days, and the diary). None = this month
     historyDays: tuple[HistoryDay, ...] = ()
     historyDay: dt.date | None = None  # the day being edited
     historyView: TodayView | None = None  # that day, laid out like Today
@@ -65,7 +65,7 @@ class AppModel:
 # --- Plain words for the cloud's reasons (12d) ------------------------------------------------
 
 def plainReason(reason: str) -> str:
-    """A refused change's reason in plain words; the cloud's own text stays in the technical line."""
+    """A refused change's reason in plain words. The cloud's own text stays in the technical line."""
     if reason.startswith("P0001: futureEdit"):
         return "Your phone's clock seems to be ahead. Set it to automatic time, then tap Try again."
     if reason.startswith("23514"):
@@ -80,7 +80,7 @@ def plainReason(reason: str) -> str:
 def plainSyncStatus(status: str) -> str:
     return {
         "done": "up to date",
-        "offline": "no internet right now; trying again every minute",
+        "offline": "no internet right now, trying again every minute",
         "signedOut": "paused: signed out",
         "appTooOld": "stopped: this app needs an update",
         "cloudTooOld": "stopped: the cloud needs an upgrade first",
@@ -92,7 +92,7 @@ def plainSyncStatus(status: str) -> str:
 
 
 def ago(moment: dt.datetime | None, now: dt.datetime) -> str:
-    """"5 min ago", "3 h ago", "2 days ago"; "never" for None."""
+    """"5 min ago", "3 h ago", "2 days ago". "never" for None."""
     if moment is None:
         return "never"
     seconds = max(0, (now - moment).total_seconds())
@@ -128,7 +128,7 @@ class LogFacts:
 def problemsReport(schema: int, sync: SyncFacts, log: LogFacts, now: dt.datetime, unreadablePlans: int = 0,
                    lastBackup: str = "none yet",
                    startedIn: float | None = None) -> tuple[str, ...]:
-    """The Problems page as lines of text; Copy puts exactly these on the clipboard (12d)."""
+    """The Problems page as lines of text. Copy puts exactly these on the clipboard (12d)."""
     started = f" · started in {startedIn:.1f} s" if startedIn is not None else ""  # cold start under 5 s (check 8)
     lines = [f"{appName} {appVersion} · schema {schema}{started}",
              f"Sync: {plainSyncStatus(sync.lastStatus)} · last synced {ago(sync.lastSyncAt, now)}",

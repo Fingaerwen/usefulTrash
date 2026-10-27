@@ -75,7 +75,7 @@ class AmbrosiaBase:
             self.model.historyDay = self._dayForHistory(self.model.historyDay.date)
 
     async def _act(self, work) -> bool:
-        """Runs an action; a refusal shows as a notice. True if it went through."""
+        """Runs an action. A refusal shows as a notice. True if it went through."""
         try:
             await work
         except ActionRefused as refused:
@@ -119,7 +119,7 @@ class AmbrosiaBase:
         return Found(item.food, item.food.title, f"{_valuesText(item.food)} · {times}")
 
     async def search(self, words: str) -> None:
-        """Your foods and the generic foods at once (offline); then, on the phone, packaged foods (AM5.2)."""
+        """Your foods and the generic foods at once (offline). Then, on the phone, packaged foods (AM5.2)."""
         words = words.strip()
         if not words:
             self.model.results = None
@@ -159,8 +159,8 @@ class AmbrosiaBase:
         await self.useBarcode(str(answer.get("barcode", "")))
 
     async def useBarcode(self, text: str) -> None:
-        """A scanned or typed barcode: your food if you have it; a shop's own code goes straight to typing the
-        label (AM5.4); otherwise Open Food Facts, and typing the label if it doesn't have it all (AM2.3)."""
+        """A scanned or typed barcode: your food if you have it. A shop's own code goes straight to typing the
+        label (AM5.4). Otherwise Open Food Facts, and typing the label if it doesn't have it all (AM2.3)."""
         try:
             barcode = cleanBarcode(text)
         except ValueError as problem:

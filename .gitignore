@@ -15,7 +15,7 @@ __pycache__/
 signing/
 # Android signing settings file (holds keystore passwords)
 key.properties
-# Public identifiers copied from .env into the app at build time (tools/makePublicConfig.py; the spike's own copy).
+# Public identifiers copied from .env into the app at build time (tools/makePublicConfig.py, the spike's own copy).
 # Public by design (plan K2a), but generated from .env, so it stays out of git like .env itself.
 spikes/phase0/src/publicConfig.json
 apps/gym/src/publicConfig.json
@@ -24,7 +24,7 @@ apps/gym/src/publicConfig.json
 *.db
 .flet/
 build/
-# Built apps (releases go to GitHub Releases, never into git; a 140 MB APK would also be rejected)
+# Built apps (releases go to GitHub Releases, never into git, a 140 MB APK would also be rejected)
 *.apk
 *.aab
 .pytest_cache/

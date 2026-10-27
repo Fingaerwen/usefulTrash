@@ -220,7 +220,7 @@ def grow(expand: bool) -> bool | None:
 
 def pill(text: str, selected: bool = False, on_click=None, tooltip: str | None = None,
          icon: ft.IconData | None = None, *, form: Form) -> ft.Card:
-    """A small chip in the app's outline; picked ones are filled."""
+    """A small chip in the app's outline. Picked ones are filled."""
     color = ft.Colors.ON_PRIMARY if selected else ft.Colors.ON_SURFACE
     words = ft.Text(text, size=13, weight=ft.FontWeight.W_600 if selected else ft.FontWeight.W_500, color=color)
     content = ft.Row([ft.Icon(icon, size=16, color=color), words], spacing=6, tight=True) if icon else words
@@ -231,7 +231,7 @@ def pill(text: str, selected: bool = False, on_click=None, tooltip: str | None =
 
 
 def segments(options: list[tuple[str, str]], selected: str, choose, *, form: Form) -> ft.Row:
-    """Choices side by side (3M · 1Y · All, Days · Months · All time); the picked one is filled."""
+    """Choices side by side (3M · 1Y · All, Days · Months · All time). The picked one is filled."""
     return ft.Row([pill(text, key == selected, on_click=lambda e, key=key: choose(key), tooltip=f"Show {text}",
                         form=form)
                    for key, text in options], spacing=6, wrap=True)

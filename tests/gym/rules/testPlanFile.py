@@ -39,7 +39,7 @@ def validPlan() -> dict:
 
 
 def errorsOf(data) -> tuple[str, ...]:
-    """The errors a plan gets; a plan with errors is never returned."""
+    """The errors a plan gets. A plan with errors is never returned."""
     result = checkPlan(data)
     assert (result.plan is None) == bool(result.errors)
     return result.errors
@@ -82,7 +82,7 @@ def testPlanBriefExampleIsValid():
 
     broken = json.loads(example)
     broken["week"][1]["exercises"][2]["weightKg"] = 10  # Lower A's plank
-    problem = ('Tuesday "Lower A", exercise 3 "Plank": a bodyweight exercise has no "weightKg"; its progress is '
+    problem = ('Tuesday "Lower A", exercise 3 "Plank": a bodyweight exercise has no "weightKg". Its progress is '
                "counted in reps.")
     assert readPlanFile(json.dumps(broken)).errors == (problem,)
     assert f"`{problem}`" in brief
@@ -146,7 +146,7 @@ def testFileNestedTooDeeply():
 def testFieldTwiceInOneBlock():
     text = json.dumps(validPlan()).replace('"version": 2', '"version": 2, "version": 3')
     assert readPlanFile(text).errors == (
-        'The plan file has "version" twice in one block; each field may appear only once.',)
+        'The plan file has "version" twice in one block. Each field may appear only once.',)
 
 
 @pytest.mark.parametrize("constant", ["NaN", "Infinity", "-Infinity"])
@@ -191,21 +191,21 @@ def testTargetAboveTheWeeksWorkoutDaysIsRefused():
 def testTheOldCycleFormatIsRefusedInPlainWords():
     data = validPlan()
     data["cycle"] = data.pop("week")
-    assert errorsOf(data) == ('The plan: "cycle" is the old format; plans now run on weekdays. Give "week" with the 7 '
+    assert errorsOf(data) == ('The plan: "cycle" is the old format. Plans now run on weekdays. Give "week" with the 7 '
                               "days, Monday to Sunday, instead.",)
 
 
-@pytest.mark.parametrize(("week", "has"), [([], "it has 0"), ("Mon", 'not "Mon"')])
+@pytest.mark.parametrize(("week", "has"), [([], ". It has 0"), ("Mon", ', not "Mon"')])
 def testWeekMustListTheSevenDays(week, has):
     data = validPlan()
     data["week"] = week
-    assert errorsOf(data) == (f'The plan: "week" must be a list of the 7 days, Monday to Sunday; {has}.',)
+    assert errorsOf(data) == (f'The plan: "week" must be a list of the 7 days, Monday to Sunday{has}.',)
 
 
 def testWeekOfEightDays():
     data = validPlan()
     data["week"].append(dict(data["week"][2]))
-    assert errorsOf(data) == ('The plan: "week" must be a list of the 7 days, Monday to Sunday; it has 8.',)
+    assert errorsOf(data) == ('The plan: "week" must be a list of the 7 days, Monday to Sunday. It has 8.',)
 
 
 def testDaysAreNamedInOrder():
@@ -221,7 +221,7 @@ def testWeekNeedsAWorkout():
     data = validPlan()
     for index in (0, 1):
         data["week"][index] = {"day": data["week"][index]["day"], "title": "Rest", "restDay": True}
-    assert errorsOf(data) == ("The plan: the week has no workout; every day is a rest day.",)
+    assert errorsOf(data) == ("The plan: the week has no workout. Every day is a rest day.",)
 
 
 def testDayThatIsNotABlock():
@@ -251,11 +251,11 @@ def testSameExerciseTwiceInOneDay():
     data = validPlan()
     data["week"][1]["exercises"].append(dict(data["week"][1]["exercises"][0]))
     assert errorsOf(data) == (
-        'Tuesday "Pull": "deadlift" appears more than once; each exercise can be in a day only once.',)
+        'Tuesday "Pull": "deadlift" appears more than once. Each exercise can be in a day only once.',)
 
 
 def testSameExerciseOnTwoDaysNeedsTheSameSettings():
-    """Progress is tracked per exercise, so its settings can't differ; notes and rest time may."""
+    """Progress is tracked per exercise, so its settings can't differ. Notes and rest time may."""
     data = validPlan()
     pullBench = dict(data["week"][0]["exercises"][0], notes="other cue", restSec=60)
     del pullBench["body"]
@@ -434,7 +434,7 @@ def testBodyweightExerciseHasNoWeight():
     dips = data["week"][0]["exercises"][1]
     dips["weightKg"] = 10
     assert errorsOf(data) == (
-        'Monday "Push", exercise 2 "Dips": a bodyweight exercise has no "weightKg"; its progress is counted '
+        'Monday "Push", exercise 2 "Dips": a bodyweight exercise has no "weightKg". Its progress is counted '
         'in reps.',)
     del dips["weightKg"]
     dips["incrementKg"] = 2.5
@@ -450,7 +450,7 @@ def testCardioHasOnlyMinutes():
     data = validPlan()
     data["week"][0]["exercises"][2]["sets"] = 3
     assert errorsOf(data) == (
-        f'{walk}: "sets" doesn\'t belong to a cardio exercise; it has only "minutes", "notes", "setup", "howTo" '
+        f'{walk}: "sets" doesn\'t belong to a cardio exercise. It has only "minutes", "notes", "setup", "howTo" '
         'and "form".',)
     data = validPlan()
     del data["week"][0]["exercises"][2]["minutes"]
@@ -621,5 +621,5 @@ def testCardioHasNoLoadSettings():
     data = validPlan()
     data["week"][0]["exercises"][2]["compound"] = True
     assert errorsOf(data) == (
-        'Monday "Push", exercise 3 "Incline Walk": "compound" doesn\'t belong to a cardio exercise; it has only '
+        'Monday "Push", exercise 3 "Incline Walk": "compound" doesn\'t belong to a cardio exercise. It has only '
         '"minutes", "notes", "setup", "howTo" and "form".',)

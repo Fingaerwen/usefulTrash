@@ -120,7 +120,7 @@ def backdrop(content: ft.Control, wide: bool = False) -> ft.Control:
     """The screen's background: black, a light-pink glow over the top right and another low on the left, soft
     curves at the top right and low on the right, the goddess with her katana faint behind the lower left, and a
     second katana laid across the top, larger in the PC view (wide), clear of its rail. Nothing in it can be
-    tapped; the content sits on top."""
+    tapped. The content sits on top."""
     pink = ft.Colors.TERTIARY_FIXED_DIM
     layers: list[ft.Control] = [
         ft.Container(bgcolor=ft.Colors.SURFACE, **filling),

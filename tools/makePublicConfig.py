@@ -53,14 +53,14 @@ def readEnv(envText: str) -> dict[str, str]:
 
 
 def buildConfig(envText: str) -> tuple[dict[str, str], list[str]]:
-    """Returns (config, problems). The config holds only the allowed public values; problems name every
+    """Returns (config, problems). The config holds only the allowed public values. Problems name every
     missing, malformed or secret-looking value (by variable name only, never the value)."""
     envValues = readEnv(envText)
     config, problems = {}, []
     for envName, (configName, isValid, expected) in allowedValues.items():
         value = envValues.get(envName, "")
         if any(marker in value for marker in secretMarkers):
-            problems.append(f"{envName} looks like a SECRET. Remove it from .env; the app must never contain it.")
+            problems.append(f"{envName} looks like a SECRET. Remove it from .env. The app must never contain it.")
         elif not value:
             problems.append(f"{envName} is missing or empty in .env")
         elif not isValid(value):
@@ -71,7 +71,7 @@ def buildConfig(envText: str) -> tuple[dict[str, str], list[str]]:
 
 
 def writePublicConfig() -> list[str]:
-    """Writes publicConfig.json; returns the problems instead if there are any (nothing is written then)."""
+    """Writes publicConfig.json. Returns the problems instead if there are any (nothing is written then)."""
     if not envPath.exists():
         return [f"No .env found at {envPath}. Copy .env.example to .env and fill it in."]
     config, problems = buildConfig(envPath.read_text(encoding="utf-8"))

@@ -5,7 +5,7 @@ trigger, row-level security, and the cloud's error answers, all through usefulSh
 It ends with full sync rounds between two devices.
 
 Postgres and PostgREST run together in one podman pod. Only PostgREST's port is published, on
-127.0.0.1, so nothing outside this PC can reach it; the database itself isn't reachable from outside
+127.0.0.1, so nothing outside this PC can reach it. The database itself isn't reachable from outside
 the pod at all. Sign-in tokens are signed with a random key made for each run and never stored.
 Skipped when podman isn't installed.
 """
@@ -48,7 +48,7 @@ postgresImage = (
 postgrestImage = (
     "docker.io/postgrest/postgrest@sha256:bee9e1efe9d90d8f6be359f756e039dbb6e1972474bc271b7c49c5a495911a41"
 )
-cloudUrl = "https://cloud.test"  # the address the app thinks it talks to; the transport below redirects it here
+cloudUrl = "https://cloud.test"  # the address the app thinks it talks to. The transport below redirects it here
 
 pytestmark = pytest.mark.skipif(shutil.which("podman") is None, reason="podman isn't installed")
 
@@ -62,7 +62,7 @@ class LocalCloud:
         self.signingKey = signingKey
 
     def admin(self, sql: str) -> list[str]:
-        """Runs SQL as the database admin (like Supabase's SQL editor); returns the rows."""
+        """Runs SQL as the database admin (like Supabase's SQL editor). Returns the rows."""
         result = subprocess.run(
             ["podman", "exec", "-i", f"{self.podName}Db", "psql", "-U", "postgres", "-v", "ON_ERROR_STOP=1", "-X",
              "-q", "-At"], input=sql, capture_output=True, text=True, timeout=60)
@@ -106,7 +106,7 @@ def _waitFor(check, what: str, seconds: float = 90) -> None:
 
 @pytest.fixture(scope="module")
 def localCloud():
-    """Starts Postgres with every cloud script run, then PostgREST in front of it; removes both after."""
+    """Starts Postgres with every cloud script run, then PostgREST in front of it. Removes both after."""
     podName = f"usefulTrashDataApi{uuid.uuid4().hex[:8]}"
     port = _freePort()
     signingKey = secrets.token_urlsafe(48)
@@ -325,7 +325,7 @@ def device(cloud: LocalCloud, folder: Path, name: str) -> tuple[PhoneStore, Sync
 
 
 def testTwoDevicesSyncThroughTheRealDataApi(cloud, tmp_path, monkeypatch):
-    """The phone logs a workout day and a weight; the second device gets them, edits the weight, and
+    """The phone logs a workout day and a weight. The second device gets them, edits the weight, and
     the phone ends up with that edit. Small pages, so paging runs for real."""
     monkeypatch.setattr(fetching, "pageSize", 2)
     phone, phoneSync = device(cloud, tmp_path, "phone")

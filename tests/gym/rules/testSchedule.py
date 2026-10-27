@@ -122,7 +122,7 @@ def testWhatTheLoggedFlexWorkoutWasWinsOverWhatWasMissed():
 
 
 def testEarlierDaysKnowWhatTheFlexDayWillMakeUp():
-    """Each day decides from the days already over; it and the days after count as trained (WD1.2)."""
+    """Each day decides from the days already over. It and the days after count as trained (WD1.2)."""
     assert daySchedule([plan()], [], day(0)).flexMakesUp is None  # nothing is over yet
     assert daySchedule([plan()], trained(0, 1), day(3)).flexMakesUp == push  # Wednesday missed
     assert daySchedule([plan()], trained(1), day(3)).flexMakesUp == upper  # Monday too: Upper comes first
@@ -218,8 +218,8 @@ def testABonusLeftOutIsRestButAMakeUpLeftOutIsMissed():
 
 
 def testAWorkoutThatDoesntCountLeavesItsDayMissed():
-    """WD4.1: too much skipped (worked out in sessions.py) and the day is missed, so the flex day makes it up;
-    today's workout is still open, and a bonus that doesn't count is rest."""
+    """WD4.1: too much skipped (worked out in sessions.py) and the day is missed, so the flex day makes it up.
+    Today's workout is still open, and a bonus that doesn't count is rest."""
     skippedMonday = LoggedWorkout(day(0), "p1", upper, finished=True, counts=False)
     days = replay([plan()], [skippedMonday, *trained(1, 2, 3, 4)], today=day(6))
     assert (days[day(0)].status, days[day(5)].makesUp, days[day(5)].stepIndex) == ("missed", upper, upper)

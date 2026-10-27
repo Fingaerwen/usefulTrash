@@ -4,7 +4,7 @@ agree with the cloud scripts in cloud/ (a test compares them with the real table
 
 Rows are plain dicts of Python values: uuid and text are str, integers int, decimals float, booleans
 bool, dates datetime.date, moments timezone-aware datetime.datetime in UTC, and JSON columns the
-parsed JSON. This module holds the tables every app shares; each app adds its own (gym/tables.py).
+parsed JSON. This module holds the tables every app shares. Each app adds its own (gym/tables.py).
 """
 
 import datetime as dt
@@ -31,7 +31,7 @@ class Column:
     name: str
     cloudType: str
     required: bool = True  # False: may be empty (NULL)
-    stampedByCloud: bool = False  # the cloud sets it on every stored change; a device never sends it
+    stampedByCloud: bool = False  # the cloud sets it on every stored change. A device never sends it
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,7 +40,7 @@ class Table:
 
     name: str
     columns: tuple[Column, ...]
-    dayKey: tuple[str, ...] = ()  # the columns that, with your user ID, make a row's ID (DT1.1); () = random
+    dayKey: tuple[str, ...] = ()  # the columns that, with your user ID, make a row's ID (DT1.1). () = random
 
     @property
     def columnNames(self) -> tuple[str, ...]:
@@ -57,9 +57,9 @@ class Table:
 commonColumns = (
     Column("id", "uuid"),
     Column("userId", "uuid"),
-    Column("updatedAt", moment),  # when the edit was made, from the device's clock; the newest edit wins
+    Column("updatedAt", moment),  # when the edit was made, from the device's clock. The newest edit wins
     Column("deleted", "boolean"),  # rows are never really removed: deleting is an edit like any other
-    Column("cloudUpdatedAt", moment, stampedByCloud=True),  # when the cloud stored it; used only for fetching
+    Column("cloudUpdatedAt", moment, stampedByCloud=True),  # when the cloud stored it. Used only for fetching
 )
 
 
@@ -219,7 +219,7 @@ def fromLocal(table: Table, values: Sequence[Any]) -> dict[str, Any]:
 
 def _toText(column: Column, value: Any, forCloud: bool) -> Any:
     """One value for the cloud (JSON) or for SQLite. Moments become fixed-width UTC text, so they sort
-    as text; dates become YYYY-MM-DD."""
+    as text. Dates become YYYY-MM-DD."""
     if value is None:
         return None
     kind = column.cloudType
@@ -238,7 +238,7 @@ def _toText(column: Column, value: Any, forCloud: bool) -> Any:
 
 def _fromText(table: Table, column: Column, value: Any, fromJson: bool) -> Any:
     """One value read from the cloud's JSON (fromJson) or from SQLite, as its Python value. Anything
-    that can't be read raises ValueError; checkRow then checks the kinds."""
+    that can't be read raises ValueError. checkRow then checks the kinds."""
     if value is None:
         return None
     kind = column.cloudType

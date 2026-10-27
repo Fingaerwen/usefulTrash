@@ -1,12 +1,12 @@
 """Numbers for the Progress and Week tabs (plan 8, 10, WD3.6): the real load, volume, estimated 1RM, PRs,
 each exercise's history and the week's summary.
 
-Pure logic: no screen, database, network or clock; "today" and every fact are passed in.
+Pure logic: no screen, database, network or clock. "today" and every fact are passed in.
 
 The real load (WD1.3): a plates-per-side lift counts double the logged plates plus its bar or sled, the
-plan's barKg or else a guess from its name (PF7); a lift with "dumbbells": 2 counts double; a barKg without
-platesPerSide is added to the logged weight; anything else counts as logged. Volume and estimated 1RM use
-the real load; weights are shown as logged (one dumbbell, or kg/side), as on Today (10.4).
+plan's barKg or else a guess from its name (PF7). A lift with "dumbbells": 2 counts double. A barKg without
+platesPerSide is added to the logged weight. Anything else counts as logged. Volume and estimated 1RM use
+the real load. Weights are shown as logged (one dumbbell, or kg/side), as on Today (10.4).
 """
 
 import datetime as dt
@@ -61,7 +61,7 @@ def loadKg(exercise: PlanExercise, loggedKg: float) -> float:
 
 
 def volumeKg(exercise: PlanExercise, sets: Sequence[SetDone]) -> float:
-    """Sets × reps × real load; 0 for bodyweight (its reps are kept separate, 10.2)."""
+    """Sets × reps × real load. 0 for bodyweight (its reps are kept separate, 10.2)."""
     return sum(loadKg(exercise, done.weightKg) * done.reps for done in sets if done.weightKg is not None)
 
 
@@ -86,8 +86,8 @@ class Session:
 
 @dataclass(frozen=True, slots=True)
 class Records:
-    """An exercise's PRs: heaviest weight (as logged), best estimated 1RM, most reps at its current weight;
-    for bodyweight, most reps in one set (16.2a, 16.3a, 10.10a)."""
+    """An exercise's PRs: heaviest weight (as logged), best estimated 1RM, most reps at its current weight.
+    For bodyweight, most reps in one set (16.2a, 16.3a, 10.10a)."""
 
     heaviestKg: float | None
     oneRepMaxKg: float | None
@@ -139,8 +139,8 @@ def targetText(exercise: PlanExercise, target: Target, needsWeight: bool = False
 
 
 def setsText(exercise: PlanExercise, sets: Sequence[SetDone], minutes: int | None = None) -> str:
-    """What was done, written like a target: "4×9 @ 82.5 kg"; reps that differ as "10 · 9 · 8 @ 82.5 kg", the
-    weight once, so it fits next to the name on a phone; each set's weight only when those differ."""
+    """What was done, written like a target: "4×9 @ 82.5 kg". Reps that differ as "10 · 9 · 8 @ 82.5 kg", the
+    weight once, so it fits next to the name on a phone. Each set's weight only when those differ."""
     if minutes is not None and not sets:
         return f"{minutes} min"
     if not sets:
@@ -227,7 +227,7 @@ def recordText(exercise: PlanExercise, found: Records) -> str:
 def progressLines(current: ImportedPlan | None, known: Mapping[str, PlanExercise],
                   logs: Mapping[dt.date, Mapping[str, LoggedExercise]], training: Training,
                   today: dt.date) -> tuple[tuple[ProgressLine, ...], tuple[ProgressLine, ...]]:
-    """The Progress list (SC3.1): the plan's exercises with what comes next and their PR; then past
+    """The Progress list (SC3.1): the plan's exercises with what comes next and their PR. Then past
     exercises (not in the plan, G10a) with their last session."""
     inPlan: dict[str, PlanExercise] = {}
     if current is not None:
@@ -325,14 +325,14 @@ class ChartView:
 
     exercise: PlanExercise
     chartRange: str
-    unit: str  # the kg line's unit: "kg", "kg/side"; "min" for cardio
+    unit: str  # the kg line's unit: "kg", "kg/side". "min" for cardio
     sessions: tuple[ChartSession, ...]
 
 
 def chartView(exercise: PlanExercise, logs: Mapping[dt.date, Mapping[str, LoggedExercise]], training: Training,
               today: dt.date, chartRange: str = "3M") -> ChartView:
     """An exercise's sessions for the Charts tab (SC8.1): kg as logged (the weight most sets used) and the reps
-    of the sets at that weight; bodyweight has reps only, cardio minutes. At most 30 sessions, evenly picked
+    of the sets at that weight. Bodyweight has reps only, cardio minutes. At most 30 sessions, evenly picked
     and always ending with the latest, as Progress's chart."""
     days = chartRanges.get(chartRange)
     shown = evenlyPicked([session for session in history(logs, exercise.exerciseId)
@@ -421,7 +421,7 @@ def monthDiary(current: ImportedPlan | None, known: Mapping[str, PlanExercise],
                logs: Mapping[dt.date, Mapping[str, LoggedExercise]], weights: Mapping[dt.date, float],
                month: dt.date) -> MonthDiary:
     """A month of the diary (DI1.1): each exercise done that month (the plan's in plan order, then others by
-    name) with the weight it started and ended the month at, its best session and how many; then the body
+    name) with the weight it started and ended the month at, its best session and how many. Then the body
     weight's first and last weigh-in that month."""
     month = monthStart(month)
     inPlan = list(dict.fromkeys(exercise.exerciseId for step in (current.plan.steps if current else ())
@@ -469,7 +469,7 @@ def _changeText(first: float, last: float, label: str) -> str:
 def monthlyPoints(exercise: PlanExercise | None, logs: Mapping[dt.date, Mapping[str, LoggedExercise]],
                   weights: Mapping[dt.date, float]) -> tuple[tuple[dt.date, float], ...]:
     """The diary's chart (DI1.1): one point per month, as far back as it goes: an exercise's top weight
-    that month (bodyweight: most reps in a set; cardio: most minutes), or the body weight's monthly average."""
+    that month (bodyweight: most reps in a set, cardio: most minutes), or the body weight's monthly average."""
     byMonth: dict[dt.date, list[float]] = {}
     if exercise is None:
         for date, weightKg in weights.items():
@@ -490,7 +490,7 @@ def monthlyPoints(exercise: PlanExercise | None, logs: Mapping[dt.date, Mapping[
 
 def readableSets(logs: Mapping[dt.date, Mapping[str, LoggedExercise]], known: Mapping[str, PlanExercise]) -> str:
     """sets.csv in Export CSV (EX1.1): one row per set, for a spreadsheet: date, exercise, set, reps, kg (as
-    logged: one dumbbell, or the plates on one side) and its unit; cardio as minutes. Skipped ones are left out."""
+    logged: one dumbbell, or the plates on one side) and its unit. Cardio as minutes. Skipped ones are left out."""
     import csv
     import io
     text = io.StringIO()
@@ -565,9 +565,9 @@ class WeightView:
     preselected: dt.date  # the latest Friday up to today
     chartRange: str
     points: tuple[tuple[dt.date, float], ...]  # the weigh-ins in the span, at most 30, for the chart
-    lastText: str  # "Last 4:  82.0 · 81.8 · 81.6 · 81.2   (−0.8 kg)"; "" before the first weigh-in
+    lastText: str  # "Last 4:  82.0 · 81.8 · 81.6 · 81.2   (−0.8 kg)". "" before the first weigh-in
     last: tuple[str, ...] = ()  # the last four as written: "82.0", "81.8", …
-    changeText: str = ""  # across them: "−0.8 kg"; "" without a change
+    changeText: str = ""  # across them: "−0.8 kg". "" without a change
 
 
 def weightView(weights: Mapping[dt.date, float], today: dt.date, chartRange: str = "3M") -> WeightView:
@@ -677,8 +677,8 @@ def weekSummary(plans: Sequence[ImportedPlan], workouts: Sequence[LoggedWorkout]
 
 
 def _streak(starts, workouts, monday: dt.date, today: dt.date) -> int:
-    """Weeks in a row hitting the weekly target, up to this week (4.8a). This week counts once it's hit;
-    until then the streak runs up to last week."""
+    """Weeks in a row hitting the weekly target, up to this week (4.8a). This week counts once it's hit.
+    Until then the streak runs up to last week."""
     def hit(week: dt.date) -> bool:
         target = weeklyTarget(starts, week)
         return target is not None and workoutsInWeek(workouts, week) >= target
@@ -754,7 +754,7 @@ class WeekTile:
 
 
 def weekTiles(week: WeekSummary) -> list[WeekTile]:
-    """The Week tab's numbers in the approved order (SC4.1); zero parts are left out, and the week's PRs are
+    """The Week tab's numbers in the approved order (SC4.1). Zero parts are left out, and the week's PRs are
     listed under them (week.records)."""
     tiles = [WeekTile("Workouts", f"{week.workouts} of {week.target}" if week.target else f"{week.workouts}")]
     if week.streak:

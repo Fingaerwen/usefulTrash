@@ -90,7 +90,7 @@ class WeighInNotifyPlugin :
         }
     }
 
-    /** Android 13+ asks the user to allow notifications; older versions allow them by default. */
+    /** Android 13+ asks the user to allow notifications. Older versions allow them by default. */
     private fun requestPermission(result: MethodChannel.Result) {
         if (Build.VERSION.SDK_INT < 33 ||
             ActivityCompat.checkSelfPermission(appContext, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED

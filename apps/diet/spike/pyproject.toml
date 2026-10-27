@@ -1,5 +1,5 @@
 # Ambrosia's Phase 0 spike (apps/diet/docs/plan.md, section 6): a throwaway app that tests the diet app's risky
-# parts on your phone and in the browser. Never imported by anything; kept as the record, like spikes/phase0.
+# parts on your phone and in the browser. Never imported by anything. Kept as the record, like spikes/phase0.
 [project]
 name = "ambrosiaSpike"
 version = "0.0.1"
@@ -7,7 +7,7 @@ description = "Ambrosia Phase 0 checks"
 requires-python = "==3.14.*"  # the Python Flet bundles for Android (R3)
 dependencies = [
     "flet==1.0.3",
-    # Our own package; it must have a local path below, or a build would look the name up on PyPI (CS1.1).
+    # Our own package. It must have a local path below, or a build would look the name up on PyPI (CS1.1).
     "usefulTrashBarcodeScan",
 ]
 

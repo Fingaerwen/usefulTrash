@@ -21,7 +21,7 @@ cloudScripts = sorted((repoRoot / "cloud").glob("[0-9][0-9][0-9]_*.sql"))
 standInSql = (Path(__file__).parent / "supabaseStandIn.sql").read_text(encoding="utf-8")
 
 # Official Postgres 17 image, pinned by digest so every run uses exactly the same build (17.11).
-# Supabase runs Postgres 17 for new projects; the plan's release checklist compares the major version.
+# Supabase runs Postgres 17 for new projects. The plan's release checklist compares the major version.
 postgresImage = (
     "docker.io/library/postgres@sha256:aa90e97ee862e558111d34cfb8b2c4bec768c2b039fb791341686928560263b3"
 )
@@ -90,7 +90,7 @@ class Database:
         )
 
     def ok(self, sql: str, **who) -> list[str]:
-        """Runs SQL that must succeed; returns the output rows."""
+        """Runs SQL that must succeed. Returns the output rows."""
         result = self.run(sql, **who)
         assert result.returncode == 0, result.stderr
         return [line for line in result.stdout.splitlines() if line]
@@ -123,7 +123,7 @@ def database(emptyDatabase) -> Database:
 
 
 def newRow(table: str, userId: str = userA, updatedAt: str = "now()", **columns) -> str:
-    """An INSERT for a valid row in `table`; keyword arguments override columns (as SQL text)."""
+    """An INSERT for a valid row in `table`. Keyword arguments override columns (as SQL text)."""
     defaults = {
         "plans": {"importedAt": "now()", "effectiveDate": "'2026-10-12'", "startStep": "0",
                   "planJson": "'{\"name\": \"Push Pull Legs\"}'"},

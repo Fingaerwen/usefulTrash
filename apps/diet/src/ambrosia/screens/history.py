@@ -1,4 +1,4 @@
-"""History (AM5.5): every day back to the first, a month at a time; a day opens laid out like Today. The phone
+"""History (AM5.5): every day back to the first, a month at a time. A day opens laid out like Today. The phone
 edits the last 7 days (⋮ → History), the PC view any day (its History tab)."""
 
 import flet as ft
@@ -17,7 +17,7 @@ def _monthsBack(app, model) -> int:
 def HistoryBody(app, model, leading=None):
     if model.historyDay is not None:
         day = model.historyDay
-        note = "" if day.editable else "Read only: the phone edits the last 7 days; the PC view edits any day."
+        note = "" if day.editable else "Read only: the phone edits the last 7 days, the PC view edits any day."
         return screen([header(dayText(day.date), f"{day.kind} day",
                               leading=iconButton(ft.Icons.ARROW_BACK, "Back to the month", lambda e: app.closeDay())),
                        Notice(app, model), faint(note) if note else ft.Container(visible=False), *dayParts(app, day)])

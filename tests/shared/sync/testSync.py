@@ -19,7 +19,7 @@ from usefulShared.tables import dayRowId, momentText, toCloud
 
 
 class FakeSession:
-    """The signed-in session, as sync sees it: hands out the cloud's tokens; renewing makes a new one."""
+    """The signed-in session, as sync sees it: hands out the cloud's tokens. Renewing makes a new one."""
 
     def __init__(self, cloud: CloudStandIn, userId: str = userA):
         self.cloud = cloud
@@ -110,7 +110,7 @@ def testALostAnswerJustMeansSendingAgain(phone, cloud):
 
 @pytest.mark.parametrize("firstToSync", ["phone", "pc"])
 def testNewestEditWinsWhicheverDeviceSyncsFirst(phone, pc, firstToSync):
-    """Both devices change the same day's steps while offline; the later edit wins on both."""
+    """Both devices change the same day's steps while offline. The later edit wins on both."""
     stepsId = dayRowId(tablesByName["dailySteps"], userA, date=dt.date(2026, 10, 12))
     phone.store.save("dailySteps", exampleRow("dailySteps", steps=12000))
     pc.clock.advance(minutes=2)
@@ -195,7 +195,7 @@ def testMalformedCloudRowEndsTheRoundWithTheReason(phone, cloud):
 # --- Refused changes (12d) ----------------------------------------------------------------------
 
 def testARefusedChangeIsSetAsideAndTheRestStillGoes(phone, cloud):
-    """A weight of 0 kg is refused by the cloud; the steps saved with it still go out."""
+    """A weight of 0 kg is refused by the cloud. The steps saved with it still go out."""
     badWeight = phone.store.save("bodyWeight", exampleRow("bodyWeight", weightKg=0.0))
     steps = phone.store.save("dailySteps", exampleRow("dailySteps"))
     secondWeight = phone.store.save("bodyWeight", exampleRow("bodyWeight", date=dt.date(2026, 10, 9)))
@@ -210,7 +210,7 @@ def testARefusedChangeIsSetAsideAndTheRestStillGoes(phone, cloud):
 
 
 def testConnectionDroppingWhileLookingForTheRefusedRowRefusesNothingElse(phone, cloud):
-    """The batch is refused, so rows go one by one; the connection drops before the good row: it stays
+    """The batch is refused, so rows go one by one. The connection drops before the good row: it stays
     queued, not refused."""
     bad = phone.store.save("bodyWeight", exampleRow("bodyWeight", weightKg=0.0))
     phone.clock.advance(seconds=1)  # so the bad row is first in line

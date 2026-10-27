@@ -78,8 +78,8 @@ def mergeHistory(previous: bytes | None, rowsByTable: Mapping[str, Sequence[Mapp
                  tables: Sequence[Table], schemaVersion: int, madeAt: dt.datetime, madeBy: str,
                  extraFiles: Mapping[str, str] | None = None) -> bytes:
     """The history file (BK1.2): every row ever backed up, the earlier history file's and today's together. A
-    row that's no longer in the cloud stays in it; a row in both keeps its newer edit. Same format as a
-    backup, so it restores the same way; its manifest says "history"."""
+    row that's no longer in the cloud stays in it. A row in both keeps its newer edit. Same format as a
+    backup, so it restores the same way. Its manifest says "history"."""
     merged: dict[str, dict[str, dict[str, str]]] = {}
     oldColumns: dict[str, list[str]] = {}
     if previous:

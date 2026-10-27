@@ -92,7 +92,7 @@ object WeighInScheduler {
         return context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
     }
 
-    /** The PendingIntent the alarm fires; the same requestCode always refers to the same alarm slot. */
+    /** The PendingIntent the alarm fires. The same requestCode always refers to the same alarm slot. */
     private fun alarmIntent(context: Context, requestCode: Int, title: String, body: String, kind: String): PendingIntent {
         val intent = Intent(context, AlarmReceiver::class.java).apply {
             putExtra(extraTitle, title)
@@ -244,7 +244,7 @@ object WeighInScheduler {
         }
         val contentIntent = openAppIntent(context)
         val notification = NotificationCompat.Builder(context, channel)
-            .setSmallIcon(R.drawable.weigh_in_notify_ic_stat) // single-colour shape; the full-colour app icon showed as a grey blob
+            .setSmallIcon(R.drawable.weigh_in_notify_ic_stat) // single-colour shape. The full-colour app icon showed as a grey blob
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))

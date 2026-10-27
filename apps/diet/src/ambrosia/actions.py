@@ -1,9 +1,9 @@
 """Everything Ambrosia changes, as rows (plan 3b: one write path). Each action builds the rows with the columns of
 apps/diet/docs/plan.md 4e and hands them to the store in one go, so they're saved (and later sent) together.
-The store stamps edit times; IDs follow 4e: a food from its barcode or USDA number, a day's water from the date.
+The store stamps edit times. IDs follow 4e: a food from its barcode or USDA number, a day's water from the date.
 
-Saving these rows for real (the phone's database, the cloud upgrade and sync) is built at max effort (gate 2);
-until then the store is a stand-in.
+Saving these rows for real (the phone's database, the cloud upgrade and sync) is built at max effort (gate 2).
+Until then the store is a stand-in.
 """
 
 import datetime as dt
@@ -59,7 +59,7 @@ class AmbrosiaActions:
     # --- Food --------------------------------------------------------------------------------
 
     async def logFood(self, date: dt.date, meal: str, food: Food, portion: str, count: float) -> str:
-        """Logs what you ate; a food you haven't used before becomes one of your foods in the same save.
+        """Logs what you ate. A food you haven't used before becomes one of your foods in the same save.
         Returns the log's ID."""
         if meal not in meals:
             raise ActionRefused("That isn't one of the day's meals.")
@@ -147,7 +147,7 @@ class AmbrosiaActions:
     # --- Targets (AM3.1, 4f) -----------------------------------------------------------------
 
     async def importTargets(self, data: Any, today: dt.date) -> str:
-        """Imports a checked targets file; it applies from today."""
+        """Imports a checked targets file. It applies from today."""
         if targetsFromJson(data).targets is None:
             raise ActionRefused("This targets file has problems: fix them first.")
         importId = newRowId()

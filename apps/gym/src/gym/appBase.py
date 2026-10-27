@@ -22,7 +22,7 @@ class AppBase:
 
     mode = "phone"  # or "pc": which main screen and ⋮ menu the screens show
     menuItems: tuple[str, ...] = ("problems", "history", "deload", "importPlan", "signOut")
-    stepsDaysBack: int | None = 7  # Week's calendar: how far back steps can be entered (SC4.1); None = any day
+    stepsDaysBack: int | None = 7  # Week's calendar: how far back steps can be entered (SC4.1). None = any day
 
     def __init__(self, config: dict[str, str], services: Any, log: AppLog, clock: Callable[[], dt.datetime],
                  localToday: Callable[[], dt.date]):
@@ -100,7 +100,7 @@ class AppBase:
     def startActions(self) -> None:
         self.actions = GymActions(self, self.state, self.session.userId(), self.clock)
 
-    # Today's actions; History's day editor passes its own day's view (HI1.1).
+    # Today's actions. History's day editor passes its own day's view (HI1.1).
 
     async def check(self, line: ExerciseLine, view: TodayView | None = None) -> None:
         if await self._act(self.actions.checkExercise(view or self.model.today, line)):
@@ -111,7 +111,7 @@ class AppBase:
         if await self._act(self.actions.saveSets(view or self.model.today, line, sets, minutes)):
             await self._restAfter(line, view)
 
-    # The rest timer (RT1.1): logging one of today's exercises starts its rest, unless nothing is left to do;
+    # The rest timer (RT1.1): logging one of today's exercises starts its rest, unless nothing is left to do.
     # its rest time on Today starts it between sets. The phone also sets an alert for when it's over.
 
     async def _restAfter(self, line: ExerciseLine, view: TodayView | None) -> None:
@@ -141,7 +141,7 @@ class AppBase:
         await self.restAlert(None)
 
     async def restAlert(self, seconds: int | None) -> None:
-        """The phone sets (or with None, cancels) its alert for when the rest is over; the PC view has none."""
+        """The phone sets (or with None, cancels) its alert for when the rest is over. The PC view has none."""
 
     async def skip(self, line: ExerciseLine, view: TodayView | None = None) -> None:
         await self._act(self.actions.skipExercise(view or self.model.today, line))
@@ -159,7 +159,7 @@ class AppBase:
         """Steps for a day in Week's calendar (SC4.1): on the phone for the last 7 days, on the PC any day."""
         today = self.localToday()
         if date > today or (self.stepsDaysBack is not None and (today - date).days >= self.stepsDaysBack):
-            self.model.notice = "Steps can be entered here for the last 7 days; the PC view takes any day."
+            self.model.notice = "Steps can be entered here for the last 7 days, the PC view takes any day."
             return
         await self._act(self.actions.setSteps(date, steps))
 
@@ -211,7 +211,7 @@ class AppBase:
         await self._act(self.actions.setBodyWeight(date, self.localToday(), weightKg))
 
     def summarySeenFor(self) -> dt.date | None:
-        """The Monday of the last week whose summary you've looked at (BN1.1); the PC view keeps it in memory."""
+        """The Monday of the last week whose summary you've looked at (BN1.1). The PC view keeps it in memory."""
         return self._summarySeen
 
     def markSummarySeen(self, monday: dt.date) -> None:
@@ -220,7 +220,7 @@ class AppBase:
     # --- History: days to edit and the monthly diary (HI1.1, DI1.1) ---------------------------
 
     def historyDates(self) -> list[dt.date]:
-        """The days History lists: every day of the month shown, up to today (HI1.2); the phone edits only its
+        """The days History lists: every day of the month shown, up to today (HI1.2). The phone edits only its
         last 7 (19.1f-1) and shows older ones read-only."""
         today = self.localToday()
         month = self.model.historyMonth or today.replace(day=1)
@@ -311,7 +311,7 @@ class AppBase:
         await self._act(self.actions.stopDeload(self.localToday()))
 
     async def _act(self, action) -> bool:
-        """Runs an action; a refused entry shows why, anything unexpected goes to the log. True if it worked."""
+        """Runs an action. A refused entry shows why, anything unexpected goes to the log. True if it worked."""
         try:
             await action
             return True
@@ -326,7 +326,7 @@ class AppBase:
         return False
 
     def describeFailure(self, problem: Exception) -> str | None:
-        """Plain words for an expected failure (the PC view's refused writes); None = unexpected."""
+        """Plain words for an expected failure (the PC view's refused writes). None = unexpected."""
         return None
 
     # --- Problems page (12d) -----------------------------------------------------------------
@@ -354,7 +354,7 @@ class AppBase:
                               self.clock(), len(self.state.unreadablePlans),
                               lastBackup=lastBackupText(self._live("backups"), self.clock()), startedIn=self.startedIn)
 
-    # --- Plan import (PC view; the phone's fallback, G2b-2) -----------------------------------
+    # --- Plan import (PC view, the phone's fallback, G2b-2) -----------------------------------
 
     async def pickPlanFile(self) -> None:
         files = await self.services.filePicker.pick_files(file_type=ft.FilePickerFileType.CUSTOM,

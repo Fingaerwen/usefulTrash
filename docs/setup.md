@@ -16,15 +16,15 @@ names below are public by design (anyone can read them from the APK).
 This removes the Phase 0 test table, so the Phase 0 app's note checks stop working (it gets
 uninstalled once Gym Tracker works).
 
-### 1b. Cloud upgrade 002 (you, in Supabase; added 2026-10-23)
+### 1b. Cloud upgrade 002 (you, in Supabase, added 2026-10-23)
 The same way: New query → paste the whole of
 [`cloud/002_settingsAndDeloads.sql`](https://github.com/Fingaerwen/usefulTrash/blob/main/cloud/002_settingsAndDeloads.sql)
 → **Run**. The last line must read `upgrade 002 done`. It adds the tables for weights and weight steps you
 set in the app and for deloads you start by hand (WD2.1, WD2.4). It only adds tables, and it refuses to run
 twice or before 001.
 
-### 1c. Back up now's page (you, in Google Cloud; added 2026-10-24)
-Only for the PC view's **Back up now** (BK1.1); the phone's automatic backups don't need it.
+### 1c. Back up now's page (you, in Google Cloud, added 2026-10-24)
+Only for the PC view's **Back up now** (BK1.1). The phone's automatic backups don't need it.
 Google Cloud console → **APIs & Services** → **Credentials** → the **Web** client (the one whose ID the app
 uses) →
 - **Authorized JavaScript origins:** add `https://fingaerwen.github.io` if it isn't there.
@@ -44,7 +44,7 @@ Gym Tracker is a new package, so it needs its own clients, in the same project a
 | Gym Tracker (release key) | `io.github.fingaerwen.gymtracker` | `A8:08:97:5C:B8:29:C7:2F:A7:0A:7C:EB:C9:5E:99:04:05:3D:82:BF` |
 | Gym Tracker (debug key, test builds) | `io.github.fingaerwen.gymtracker` | `57:92:1B:25:A7:0A:93:21:E8:2A:EA:45:A8:97:B3:3F:10:CC:29:D2` |
 
-No client secret is involved (Android clients have none). The ownership check is optional; skip it.
+No client secret is involved (Android clients have none). The ownership check is optional. Skip it.
 
 ## 3. The daily ping's two variables (you, on GitHub)
 1. [Settings → Secrets and variables → Actions → Variables](https://github.com/Fingaerwen/usefulTrash/settings/variables/actions)
@@ -59,12 +59,12 @@ view's website files. GitHub shows a step's variables in its log for the same re
 
 ## 4. The release key's backup (you, once)
 The release key was made with `tools/makeSigningKey.py` into `~/.local/share/usefulTrash/signing`
-(the key file and its password file, readable only by you; the password was never shown). Copy that
+(the key file and its password file, readable only by you, the password was never shown). Copy that
 whole folder to your second drive (G3a). Without it, updates can't be installed over the app: you'd have
 to uninstall, reinstall and sign in again (only changes not yet synced would be lost).
 
 ## 5. A release
-0.1-alpha was published on 2026-10-14, before the weekly schedule and everything after it; 0.2-alpha on
+0.1-alpha was published on 2026-10-14, before the weekly schedule and everything after it. 0.2-alpha on
 2026-10-24 (RL4.1). 0.3-alpha needs no cloud upgrade.
 1. Once the release's cloud upgrade is done (if it has one), I run `python3 tools/buildRelease.py --cloudReady`:
    every check, the signed APK, the tag, and the PC view published to GitHub Pages.
@@ -83,7 +83,7 @@ to uninstall, reinstall and sign in again (only changes not yet synced would be 
 4. The Phase 0 app was uninstalled on 2026-10-14 (PH1.1).
 
 ## 7. The check on your phone (0.2-alpha and 0.3-alpha)
-What only the phone can show (Staging: each release is checked on your phone before the next one starts; 0.3-alpha
+What only the phone can show (Staging: each release is checked on your phone before the next one starts, 0.3-alpha
 was built before 0.2-alpha's check, ST1.3, so this list covers both).
 Anything that looks wrong: ⋮ → Problems → **Copy**, and paste it to me.
 1. **Start:** ⋮ → Problems: the top line reads `Gym Tracker 0.3-alpha · schema 2 · started in … s`, under 5 s
@@ -91,47 +91,47 @@ Anything that looks wrong: ⋮ → Problems → **Copy**, and paste it to me.
 2. **Plan:** import it in the PC view's Plans tab (first `.venv/bin/python tools/checkPlan.py <file>` on the PC if
    you like). It takes effect today, or tomorrow if you've logged today.
 3. **Today:** the header (`Upper`, and under it `Monday · 0 of 5 this week`) and the progress card (`0 of 10
-   done`); tick an exercise with the big circle and tap it again to take it back; **Sets** with another weight;
-   in ⋯: Skip, How to (or tap the name), Set the weight; Finish (`Workout finished · … kg`); the steps card. On the
+   done`). Tick an exercise with the big circle and tap it again to take it back. **Sets** with another weight.
+   In ⋯: Skip, How to (or tap the name), Set the weight. Finish (`Workout finished · … kg`). The steps card. On the
    first sessions your plan's 1 kg weights show as `? kg`: the tick opens Sets, where the weight typed in set 1
    counts for the sets below (the target starts from there), or use Set the weight before you start, which also
    fills the exercise's other days still at `? kg`. A 5- or 6-set exercise logged with uneven reps (your ab
    machine) wraps under its name, and the tick stays at the right edge.
 4. **The gym's dead zone:** airplane mode → log a few → `N waiting` at the top → airplane mode off → it disappears
    within about a minute, and the PC view shows the entries a minute later.
-5. **Progress:** each exercise with `now …` and its PR; open one: the chart, the three PR tiles, `NEXT TIME`
+5. **Progress:** each exercise with `now …` and its PR. Open one: the chart, the three PR tiles, `NEXT TIME`
    with the pencil, the history.
-6. **Week:** the tiles, the days (a filled circle with a tick: trained; a cross: missed; a dot: rest), ‹ ›, and
+6. **Week:** the tiles, the days (a filled circle with a tick: trained, a cross: missed, a dot: rest), ‹ ›, and
    a day tapped to enter its steps.
 7. **Deload by hand:** ⋮ → Start a deload → Today's deload card, half the sets and 3 reps fewer → ⋮ → Stop the
    deload (unless you want one).
-8. **Creatine reminder:** Android asks once whether the app may send notifications (allow it); the next morning at
+8. **Creatine reminder:** Android asks once whether the app may send notifications (allow it). The next morning at
    08:00, "Creatine · Time for your creatine". An alarm icon in the status bar is expected (alarm-clock mode, so
    it's on time). If it comes late: battery → **Unrestricted** (section 6).
 9. **Restart the phone and the app:** still signed in, everything still there, and the reminders still set.
 10. **"new" and Not today (0.3-alpha):** after you've topped an exercise's range, its next target is marked
-    `new`; tap the mark (or ⋯ → Not today) and the last weight at the top of the range shows, marked `not today`;
-    tap it again (or ⋯ → Take the step up) to go back.
-11. **Charts (0.3-alpha):** pick an exercise at the top; the kg line and the reps bars fit the screen in light and
-    dark mode, with the latest session written underneath; tap the chart and another one is.
-12. **Weight (0.3-alpha):** Friday preselected, ‹ › for another day, Save; the chart and `LAST 4` below.
+    `new`. Tap the mark (or ⋯ → Not today) and the last weight at the top of the range shows, marked `not today`.
+    Tap it again (or ⋯ → Take the step up) to go back.
+11. **Charts (0.3-alpha):** pick an exercise at the top. The kg line and the reps bars fit the screen in light and
+    dark mode, with the latest session written underneath. Tap the chart and another one is.
+12. **Weight (0.3-alpha):** Friday preselected, ‹ › for another day, Save. The chart and `LAST 4` below.
 13. **Banners (0.3-alpha):** on Friday "Weigh-in due" until you've weighed in, and at 07:00 the "Weigh-in · Time to
-    weigh in" notification; on Monday "Last week's summary is ready", which opens last week on Week and is gone.
-14. **The automatic backup (0.3-alpha):** after the update, Google asks once about Drive (allow it); then
+    weigh in" notification. On Monday "Last week's summary is ready", which opens last week on Week and is gone.
+14. **The automatic backup (0.3-alpha):** after the update, Google asks once about Drive (allow it). Then
     ⋮ → Problems shows `Last backup: … (phone) · today`, and Google Drive has the folder **Gym Tracker backups**
     with a dated backup and `GymTracker-history.zip` in it.
-15. **History (0.3-alpha):** ⋮ → History → Days: every day this month since your plan began, ‹ for earlier ones;
-    open one of the last 7 (a pencil), tick an exercise there, and Today stays as it was; an older day opens
-    read-only; Delete this workout; Months: your month per exercise, and a tap shows its chart; All time: every exercise's
+15. **History (0.3-alpha):** ⋮ → History → Days: every day this month since your plan began, ‹ for earlier ones.
+    Open one of the last 7 (a pencil), tick an exercise there, and Today stays as it was. An older day opens
+    read-only. Delete this workout. Months: your month per exercise, and a tap shows its chart. All time: every exercise's
     chart with its PRs, and your weight's.
-16. **The PC view (0.3-alpha):** the History tab (any day), the Backup tab: Export CSV downloads a zip; after
+16. **The PC view (0.3-alpha):** the History tab (any day), the Backup tab: Export CSV downloads a zip. After
     step 1c, Back up now opens Google's page in a second window, and then says "Backed up to your Google
     Drive: …". If it doesn't, ⋮ → Problems → Copy, and paste it to me.
-17. **The look (0.3-alpha):** black with charcoal cards in dark mode, the mirror (white, light grey) in light mode;
-    nothing cut off or overlapping on Today, Progress, an exercise's page, Charts, Week, Weight and History; the PC
+17. **The look (0.3-alpha):** black with charcoal cards in dark mode, the mirror (white, light grey) in light mode.
+    Nothing cut off or overlapping on Today, Progress, an exercise's page, Charts, Week, Weight and History. The PC
     view has its tabs down the left and its screens in the middle. A grey box instead of a screen: ⋮ → Problems →
     Copy, and paste it to me.
-18. **The rest timer (0.3-alpha):** tick an exercise: the timer at the bottom of Today counts down its rest; +30 s
-    adds, × stops it; tapping an exercise's rest time (the stopwatch) starts it between sets. Lock the phone
+18. **The rest timer (0.3-alpha):** tick an exercise: the timer at the bottom of Today counts down its rest. +30 s
+    adds, × stops it. Tapping an exercise's rest time (the stopwatch) starts it between sets. Lock the phone
     during one: at 0 a "Rest over" notification pops up, on time (an alarm icon in the status bar meanwhile is
     expected). It can be muted on its own: Android settings → Apps → Gym Tracker → Notifications → Rest timer.

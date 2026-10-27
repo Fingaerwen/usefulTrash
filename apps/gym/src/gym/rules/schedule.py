@@ -1,6 +1,6 @@
 """The weekly schedule (plan section 5, WD1.1): which session each day is.
 
-Pure logic: no screen, database, network or clock; "today" is passed in. Nothing is stored: every
+Pure logic: no screen, database, network or clock. "today" is passed in. Nothing is stored: every
 answer is worked out from the facts each time (F10.1), so the phone and the PC view always agree and
 nothing has to run at midnight. The facts are the plan imports (when each takes effect) and the logged
 workouts (each records which session it was, plan 14).
@@ -53,7 +53,7 @@ class LoggedWorkout:
 
     date: dt.date
     planImportId: str
-    stepIndex: int  # whose session it was (0 = Monday's); on the flex day, the one it made up, or its own
+    stepIndex: int  # whose session it was (0 = Monday's). On the flex day, the one it made up, or its own
     finished: bool  # you tapped Finish (a past day's workout counts as finished anyway, R5a)
     counts: bool = True  # at most 30% of its session's exercises skipped or not done (WD4.1, sessions.py)
 
@@ -63,7 +63,7 @@ class DaySchedule:
     """What the schedule says about one day."""
 
     date: dt.date
-    planImportId: str | None  # the plan the day's session belongs to; None before the first plan
+    planImportId: str | None  # the plan the day's session belongs to. None before the first plan
     stepIndex: int | None  # the day's session: the workout's, or the weekday's own, or the one it makes up
     isRest: bool  # no workout, and the weekday is a rest day
     makesUp: int | None  # the flex day showing (or having done) a missed session: that weekday
@@ -113,7 +113,7 @@ def planInEffect(plans: Iterable[PlanStart], date: dt.date) -> PlanStart | None:
 
 
 def flexDayIndex(days: tuple[ScheduleDay, ...]) -> int | None:
-    """The plan's flex day (0 = Monday), if it has one; plan import allows at most one."""
+    """The plan's flex day (0 = Monday), if it has one. Plan import allows at most one."""
     return next((index for index, day in enumerate(days) if day.makeUp), None)
 
 
@@ -160,9 +160,9 @@ def _day(plans: list[PlanStart], workoutsByDate: Mapping[dt.date, LoggedWorkout]
 
 def _flexMakesUp(plans: list[PlanStart], plan: PlanStart, workoutsByDate: Mapping[dt.date, LoggedWorkout],
                  date: dt.date) -> int | None:
-    """What the flex day of the date's week makes up, as far as the date knows; None for the bonus.
+    """What the flex day of the date's week makes up, as far as the date knows. None for the bonus.
 
-    Days before the date (and before the flex day) are over; the others are assumed trained. On or after
+    Days before the date (and before the flex day) are over. The others are assumed trained. On or after
     the flex day, a workout logged on it says what it was.
     """
     flexIndex = flexDayIndex(plan.days)
@@ -191,18 +191,18 @@ def _missed(plans: list[PlanStart], workoutsByDate: Mapping[dt.date, LoggedWorko
 
 
 def _importOrder(plan: PlanStart) -> tuple[dt.date, dt.datetime, str]:
-    """Plans in the order they take over; the id only makes exact ties come out the same every time."""
+    """Plans in the order they take over. The id only makes exact ties come out the same every time."""
     return (plan.effectiveDate, plan.importedAt, plan.planImportId)
 
 
 def _oneWorkoutPerDay(workouts: Iterable[LoggedWorkout]) -> dict[dt.date, LoggedWorkout]:
-    """Workouts by date. There's one per day (DT1.1); should two ever exist, the same one always wins."""
+    """Workouts by date. There's one per day (DT1.1). Should two ever exist, the same one always wins."""
     ordered = sorted(workouts, key=lambda w: (w.date, w.planImportId, w.stepIndex, w.finished))
     return {w.date: w for w in ordered}
 
 
 def _nextWorkout(days: tuple[ScheduleDay, ...], weekday: int) -> int | None:
-    """The first weekday with a workout after this one, going round the week; None if there's none."""
+    """The first weekday with a workout after this one, going round the week. None if there's none."""
     for offset in range(1, len(days) + 1):
         index = (weekday + offset) % len(days)
         if not days[index].isRest:

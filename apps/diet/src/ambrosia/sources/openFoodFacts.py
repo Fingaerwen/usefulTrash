@@ -1,9 +1,9 @@
-"""Open Food Facts, the free and open food database (apps/diet/docs/plan.md 4d; Phase 0 check 2): a product by its
+"""Open Food Facts, the free and open food database (apps/diet/docs/plan.md 4d, Phase 0 check 2): a product by its
 barcode (phone and PC view), and packaged foods by name (phone only, AM5.2: the newer search lets no web page
 use it, and the classic one refuses anonymous callers).
 
 A request sends only the barcode or the search words, with a User-Agent naming the app and the repo, never
-your email; in the browser the browser sets its own. Its limits (its API docs): 15 product lookups and 10
+your email. In the browser the browser sets its own. Its limits (its API docs): 15 product lookups and 10
 searches a minute per internet connection, so a barcode is looked up once per scan, never while typing, and
 calls wait their turn. An unknown barcode comes back as 404 and reads as not found (Phase 0, 2026-10-25).
 Its data is under the Open Database License: the app credits it.
@@ -33,7 +33,7 @@ class FoodSourceError(Exception):
 
 @dataclass(frozen=True, slots=True)
 class Product:
-    """A product as Open Food Facts has it. Any of the four values may be missing; then you type it from the
+    """A product as Open Food Facts has it. Any of the four values may be missing. Then you type it from the
     label (AM2.3), starting from what's known."""
 
     barcode: str
@@ -46,14 +46,14 @@ class Product:
     carbsG: float | None
     servingG: float | None
     packG: float | None
-    kcalFromKj: bool = False  # the label only gave kJ; kcal worked out from it
+    kcalFromKj: bool = False  # the label only gave kJ, so kcal was worked out from it
 
     @property
     def complete(self) -> bool:
         return None not in (self.kcal, self.proteinG, self.fatG, self.carbsG) and bool(self.name)
 
     def asFood(self) -> Food:
-        """The product as a food to log; only when complete."""
+        """The product as a food to log. Only when complete."""
         values = Values(round(self.kcal, 1), round(self.proteinG, 2), round(self.fatG, 2), round(self.carbsG, 2))
         return Food("", "openFoodFacts", self.name, values, self.brand, self.barcode, unit=self.unit,
                     servingG=self.servingG, packG=self.packG)

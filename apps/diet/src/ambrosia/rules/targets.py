@@ -1,9 +1,9 @@
 """Targets (apps/diet/docs/plan.md 4f, AM3.1, AM3.2): the file your Claude project writes, checked with every
-problem in plain words (like Talon's plan import, G8a); the day's targets from the import that applies then
-plus the bulk-check changes you applied to it; and whether a day is a training day or a rest day, from the
+problem in plain words (like Talon's plan import, G8a). The day's targets from the import that applies then
+plus the bulk-check changes you applied to it. And whether a day is a training day or a rest day, from the
 Talon plan in effect and whether you trained (AM3.2).
 
-The bulk check itself (4g) is built at max effort (gate 2); this module only reads its settings.
+The bulk check itself (4g) is built at max effort (gate 2). This module only reads its settings.
 """
 
 import datetime as dt
@@ -70,7 +70,7 @@ class FileCheck:
 
 
 def readTargetsFile(text: str | bytes) -> FileCheck:
-    """Checks a targets file; see targetsFromJson."""
+    """Checks a targets file. See targetsFromJson."""
     try:
         data = json.loads(text)
     except (UnicodeDecodeError, ValueError):
@@ -242,7 +242,7 @@ class PlanWeek:
     planImportId: str
     effectiveDate: dt.date
     importedAt: dt.datetime
-    days: tuple[str, ...]  # 7 of "workout", "rest", "flex"; Monday first
+    days: tuple[str, ...]  # 7 of "workout", "rest", "flex". Monday first
 
 
 def planWeekFromRow(row: Mapping[str, Any]) -> PlanWeek | None:

@@ -4,7 +4,7 @@ words (G8a) → "is this the same exercise?" for likely matches (11.3) → the w
 no starting step to choose: today's weekday decides the session (WD1.1). Switching back to an earlier plan
 (SW1.1) is an import of that plan again, without the file.
 
-Each step returns a new PlanImport describing what to show next; nothing is saved until the last one,
+Each step returns a new PlanImport describing what to show next. Nothing is saved until the last one,
 which builds the plans row.
 """
 
@@ -36,7 +36,7 @@ class PlanImport:
 
 def startImport(fileName: str, content: bytes, known: Mapping[str, PlanExercise], today: dt.date,
                 workoutLoggedToday: bool, training: Training | None = None) -> PlanImport:
-    """Reads and checks the picked file; asks about likely matches if there are any."""
+    """Reads and checks the picked file. Asks about likely matches if there are any."""
     check = readPlanFile(content)
     if check.plan is None:
         return PlanImport("problems", fileName, check.errors, check.warnings)

@@ -1,6 +1,6 @@
 """The facts, worked out from every row (plan 3b, F10.1): your foods, what you ate, water, the targets files and
 the changes applied to them, and from Talon its plans, the days you trained and your weigh-ins. Everything the
-screens show is recalculated from these; nothing derived is stored.
+screens show is recalculated from these. Nothing derived is stored.
 
 Rows are plain dicts with the columns of apps/diet/docs/plan.md 4e (and Talon's own for its tables).
 """
@@ -35,7 +35,7 @@ class TargetsView:
     """The Targets tab (4a): the file in effect, today's targets for both kinds of day, the bulk check's dates
     and the changes applied."""
 
-    name: str | None  # the file's name; None before any import
+    name: str | None  # the file's name. None before any import
     importedAt: dt.datetime | None
     trainingDay: DayTargets | None
     restDay: DayTargets | None

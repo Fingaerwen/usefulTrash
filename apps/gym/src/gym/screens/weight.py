@@ -1,4 +1,4 @@
-"""The Weight tab (SC5.1), as approved, restyled (LK1.2; no hint text on this screen):
+"""The Weight tab (SC5.1), as approved, restyled (LK1.2, no hint text on this screen):
 
     Weight                                       ⋮
     ┌   ‹     Fri 16 Oct     ›                    ┐
@@ -9,7 +9,7 @@
     LAST 4
     82.0   81.8   81.6   81.2              −0.8 kg
 
-Friday is preselected and ‹ › choose any other day up to today; saving again the same day replaces it
+Friday is preselected and ‹ › choose any other day up to today. Saving again the same day replaces it
 (DT2.1), and saving it empty clears it. On Fridays a banner asks for the weigh-in until it's in (18.4a).
 """
 

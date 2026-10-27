@@ -15,7 +15,7 @@ Export CSV also hold the readable history: `sets.csv`, `weighIns.csv`, `steps.cs
    `python3 tools/restoreBackup.py ~/Downloads/GymTracker-backup-….zip > restore.sql`
 3. Supabase → your project → **SQL Editor** → **New query** → paste the whole of `restore.sql` → **Run**.
    It says `done: N rows from the backup`.
-4. Open the app on the phone: it fetches the restored rows at its next sync (within a minute); the PC
+4. Open the app on the phone: it fetches the restored rows at its next sync (within a minute). The PC
    view after a reload.
 
 This **fills in what's missing**: the cloud keeps the newest edit of every row, so anything you changed

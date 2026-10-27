@@ -209,7 +209,7 @@ def testWeekSummary():
 
 def testLastWeek():
     week = weekSummary([imported], workouts, weekLogs, known, {}, {day(4): 81.6, day(-3): 82.0}, day(0), day(9))
-    # Monday: bench and pull-up done, the raise skipped; Wednesday: the row done, bench not: 3 of 5.
+    # Monday: bench and pull-up done, the raise skipped. Wednesday: the row done, bench not: 3 of 5.
     assert (week.workouts, week.streak, week.completion) == (2, 1, 60)
     assert (week.weightKg, week.weightChangeKg) == (81.6, -0.4)
     assert [status for _, status in week.calendar][:3] == ["trained", "rest", "trained"]

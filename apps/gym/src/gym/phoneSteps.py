@@ -5,8 +5,8 @@ Frozen once released: a later change is a new step, never an edit to an old one,
 already ran a step never run it again. A test checks that running every step builds exactly the
 tables in gym/tables.py, and that there's one step per cloud upgrade.
 
-How values are kept (usefulShared.tables): UUIDs, text, dates, moments and JSON as text; whole numbers
-and booleans as integers; decimals as real numbers. The cloud's stamp may be empty on the phone.
+How values are kept (usefulShared.tables): UUIDs, text, dates, moments and JSON as text. Whole numbers
+and booleans as integers. Decimals as real numbers. The cloud's stamp may be empty on the phone.
 SQLite lets a text primary key be empty unless it says "not null", so every id does.
 """
 
@@ -44,7 +44,7 @@ phoneSteps: tuple[tuple[str, ...], ...] = (
             "schemaVersion" integer not null, "madeBy" text not null)""",
         # Changes waiting to be sent: one entry per row, holding the edit time of its newest unsent
         # edit. queuedAt stays the time of the oldest unsent edit (the 3-day banner, G9.2b).
-        # refusedReason: the cloud refused it; it's not sent again until it's edited or retried.
+        # refusedReason: the cloud refused it. It's not sent again until it's edited or retried.
         """create table "outbox" (
             "tableName" text not null, "rowId" text not null, "updatedAt" text not null,
             "queuedAt" text not null, "refusedReason" text,

@@ -1,4 +1,4 @@
-"""Sync between the phone's database and the cloud (plan 14b; SY2.1, SY2.2, UP1.1).
+"""Sync between the phone's database and the cloud (plan 14b, SY2.1, SY2.2, UP1.1).
 
 A round renews the session if needed, checks versions, sends the outbox, then fetches what changed
 elsewhere. Rounds never overlap. No internet just ends a round early: everything is already saved on
@@ -33,7 +33,7 @@ class Session(Protocol):
 
 
 class SyncCloud(Protocol):
-    """The cloud calls sync makes (SupabaseApi has them; tests use a stand-in)."""
+    """The cloud calls sync makes (SupabaseApi has them, tests use a stand-in)."""
 
     async def readCloudInfo(self, accessToken: str) -> tuple[int, int]: ...
 
@@ -50,7 +50,7 @@ class SyncOutcome:
     status: str  # done, offline, signedOut, appTooOld, cloudTooOld, failed or busy (a round was running)
     sent: int = 0
     fetched: int = 0
-    problem: str = ""  # the cloud's code and message when something failed; never row values or tokens
+    problem: str = ""  # the cloud's code and message when something failed. Never row values or tokens
 
 
 class SyncEngine:
@@ -114,7 +114,7 @@ class SyncEngine:
     # --- Sending -----------------------------------------------------------------------------
 
     async def _send(self, accessToken: str) -> None:
-        """Sends the outbox in batches, oldest first; each table's rows go in one request."""
+        """Sends the outbox in batches, oldest first. Each table's rows go in one request."""
         for _ in range(maxBatchesPerRound):
             changes = self.store.changesToSend(sendBatchSize)
             if not changes:
@@ -127,7 +127,7 @@ class SyncEngine:
             await self.cloud.upsertRows(table.name, [toCloud(table, row) for row in rows], accessToken)
         except (CloudError, ValueError) as problem:
             if isinstance(problem, CloudError) and (problem.isTemporary or problem.isSessionProblem):
-                raise  # the round ends; everything stays queued
+                raise  # the round ends. Everything stays queued
             # The cloud refused the batch (all or nothing): send one by one to find which rows it refuses.
             for row in rows:
                 await self._sendOne(table, row, accessToken)

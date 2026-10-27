@@ -1,5 +1,5 @@
 """The phone app (plan 3b, phone mode): the phone's database, sync and sign-in. Every button on the phone
-ends up here or in appBase.py; the screens only read the model and call these methods.
+ends up here or in appBase.py. The screens only read the model and call these methods.
 
 Start-up: upgrade the phone's database if needed (14c), restore the saved session (T1.1), then the
 first download if this phone has none yet (14b), then Today with sync running in the background.
@@ -49,8 +49,8 @@ class PhoneApp(AppBase):
                  localToday: Callable[[], dt.date] = dt.date.today, cloud: Any = None, drive: Any = None):
         super().__init__(config, services, log, clock, localToday)
         self.folder = folder
-        self.injectedCloud = cloud  # None: the real Supabase project; tests pass a stand-in
-        self.drive = drive or DriveApi()  # Google Drive, for the automatic backup (F14.1); tests pass a stand-in
+        self.injectedCloud = cloud  # None: the real Supabase project. Tests pass a stand-in
+        self.drive = drive or DriveApi()  # Google Drive, for the automatic backup (F14.1). Tests pass a stand-in
         self.backupTask: asyncio.Task | None = None  # the backup runs beside the app, after a start's first sync
         self.store: PhoneStore | None = None
         self.cloud: Any = None
@@ -115,7 +115,7 @@ class PhoneApp(AppBase):
 
     async def scheduleReminders(self) -> None:
         """The daily creatine reminder at 08:00 (WD3.8) and the Friday weigh-in at 07:00 (G9.1, NT1.2), set
-        again at every start (each replaces itself). Android 13+ asks once whether the app may notify; a no
+        again at every start (each replaces itself). Android 13+ asks once whether the app may notify. A no
         just means no reminders, never an error."""
         try:
             if not await self.services.notifier.requestPermission():
@@ -134,7 +134,7 @@ class PhoneApp(AppBase):
 
     async def restAlert(self, seconds: int | None) -> None:
         """The rest timer's alert (RT1.1): a notification when the rest is over, even with the screen off, in
-        its own "Rest timer" channel; None cancels it (and takes away one that's showing)."""
+        its own "Rest timer" channel. None cancels it (and takes away one that's showing)."""
         try:
             if seconds is None:
                 await self.services.notifier.cancelRest()
@@ -182,7 +182,7 @@ class PhoneApp(AppBase):
             self.model.notice = result.notice
             return
         if not await self.session.save(result.session):
-            self.log.problem("signIn", "The sign-in couldn't be saved on the phone; you'll need to sign in again "
+            self.log.problem("signIn", "The sign-in couldn't be saved on the phone. You'll need to sign in again "
                                        "next time.", self.session.lastProblem)
         await self._signedIn()
 
@@ -196,7 +196,7 @@ class PhoneApp(AppBase):
         await self.session.forget()
         try:
             await self.services.googleSignIn.clearSignInState()
-        except Exception as problem:  # the account picker just won't show next time; nothing depends on it
+        except Exception as problem:  # the account picker just won't show next time. Nothing depends on it
             self.log.problem("signIn", "Google's chosen account couldn't be forgotten.", type(problem).__name__)
         waiting = self.store.waiting().count
         self.log.info("signIn", "signed out")
@@ -212,7 +212,7 @@ class PhoneApp(AppBase):
         if outcome.status in ("failed", "appTooOld", "cloudTooOld") and outcome.problem != previous.problem:
             self.log.problem("sync", "Sync stopped.", outcome.problem)
         elif outcome.status == "offline" and previous.status != "offline":
-            self.log.info("sync", "no internet; trying every minute", outcome.problem)
+            self.log.info("sync", "no internet, trying every minute", outcome.problem)
         if not self.session.isSignedIn():
             self.syncLoop.stop()
             self.model.notice = "You were signed out. Please sign in again."
@@ -227,7 +227,7 @@ class PhoneApp(AppBase):
     async def backUpIfDue(self) -> None:
         """When the app opens and the last backup (from any device) is 30+ days old: every table, deleted
         rows included, zipped to your Google Drive, the last 3 kept. The first time, Google asks once whether
-        the app may keep files in your Drive; a no or a failure is only logged, and it's tried again next start."""
+        the app may keep files in your Drive. A no or a failure is only logged, and it's tried again next start."""
         try:
             if not backupDue(self.store.rows("backups"), self.clock()):
                 return
@@ -250,7 +250,7 @@ class PhoneApp(AppBase):
             await self.saveRows([("backups", row)])
             self.log.info("backup", f"backed up to Google Drive: {row['fileName']}, {row['sizeBytes']:,} bytes")
         except Exception as problem:  # the app works the same without it
-            self.log.problem("backup", "The backup to Google Drive didn't work; it's tried again next time the app "
+            self.log.problem("backup", "The backup to Google Drive didn't work. It's tried again next time the app "
                              "opens.", f"{type(problem).__name__}: {problem}"[:300])
 
     async def syncNow(self) -> SyncOutcome:

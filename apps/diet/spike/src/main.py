@@ -164,7 +164,7 @@ def main(page: ft.Page):
     if page.web:
         scanSection = [ft.Text("Scanning is phone only. Type a barcode instead:")]
     else:
-        # Google's scanner left the extension once ZXing was chosen (AM5.1); the APK built in Phase 0 has both.
+        # Google's scanner left the extension once ZXing was chosen (AM5.1). The APK built in Phase 0 has both.
         scanSection = [ft.Row([ft.FilledButton("Scan (ZXing)", icon=ft.Icons.CAMERA_ALT, on_click=scanOpen)],
                               wrap=True)]
 

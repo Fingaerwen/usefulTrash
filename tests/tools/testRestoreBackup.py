@@ -54,7 +54,7 @@ def testTheCommandLine(tmp_path, capsys):
 
 
 def testTheHistoryFileRestoresTheSameWay():
-    """BK1.2: GymTracker-history.zip is a backup too; its readable files are left aside."""
+    """BK1.2: GymTracker-history.zip is a backup too. Its readable files are left aside."""
     history = mergeHistory(backup(), {"bodyWeight": [exampleRow("bodyWeight", userId=userA, weightKg=80.0)]},
                            appTables, appSchema, moment, "phone", {"sets.csv": "date\n"})
     sql = restoreBackup.restoreSql(history)

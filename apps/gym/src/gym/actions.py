@@ -1,4 +1,4 @@
-"""What your taps do (plan 6; CS1.1's one write path): each action builds the rows it changes and
+"""What your taps do (plan 6, CS1.1's one write path): each action builds the rows it changes and
 hands them to the store in one go, so a workout day and its exercises are saved together. Screens
 never write rows themselves, and the store stamps every edit's time.
 
@@ -26,7 +26,7 @@ class RowStore(Protocol):
 
 
 class ActionRefused(ValueError):
-    """An entry that can't be saved; the message says why in plain words, for the screen."""
+    """An entry that can't be saved. The message says why in plain words, for the screen."""
 
 
 class GymActions:
@@ -85,8 +85,8 @@ class GymActions:
             await self._log(view, line, (), None, skipped=True)
 
     async def declineSuggestion(self, view: TodayView, line: ExerciseLine, declined: bool) -> None:
-        """Undo on ↑new (UN1.1): not today, so today's target is the last weight at the top of the range; redo
-        takes that back. Stored on the exercise's entry for the day, which logging keeps; on its own it isn't
+        """Undo on ↑new (UN1.1): not today, so today's target is the last weight at the top of the range. Redo
+        takes that back. Stored on the exercise's entry for the day, which logging keeps. On its own it isn't
         an entry, so it never makes a workout."""
         logId = dayRowId(exerciseLogs, self.userId, date=view.date, exerciseId=line.exercise.exerciseId)
         existing = self.state.row("exerciseLogs", logId)
@@ -102,7 +102,7 @@ class GymActions:
         await self.store.saveRows([("exerciseLogs", {**row, "deleted": False, "declinedSuggestion": declined})])
 
     async def deleteWorkout(self, date: dt.date) -> None:
-        """History's "Delete this workout" (HI1.1): the day's workout and every entry in it; its steps and
+        """History's "Delete this workout" (HI1.1): the day's workout and every entry in it. Its steps and
         weigh-in stay."""
         edits: list[tuple[str, dict[str, Any]]] = []
         session = self._liveSession(date)
@@ -116,7 +116,7 @@ class GymActions:
             await self.store.saveRows(edits)
 
     async def finishWorkout(self, view: TodayView) -> None:
-        """Finish: the workout is done; anything untouched counts as skipped (19.1b-1)."""
+        """Finish: the workout is done. Anything untouched counts as skipped (19.1b-1)."""
         session = self._liveSession(view.date)
         if session is None or session["finishedAt"] is not None:
             return
@@ -125,7 +125,7 @@ class GymActions:
     # --- Steps (CA1.1) -----------------------------------------------------------------------
 
     async def setSteps(self, date: dt.date, steps: int | None) -> None:
-        """A day's step total: entering it again replaces it; None clears it. Steps are never a workout."""
+        """A day's step total: entering it again replaces it. None clears it. Steps are never a workout."""
         rowId = dayRowId(dailySteps, self.userId, date=date)
         existing = self.state.row("dailySteps", rowId)
         if steps is None:
@@ -139,7 +139,7 @@ class GymActions:
     # --- Body weight (SC5.1, DT2.1) -----------------------------------------------------------
 
     async def setBodyWeight(self, date: dt.date, today: dt.date, weightKg: float | None) -> None:
-        """A day's weigh-in: entering it again replaces it (DT2.1); None clears it. Any day up to today."""
+        """A day's weigh-in: entering it again replaces it (DT2.1). None clears it. Any day up to today."""
         if date > today:
             raise ActionRefused("A weigh-in can't be for a day that hasn't come yet.")
         rowId = dayRowId(bodyWeight, self.userId, date=date)
@@ -180,7 +180,7 @@ class GymActions:
     # --- Deloads by hand (WD2.4, WD3.4) -------------------------------------------------------
 
     async def startDeload(self, today: dt.date, workoutToday: bool) -> None:
-        """Starts a deload: today, or tomorrow if a workout is already logged today; 7 days."""
+        """Starts a deload: today, or tomorrow if a workout is already logged today. 7 days."""
         if self.state.training(today).deloadOn(today) is not None or self.state.manualDeloadAt(today):
             raise ActionRefused("A deload is already running or about to start.")
         start = today + dt.timedelta(days=1) if workoutToday else today

@@ -1,7 +1,7 @@
 """Making a backup (F14.1): the zip of every table, uploaded to the app's folder in your Google Drive,
 the last 3 kept, and a backups row recording it. Beside them, one history file is never rotated out: each
 backup is merged into it, with the readable history (BK1.2). The phone does it by itself when the last
-backup is 30+ days old; the PC view when you press Back up now (BK1.1).
+backup is 30+ days old. The PC view when you press Back up now (BK1.1).
 """
 
 import datetime as dt
@@ -38,7 +38,7 @@ def backupFileName(madeAt: dt.datetime) -> str:
 
 async def withFreshToken(getToken: Callable[[], Awaitable[str]], dropToken: Callable[[str], Awaitable[None]],
                          job: Callable[[str], Awaitable[Any]]) -> Any:
-    """Runs job(token); if Drive refuses the token (401: expired or withdrawn), drops it and runs the job once
+    """Runs job(token). If Drive refuses the token (401: expired or withdrawn), drops it and runs the job once
     more with a fresh one (Phase 0 check 7's rule). The job must be safe to repeat after a refusal."""
     token = await getToken()
     try:
@@ -54,7 +54,7 @@ async def makeBackup(drive: DriveApi, token: str, rowsByTable: Mapping[str, Sequ
                      tables: Sequence[Table], schemaVersion: int, userId: str, now: dt.datetime, madeBy: str,
                      readableFiles: Mapping[str, str] | None = None) -> dict[str, Any]:
     """Uploads the backup, deletes the app's dated backups beyond the last 3, and merges it into the
-    history file with the readable history (BK1.2); returns the backups row to save (the caller saves it,
+    history file with the readable history (BK1.2). Returns the backups row to save (the caller saves it,
     so it syncs like any edit)."""
     content = makeBackupZip(rowsByTable, tables, schemaVersion, now, madeBy)
     folderId = await drive.findOrCreateFolder(folderName, token)
@@ -62,7 +62,7 @@ async def makeBackup(drive: DriveApi, token: str, rowsByTable: Mapping[str, Sequ
     uploaded = await drive.uploadFile(fileName, content, zipMimeType, folderId, token)
     older = await drive.listFiles(f"'{folderId}' in parents and name contains '{backupPrefix}' and trashed = false",
                                   token)
-    for file in older[keepBackups:]:  # newest first; the history file isn't among them
+    for file in older[keepBackups:]:  # newest first. The history file isn't among them
         await drive.deleteFile(file["id"], token)
     await updateHistory(drive, token, folderId, rowsByTable, tables, schemaVersion, now, madeBy, readableFiles)
     return {"id": newRowId(), "userId": userId, "deleted": False, "madeAt": now, "fileName": fileName,

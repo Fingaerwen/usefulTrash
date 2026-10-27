@@ -4,8 +4,8 @@
 Rules:
 - No client secret and no refresh token in the app: Google Play services keeps the long-lived Drive
   permission and hands out access tokens that last about an hour (plan R2). The app simply asks again
-  whenever it needs one; Play services renews expired tokens itself.
-- Tokens live in memory only. Nothing here prints, logs or saves them; on screen a token only appears
+  whenever it needs one. Play services renews expired tokens itself.
+- Tokens live in memory only. Nothing here prints, logs or saves them. On screen a token only appears
   as a fingerprint (8 characters of its SHA-256), which tells tokens apart but can't be turned back.
 - No Google screen ever appears unless asked for (interactive=True), so a backup that runs when the
   app opens can't pop up a permission screen by surprise."""

@@ -14,7 +14,7 @@
 
 One exercise at a time: its kg as logged as a line, and under it each session's reps as a bar from the
 lowest to the highest set, on the same dates. Deload sessions are drawn hollow. The latest session is written
-out underneath; tapping the chart picks another. Drawn with Flet's canvas: no chart package, in the theme's
+out underneath. Tapping the chart picks another. Drawn with Flet's canvas: no chart package, in the theme's
 black and greys (LK1.1, LK1.2). LineChart draws any dated line the same way (the weigh-ins, the diary's
 months).
 """
@@ -34,14 +34,14 @@ inset = 8  # keeps the marks off the canvas's edges
 
 
 def xPositions(count: int, width: float) -> list[float]:
-    """Each session's x, spread evenly across the width; a single one in the middle."""
+    """Each session's x, spread evenly across the width. A single one in the middle."""
     if count == 1:
         return [width / 2]
     return [inset + index * (width - 2 * inset) / (count - 1) for index in range(count)]
 
 
 def yPosition(value: float, low: float, high: float) -> float:
-    """A value's y: the highest at the top; all equal in the middle."""
+    """A value's y: the highest at the top. All equal in the middle."""
     if high == low:
         return chartHeight / 2
     return inset + (high - value) / (high - low) * (chartHeight - 2 * inset)
@@ -81,7 +81,7 @@ def lineShapes(values: list[float], deloads: list[bool], width: float, picked: i
 
 def barShapes(lows: list[int], highs: list[int], deloads: list[bool], width: float,
               picked: int | None) -> list[cv.Shape]:
-    """Each session's reps: a rounded bar from the lowest to the highest set, hollow for a deload; grey, and
+    """Each session's reps: a rounded bar from the lowest to the highest set, hollow for a deload. Grey, and
     white (black in light mode) when picked."""
     xs, low, high = xPositions(len(lows), width), min(lows), max(highs)
     shapes: list[cv.Shape] = gridShapes(width, low, high)
@@ -141,7 +141,7 @@ def ChartsTab(app, model):
 
 @ft.component
 def ExerciseChart(view):
-    """The kg line and the reps bars of one exercise, sharing the dates; a tap picks the nearest session."""
+    """The kg line and the reps bars of one exercise, sharing the dates. A tap picks the nearest session."""
     width, setWidth = ft.use_state(300.0)  # the canvas's real width arrives with its first resize
     picked, setPicked = ft.use_state(None)
     sessions = view.sessions
@@ -187,7 +187,7 @@ def dateLabel(date: dt.date, byDay: bool) -> str:
 
 @ft.component
 def LineChart(points, byDay: bool, unit: str = "kg"):
-    """A line through dated values (the weigh-ins, SC5.1, DI1.2; the diary's months, DI1.1), at most 30 points,
+    """A line through dated values (the weigh-ins, SC5.1, DI1.2, the diary's months, DI1.1), at most 30 points,
     evenly picked and ending with the latest."""
     width, setWidth = ft.use_state(300.0)
     if not points:

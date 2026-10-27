@@ -94,7 +94,7 @@ def darkTheme() -> ft.Theme:
 def backdrop(content: ft.Control, wide: bool = False) -> ft.Control:
     """The screen's background: black, with red behind everything: a glow over the top, a fainter one low on
     the screen, a sharp-edged blade with a crisp line across the top corner, two thin slashes near the bottom,
-    and the knight, faint, lower right (LK1.4), larger in the PC view (wide). Nothing in it can be tapped; the
+    and the knight, faint, lower right (LK1.4), larger in the PC view (wide). Nothing in it can be tapped. The
     content sits on top."""
     glow = ft.Colors.TERTIARY_FIXED_DIM
     layers: list[ft.Control] = [
@@ -104,7 +104,7 @@ def backdrop(content: ft.Control, wide: bool = False) -> ft.Control:
             colors=[accent(0.34, glow), accent(0.12, glow), accent(0.0, glow)], stops=[0.0, 0.4, 1.0])),
         ft.Container(**filling, gradient=ft.RadialGradient(
             center=ft.Alignment(1.15, 1.05), radius=0.95, colors=[accent(0.16, glow), accent(0.0, glow)])),
-        # Long enough that their ends stay off even a wide PC window; centred 200 px in from the right edge.
+        # Long enough that their ends stay off even a wide PC window. Centred 200 px in from the right edge.
         streak(2800, 220, [accent(0.0, glow), accent(0.5, glow), accent(0.12, glow), accent(0.0, glow)],
                [0.0, 0.015, 0.5, 1.0], top=-100, right=-1200),
         streak(2800, 2.5, [accent(0.0), accent(0.95), accent(0.25)], [0.4, 0.55, 0.7], across=False,

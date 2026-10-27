@@ -137,7 +137,7 @@ def buildPcView(page: ft.Page):
                      "Session kept in this tab's memory only")
         except SupabaseError as err:
             show(f"❌ Supabase: {err}")  # e.g. 422 signup_disabled for an account that isn't yours
-        except Exception as err:  # shown instead of crashing; messages never contain tokens
+        except Exception as err:  # shown instead of crashing. Messages never contain tokens
             show(f"❌ {type(err).__name__}: {err}")
         finally:
             signInButton.disabled = False
@@ -252,7 +252,7 @@ def main(page: ft.Page):
             await refreshCheck4Status()
         except SupabaseError as err:
             showSignIn(f"❌ Supabase: {err}")  # e.g. 422 signup_disabled for an account that isn't yours
-        except Exception as err:  # anything else is shown instead of crashing; messages never contain tokens
+        except Exception as err:  # anything else is shown instead of crashing. Messages never contain tokens
             showSignIn(f"❌ {type(err).__name__}: {err}")
         finally:
             signInButton.disabled = False
@@ -299,7 +299,7 @@ def main(page: ft.Page):
 
     async def runCheck3(e):
         """Saves, reads, edits and deletes one own row, and proves row-level security refuses rows
-        for someone else. Every step shows ✅ or ❌; the test row is always deleted again."""
+        for someone else. Every step shows ✅ or ❌. The test row is always deleted again."""
         if not keeper.isSignedIn():
             dataResultText.value = "Sign in first (check 2)"
             page.update()
@@ -334,7 +334,7 @@ def main(page: ft.Page):
             page.update()
             accessToken = await keeper.freshAccessToken()
 
-            # 1. Save one own row; the database fills in id, userId (= whoever is signed in) and updatedAt.
+            # 1. Save one own row. The database fills in id, userId (= whoever is signed in) and updatedAt.
             row = await supabase.insertRow(testTable, {"noteText": f"check 3 test {time.strftime('%H:%M:%S')}"}, accessToken)
             rowId = row.get("id")
             columns = sorted(row)
@@ -373,7 +373,7 @@ def main(page: ft.Page):
 
             lines.append("\n✅ Check 3 passed" if all(outcomes) and len(outcomes) == 7 else "\n❌ Check 3 not passed")
             dataResultText.value = "\n".join(lines)
-        except Exception as err:  # shown instead of crashing; messages never contain tokens
+        except Exception as err:  # shown instead of crashing. Messages never contain tokens
             lines.append(f"❌ stopped: {type(err).__name__}: {err}")
             dataResultText.value = "\n".join(lines)
         finally:
@@ -439,13 +439,13 @@ def main(page: ft.Page):
             return f"✅ sent {len(notes)}"
 
     async def trySync():
-        """One sync attempt; the result goes on the queue line."""
+        """One sync attempt. The result goes on the queue line."""
         syncState["tries"] += 1
         try:
             syncState["lastResult"] = await syncNow()
         except SupabaseError as err:
             syncState["lastResult"] = f"❌ {err}"
-        except Exception as err:  # shown instead of crashing; messages never contain tokens
+        except Exception as err:  # shown instead of crashing. Messages never contain tokens
             syncState["lastResult"] = f"❌ {type(err).__name__}: {err}"
         await refreshCheck4Status()
 
@@ -537,7 +537,7 @@ def main(page: ft.Page):
         showCheck4(f"{restoreLines.get(restoreResult, restoreResult)} ({keyLine})")
         if restoreResult == "restored":
             try:
-                await keeper.freshAccessToken()  # renews now if the access token is (nearly) expired; offline is fine
+                await keeper.freshAccessToken()  # renews now if the access token is (nearly) expired. Offline is fine
             except SupabaseError:
                 pass  # offline or refused: the status line shows it
             if keeper.isSignedIn():  # written after the renewal, so it shows the renewed session's time
@@ -546,7 +546,7 @@ def main(page: ft.Page):
         page.run_task(syncLoop)
 
     # Check 7: backups to Google Drive (plan F14.1, R2). The permission comes from Google Play services and covers
-    # only files this app creates; no secret in the app. Access tokens last about an hour, so the expiry test
+    # only files this app creates. No secret in the app. Access tokens last about an hour, so the expiry test
     # (step 3) proves a fresh one arrives without any screen once step 1's token has expired.
     drive = GoogleDriveApi()
     driveKeeper = DriveKeeper(googleSignIn)
@@ -555,7 +555,7 @@ def main(page: ft.Page):
     driveTestFolder = "usefulTrash Phase 0 test"
     check7StatePath = Path(os.getenv("FLET_APP_STORAGE_DATA") or os.getcwd()) / "check7State.json"
     firstDriveToken = {"value": ""}  # step 1's token, memory only: the expiry test checks Drive refuses it later
-    expiryWaitSec = 61 * 60  # access tokens last 60 minutes; one more for clock differences
+    expiryWaitSec = 61 * 60  # access tokens last 60 minutes. One more for clock differences
 
     def loadCheck7State() -> dict:
         """Step 1's token fingerprint and time, kept on the phone so the expiry test survives an app restart.
@@ -756,7 +756,7 @@ def main(page: ft.Page):
 
     async def pickPlanFile(e):
         """Opens the phone's file picker, reads the chosen JSON file and shows a summary."""
-        # with_data=True returns the file's bytes; on Android a plain file path isn't always available.
+        # with_data=True returns the file's bytes. On Android a plain file path isn't always available.
         files = await filePicker.pick_files(
             dialog_title="Pick a plan JSON file",
             file_type=ft.FilePickerFileType.CUSTOM,

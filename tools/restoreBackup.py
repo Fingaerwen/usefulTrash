@@ -6,7 +6,7 @@ Usage (from the repo root): python3 tools/restoreBackup.py <backup.zip> [--backu
   Without --backupWins it fills in what's missing: the cloud keeps the newest edit of every row (F11.1),
   so a row changed after the backup stays as it is. That's the one for data that went missing.
   --backupWins puts every row of the backup back as it was then, by stamping each with the restore's
-  time so it counts as the newest edit; rows made after the backup stay. The phones fetch the restored
+  time so it counts as the newest edit. Rows made after the backup stay. The phones fetch the restored
   rows at their next sync.
 It refuses a backup made by a newer data structure than this code knows (update the repo first). An older
 one restores: the columns it doesn't have keep their defaults.
@@ -25,7 +25,7 @@ rowsPerInsert = 200  # rows in one INSERT, so a big table makes a handful of sta
 
 
 def literal(text: str, cloudType: str) -> str:
-    """A CSV cell as an SQL value of the column's type; an empty cell is NULL."""
+    """A CSV cell as an SQL value of the column's type. An empty cell is NULL."""
     if text == "":
         return "null"
     return "'" + text.replace("'", "''") + "'::" + cloudType

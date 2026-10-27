@@ -13,8 +13,8 @@
     … Lunch, Dinner, Snacks …
     ┌ Water  1,250 ml of 3,000 ml        [+250 ml] ┐
 
-A meal's + adds food to it; tapping an entry unfolds it to change the amount or the meal, or delete it. The
-same parts make History's day editor (AM5.5); a day the phone can't edit any more shows without + and taps.
+A meal's + adds food to it. Tapping an entry unfolds it to change the amount or the meal, or delete it. The
+same parts make History's day editor (AM5.5). A day the phone can't edit any more shows without + and taps.
 """
 
 import flet as ft
@@ -109,7 +109,7 @@ def MealCard(app, day: DayView, meal: str):
 
 @ft.component
 def LogRow(app, entry: LoggedFood, editable: bool):
-    """One thing eaten; a tap unfolds it: the amount, the meal, Save and Delete."""
+    """One thing eaten. A tap unfolds it: the amount, the meal, Save and Delete."""
     editing, setEditing = ft.use_state(False)
     amount, setAmount = ft.use_state("")
     meal, setMeal = ft.use_state(entry.meal)
@@ -151,7 +151,7 @@ def LogRow(app, entry: LoggedFood, editable: bool):
 
 @ft.component
 def WaterCard(app, day: DayView):
-    """The day's water (AM2.6): +250 ml a tap; the pencil sets the total, to fix a mistake."""
+    """The day's water (AM2.6): +250 ml a tap. The pencil sets the total, to fix a mistake."""
     setting, setSetting = ft.use_state(False)
     typed, setTyped = ft.use_state("")
     of = f" of {day.waterTargetMl:,} ml" if day.waterTargetMl else ""

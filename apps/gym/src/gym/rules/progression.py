@@ -1,17 +1,17 @@
 """Progression (plan 7) and deloads (WD2.4): each exercise's target on each day, worked out from the facts.
 
-Pure logic: no screen, database, network or clock; "today" is passed in. Nothing is stored (F10.1):
+Pure logic: no screen, database, network or clock. "today" is passed in. Nothing is stored (F10.1):
 the whole history is replayed day by day, so the phone and the PC view always agree.
 
 Double progression, per track (WD2.3: an exercise's target, weight and drop-backs are its own on each
-day; sessions.py says which day a logged exercise belongs to):
-- One rep target for all sets; a new track starts at repsMin (12.1).
+day. sessions.py says which day a logged exercise belongs to):
+- One rep target for all sets. A new track starts at repsMin (12.1).
 - Every set reaches repsMax → the weight step (per side for a plates-per-side lift) and back to repsMin:
   Today marks it ↑new. Undo on it (UN1.1) means not today: that session's target is the last weight at
   repsMax, judged there as usual, so topping the range again suggests the step again.
   Otherwise every set hits the target → next target = the lowest set + 1 (R6a).
 - Miss = 2 or more sets under repsMin (a 1-set exercise: that set) (8.14a). Two misses in a row → back
-  to the last lower weight that worked, with the reps last achieved there (R7b); after such a drop, two
+  to the last lower weight that worked, with the reps last achieved there (R7b). After such a drop, two
   sessions in a row at the top of the range before going heavier again (R7c-1). No lower weight → the
   target stays (8.10).
 - A session at another weight than the target starts afresh at that weight: judged against repsMin.
@@ -30,7 +30,7 @@ Deloads (WD2.4, WD3.2–WD3.5):
   do isn't going anywhere.
 - By week 8 at the latest: weeks count from the end of the last deload (the first time, from the week
   of your first workout that counts, WD4.1), and week 8 is a deload.
-- A deload started by hand begins on its stored day and lasts 7 days; it replaces one that's only
+- A deload started by hand begins on its stored day and lasts 7 days. It replaces one that's only
   scheduled.
 - In a deload: the same weight, half the sets rounded up, the rep target 3 lower (at least 1). Deload
   sessions don't count for progression or for going backwards: afterwards everything picks up where it
@@ -57,7 +57,7 @@ deloadRepsShort = 3  # a deload's rep target is this much lower (WD3.5)
 
 @dataclass(frozen=True, slots=True)
 class Target:
-    """What a track asks for next: the weight (None for bodyweight) and the rep target; steppedUpFrom is the
+    """What a track asks for next: the weight (None for bodyweight) and the rep target. steppedUpFrom is the
     last weight when this one is a step up from it (↑new, UN1.1)."""
 
     weightKg: float | None
@@ -143,7 +143,7 @@ class Training:
 
 def startingTarget(exercise: PlanExercise, latestKg: float | None) -> Target:
     """A track with no history (WD3.9): the exercise's latest weight on any day (or the latest set in the
-    app, PF6), else the plan's; repsMin."""
+    app, PF6), else the plan's. repsMin."""
     if exercise.equipment == "bodyweight" or exercise.isCardio:
         return Target(None, exercise.repsMin or 0)
     return Target(latestKg if latestKg is not None else exercise.weightKg, exercise.repsMin or 0)
@@ -160,7 +160,7 @@ def deloadReps(reps: int) -> int:
 
 
 def workingWeight(sets: Sequence[SetDone]) -> float | None:
-    """The weight most sets used (the heavier on a tie); None if no set has a weight."""
+    """The weight most sets used (the heavier on a tie). None if no set has a weight."""
     weights = Counter(done.weightKg for done in sets if done.weightKg is not None)
     if not weights:
         return None
@@ -171,7 +171,7 @@ def training(plans: Sequence[ImportedPlan], workouts: Sequence[LoggedWorkout],
              logs: Mapping[dt.date, Mapping[str, LoggedExercise]], edits: Sequence[WeightEdit],
              stepEdits: Sequence[StepEdit], manualDeloads: Sequence[dt.date], today: dt.date) -> Training:
     """Replays the history up to and including today, and what's known about tomorrow. Weights and steps
-    set in the app are given oldest first; on the same day the later one wins."""
+    set in the app are given oldest first. On the same day the later one wins."""
     sessions = _sessionsByDate(plans, workouts, logs)
     editsByDate: dict[dt.date, list[WeightEdit]] = {}
     for edit in edits:
@@ -306,7 +306,7 @@ class _Replay:
     # --- Days and deloads --------------------------------------------------------------------
 
     def startDay(self, date: dt.date, manualStart: bool) -> None:
-        """A deload ending yesterday ends; one may start today."""
+        """A deload ending yesterday ends. One may start today."""
         if self.active is not None and date > self.active.end:
             self.active = None
             self.weekOne = _monday(date)  # weeks count from the end of the last deload

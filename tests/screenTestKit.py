@@ -2,7 +2,7 @@
 
 Each component's body is rendered the way Flet itself does it (Component.before_update), with a
 stand-in page session, so tests can read the texts and press the buttons of the real screens. This
-leans on Flet 1.0.3's internals (the version is pinned); a Flet upgrade re-checks this kit first.
+leans on Flet 1.0.3's internals (the version is pinned). A Flet upgrade re-checks this kit first.
 Not a test file itself: pytest only collects test*.py.
 """
 
@@ -17,7 +17,7 @@ from flet.controls.context import _context_page
 
 
 class _Session:
-    """What components ask of a page session; redraws and effects are left to the test."""
+    """What components ask of a page session. Redraws and effects are left to the test."""
 
     def schedule_update(self, component) -> None:
         pass
@@ -42,7 +42,7 @@ class Event:
 
 
 def draw(componentFn, *args) -> BaseControl:
-    """Renders a component and everything under it; returns the root. Fails if what's drawn would make
+    """Renders a component and everything under it. Returns the root. Fails if what's drawn would make
     Flutter refuse the layout or the PC view's font can't write it (see layoutProblems, undrawable)."""
     token = _context_page.set(_Page())
     try:
@@ -67,7 +67,7 @@ def redraw(control: BaseControl) -> None:
 
 
 # --- What Flutter refuses, and what the PC view's font can't write ---------------------------------
-# Flutter draws a grey box instead of a screen when a layout breaks its rules; the screens here never show a
+# Flutter draws a grey box instead of a screen when a layout breaks its rules. The screens here never show a
 # phone or a browser, so these rules are checked on the drawn controls instead.
 
 def _drawn(control: BaseControl) -> list[BaseControl]:
@@ -78,8 +78,8 @@ def _drawn(control: BaseControl) -> list[BaseControl]:
 
 
 def layoutProblems(root: BaseControl) -> list[str]:
-    """Layouts Flutter refuses: anything flexible (expand set, even to False) in a wrapping row or column;
-    expand in a column that scrolls or sits in one without a height (it would grow forever); a row stretching
+    """Layouts Flutter refuses: anything flexible (expand set, even to False) in a wrapping row or column.
+    Expand in a column that scrolls or sits in one without a height (it would grow forever). A row stretching
     its children's height there too."""
     problems: list[str] = []
 
@@ -111,7 +111,7 @@ def layoutProblems(root: BaseControl) -> list[str]:
     return problems
 
 
-# The built-in font (Roboto, in the PC view with no fallback fonts) writes Latin text and these; anything
+# The built-in font (Roboto, in the PC view with no fallback fonts) writes Latin text and these. Anything
 # else (✓ ▾ ↑ ✎ …) is an empty box there.
 drawableExtras = set("–—‘’“”…•−›‹€")
 
@@ -189,7 +189,7 @@ def visibleTexts(root: BaseControl) -> list[str]:
 
 
 def find(root: BaseControl, text: str, kind: str | None = None) -> BaseControl:
-    """The one control showing `text` (optionally of a kind, like "Button"); fails if not exactly one."""
+    """The one control showing `text` (optionally of a kind, like "Button"). Fails if not exactly one."""
     matches = [control for control in walk(root) if label(control) == text and
                (kind is None or type(control).__name__ == kind)]
     assert len(matches) == 1, f"{len(matches)} controls show {text!r}"

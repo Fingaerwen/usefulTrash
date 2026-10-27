@@ -1,4 +1,4 @@
-"""Google Drive calls (F14.1; proven in Phase 0 check 7): plain HTTPS to Drive's REST API (v3) with a
+"""Google Drive calls (F14.1, proven in Phase 0 check 7): plain HTTPS to Drive's REST API (v3) with a
 short-lived access token, limited to files this app created (drive.file).
 
 Rules (as supabaseApi):
@@ -6,7 +6,7 @@ Rules (as supabaseApi):
 - The token only travels in the Authorization header (never in a URL), and is never logged, printed or
   put in an error message.
 - Every request has a timeout.
-The phone gets its tokens from Google Play services (nativeGoogleSignIn.getDriveAccess); the PC view from
+The phone gets its tokens from Google Play services (nativeGoogleSignIn.getDriveAccess). The PC view from
 Google's sign-in page in a second window (BK1.1).
 """
 
@@ -33,7 +33,7 @@ class DriveError(Exception):
 
     def __init__(self, statusCode: int, reason: str, message: str):
         super().__init__(f"{statusCode} {reason}: {message}")
-        self.statusCode = statusCode  # HTTP status; 0 = no answer
+        self.statusCode = statusCode  # HTTP status. 0 = no answer
         self.reason = reason  # e.g. "authError" (token refused), "accessNotConfigured"
         self.message = message
 
@@ -94,7 +94,7 @@ async def browserTransport(method: str, url: str, headers: dict[str, str], body:
 
 
 class DriveApi:
-    """Drive calls; the access token is passed in every time (it lasts about an hour)."""
+    """Drive calls. The access token is passed in every time (it lasts about an hour)."""
 
     def __init__(self, transport: Transport | None = None):
         self.transport = transport or urllibTransport
@@ -120,7 +120,7 @@ class DriveApi:
         return rawAnswer
 
     async def listFiles(self, query: str, accessToken: str) -> list[dict]:
-        """Files matching a Drive search query, newest first; only this app's files are visible."""
+        """Files matching a Drive search query, newest first. Only this app's files are visible."""
         params = urllib.parse.urlencode({"q": query, "fields": "files(id,name,mimeType,size,createdTime)",
                                          "orderBy": "createdTime desc", "pageSize": "100", "spaces": "drive"},
                                         quote_via=urllib.parse.quote)
@@ -139,7 +139,7 @@ class DriveApi:
         return made["id"]
 
     async def uploadFile(self, name: str, content: bytes, mimeType: str, parentId: str, accessToken: str) -> dict:
-        """Uploads a file of up to 5 MB in one request; returns its id, name and size."""
+        """Uploads a file of up to 5 MB in one request. Returns its id, name and size."""
         if len(content) > maxOneRequestUploadBytes:
             raise DriveError(0, "tooBig", "a backup over 5 MB needs Drive's resumable upload")
         body, contentType = multipartBody({"name": name, "parents": [parentId]}, content, mimeType)

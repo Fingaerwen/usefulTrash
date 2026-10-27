@@ -1,5 +1,5 @@
 """The Targets tab and importing a targets file (apps/diet/docs/plan.md 4a, 4f): the file in effect, today's
-targets for training and rest days, water, the bulk check's start and the changes applied; and before an
+targets for training and rest days, water, the bulk check's start and the changes applied. And before an
 import, the new file next to the current targets, or its problems in plain words."""
 
 import flet as ft
@@ -44,7 +44,7 @@ def TargetsTab(app, model):
     if view is None or view.name is None:
         return screen([header("Targets", trailing=[Menu(app)]), Notice(app, model),
                        card(quiet("No targets yet. Your Claude project writes a targets file "
-                                  "(apps/diet/plans/targetsFormat.md); import it here.", size=14)), button])
+                                  "(apps/diet/plans/targetsFormat.md). Import it here.", size=14)), button])
     changes = [listRow(_row(f"From {shortDay(change.fromDate)}",
                             f"{change.kcalChange:+,} kcal, {change.macroChangeG:+} g {change.macro}".replace("-", "−")))
                for change in view.changes] or [listRow(_row("Changes applied", "none yet"))]

@@ -31,7 +31,7 @@ config = {"supabaseUrl": "https://example.supabase.co", "supabasePublishableKey"
 
 
 class FakeGoogle:
-    """Google's account picker: hands out an ID token carrying the hashed nonce, like the real one; and Google
+    """Google's account picker: hands out an ID token carrying the hashed nonce, like the real one. And Google
     Play services' Drive permission (F14.1), with a token that expires when the test says so."""
 
     def __init__(self, account: str = userA):
@@ -226,7 +226,7 @@ def testCancellingGooglesPickerChangesNothing(phone):
 def testFirstDownloadWithoutInternetOffersTryAgain(phone, cloud):
     """Signed in, then the connection drops before the download: Today waits, with Try again."""
     planInCloud(cloud)
-    cloud.callsUntilOffline = 0  # sign-in itself goes through; the download's first request doesn't
+    cloud.callsUntilOffline = 0  # sign-in itself goes through. The download's first request doesn't
     press(find(phone.screen(), "Sign in with Google", "Button"))
     assert phone.app.model.screen == "downloading"
     assert "No internet: the first download needs it. Tap Try again when you're online." in phone.texts()
@@ -282,7 +282,7 @@ def testTappingCheckAgainTakesItBack(phone, cloud):
 
 def testTappingAnExercisesNameShowsItsHowTo(phone, cloud):
     """SC7.1: tapping the name unfolds the plan's how-to under the exercise, and tapping it again folds
-    it away. The example plan's Bench Press has one; Dips has none."""
+    it away. The example plan's Bench Press has one. Dips has none."""
     from screenTestKit import redraw
 
     from gym.screens.today import ExerciseRow
@@ -330,7 +330,7 @@ def testALongEntryWrapsUnderTheName(phone, cloud):
 
 
 def testUndoOnANewWeightFromTheScreen(phone, cloud):
-    """UN1.1: a step up is marked "new"; a tap on it (or Not today in ⋯) shows the last weight at the top,
+    """UN1.1: a step up is marked "new". A tap on it (or Not today in ⋯) shows the last weight at the top,
     marked "not today", and Take the step up goes back."""
     from gym.rules.today import SetDone
     from gym.screens.today import ExerciseRow
@@ -351,8 +351,8 @@ def testUndoOnANewWeightFromTheScreen(phone, cloud):
 
 
 def testTheRestTimer(phone, cloud):
-    """RT1.1: ticking one of today's exercises starts its rest, with the phone's alert for when it's over; +30 s
-    and × change it; the rest time on an exercise starts it between sets; the last exercise, taking one back,
+    """RT1.1: ticking one of today's exercises starts its rest, with the phone's alert for when it's over. +30 s
+    and × change it. The rest time on an exercise starts it between sets. The last exercise, taking one back,
     or a past day start none."""
     from screenTestKit import redraw
     from gym.screens.today import ExerciseRow, RestTimer
@@ -400,7 +400,7 @@ def testStepsEditing(phone, cloud):
 
 
 def testRestDayAndTheFlexDay(phone, cloud):
-    """WD1.1: today's weekday decides; a rest day is rest, and Saturday makes up what was missed."""
+    """WD1.1: today's weekday decides. A rest day is rest, and Saturday makes up what was missed."""
     planInCloud(cloud)
     signedIn(phone)
     app = phone.app
@@ -415,7 +415,7 @@ def testRestDayAndTheFlexDay(phone, cloud):
 
 
 def testADayWithOver30PercentSkippedIsMissed(phone, cloud):
-    """WD4.1: a workout counts with at most 30% of its exercises skipped or not done; otherwise its day is
+    """WD4.1: a workout counts with at most 30% of its exercises skipped or not done. Otherwise its day is
     missed, so the flex day makes it up. Monday's Push has 4 exercises: 1 left out counts, 2 don't."""
     planInCloud(cloud)
     signedIn(phone)
@@ -778,8 +778,8 @@ def testTheChartsTab(phone, cloud):
 
 
 def testBannersForTheSummaryAndTheWeighIn(phone, cloud):
-    """18.4a, BN1.1: next Monday last week's summary until it's seen (and it stays seen after a restart);
-    on Friday the weigh-in until today's weight is in. Tapping one opens its tab."""
+    """18.4a, BN1.1: next Monday last week's summary until it's seen (and it stays seen after a restart).
+    On Friday the weigh-in until today's weight is in. Tapping one opens its tab."""
     from gym.rules.stats import summaryBanner, weighInBanner
     planInCloud(cloud)
     signedIn(phone)
@@ -803,8 +803,8 @@ def testBannersForTheSummaryAndTheWeighIn(phone, cloud):
 
 
 def testHistoryOnThePhoneEditsTheLastSevenDays(phone, cloud):
-    """HI1.1, HI1.2: ⋮ → History lists every day, a month at a time; the last 7 open with Edit, laid out like
-    Today, and what's logged there goes on that day, its steps and weigh-in too; Delete this workout takes the
+    """HI1.1, HI1.2: ⋮ → History lists every day, a month at a time. The last 7 open with Edit, laid out like
+    Today, and what's logged there goes on that day, its steps and weigh-in too. Delete this workout takes the
     workout away. Older days open read-only. Days before the first plan are left out."""
     from screenTestKit import redraw
     planInCloud(cloud)
@@ -843,7 +843,7 @@ def testHistoryOnThePhoneEditsTheLastSevenDays(phone, cloud):
 
 
 def testTheDiaryOnThePhone(phone, cloud):
-    """DI1.1: History → Months: each exercise's month and the body weight; a tap unfolds its monthly chart."""
+    """DI1.1: History → Months: each exercise's month and the body weight. A tap unfolds its monthly chart."""
     from gym.rules.today import SetDone
     planInCloud(cloud)
     signedIn(phone)
@@ -868,7 +868,7 @@ def backedUp(phone) -> list[dict]:
 
 def testTheAutomaticBackupAfterTheFirstSync(phone, cloud):
     """F14.1: after a start's first sync, when the last backup is 30+ days old: every table zipped to the
-    app's Drive folder, a backups row, and the last 3 kept; within 30 days nothing happens."""
+    app's Drive folder, a backups row, and the last 3 kept. Within 30 days nothing happens."""
     import io
     import zipfile
     planInCloud(cloud)
@@ -954,7 +954,7 @@ def testStartingAndStoppingADeloadByHand(phone, cloud):
 
 
 def testStartUpDoesntWaitForTheNotificationQuestion(phone, cloud):
-    """Android's "allow notifications?" waits for your answer; Today shows meanwhile, and the start time
+    """Android's "allow notifications?" waits for your answer. Today shows meanwhile, and the start time
     isn't counting your answer."""
     planInCloud(cloud)
     answered = asyncio.Event()
@@ -978,7 +978,7 @@ def testStartUpDoesntWaitForTheNotificationQuestion(phone, cloud):
 
 
 def testTheRemindersAreSetCreatineDailyAndTheWeighInOnFridays(phone, cloud):
-    """WD3.8, G9.1, NT1.2: set after sign-in (and again at every start); a no to notifications is only logged."""
+    """WD3.8, G9.1, NT1.2: set after sign-in (and again at every start). A no to notifications is only logged."""
     planInCloud(cloud)
     signedIn(phone)
     phone.run(phone.app.remindersTask)  # it runs beside start-up, which doesn't wait for it

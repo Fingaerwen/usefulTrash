@@ -9,7 +9,7 @@ import flet as ft
 __all__ = ["NativeGoogleSignIn"]
 
 # Longest wait for Google's account picker. Generous, because adding an account on the phone takes a while.
-# Every Android path replies (plan F9); this only guards against a reply that never arrives.
+# Every Android path replies (plan F9). This only guards against a reply that never arrives.
 signInTimeoutSec = 300
 
 # Longest wait for a Drive token when no screen is shown (Google Play services answers in seconds).
@@ -26,7 +26,7 @@ class NativeGoogleSignIn(ft.Service):
         or {"status": "error", "errorType": ..., "message": ...}.
 
         serverClientId: the *Web* client ID from Google Cloud (Google issues the token for it).
-        hashedNonce: SHA-256 hex of a one-time random value. Google puts it inside the token;
+        hashedNonce: SHA-256 hex of a one-time random value. Google puts it inside the token.
         Supabase gets the raw value and checks they match, so a stolen token can't be replayed."""
         return await self._invoke_method(
             method_name="getIdToken",
@@ -44,8 +44,8 @@ class NativeGoogleSignIn(ft.Service):
         Returns {"status": "ok", "accessToken": ..., "grantedScopes": [...]}, {"status": "needsConsent"}
         (only when interactive is False), {"status": "cancelled"} or {"status": "error", "errorType": ..., "message": ...}.
 
-        interactive: True shows Google's consent screen if needed; False never shows anything.
-        accountEmail: the Google account to use (the signed-in one); empty lets Google ask.
+        interactive: True shows Google's consent screen if needed. False never shows anything.
+        accountEmail: the Google account to use (the signed-in one). Empty lets Google ask.
         The token lasts about an hour. Don't save it: calling this again returns a fresh one."""
         return await self._invoke_method(
             method_name="getDriveAccess",

@@ -1,4 +1,4 @@
-"""Tests for the release script's own rules (tools/buildRelease.py); the full run needs the signing key."""
+"""Tests for the release script's own rules (tools/buildRelease.py). The full run needs the signing key."""
 
 import buildRelease
 import makeSigningKey

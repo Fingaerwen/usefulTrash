@@ -72,7 +72,7 @@ def testAFailedStepChangesNothing(store, path):
 
 
 def testTheCopyIsPutBackEvenIfAStepCommittedHalfway(path):
-    """A badly written step that commits partway can't be undone by a rollback; the copy restores it."""
+    """A badly written step that commits partway can't be undone by a rollback. The copy restores it."""
     runPhoneSteps(path, phoneSteps)
     badStep = phoneSteps + (('alter table "bodyWeight" add column "note" text', "commit", "this is not SQL"),)
     with pytest.raises(PhoneDatabaseError):
@@ -112,7 +112,7 @@ def testSaveKeepsTheRowAndQueuesIt(store):
 
 
 def testSaveStampsTheEditTime(store, clock):
-    """The device's clock says when the edit was made; whatever the row said is replaced (F11.1)."""
+    """The device's clock says when the edit was made. Whatever the row said is replaced (F11.1)."""
     clock.advance(hours=2)
     saved = store.save("dailySteps", exampleRow("dailySteps", updatedAt=startOfTests - dt.timedelta(days=9)))
     assert saved["updatedAt"] == clock.now
@@ -259,7 +259,7 @@ def testADifferentAccountSigningInClearsEverything(store):
 
 
 def testSeveralEditsAreSavedTogetherOrNotAtAll(store):
-    """A workout day and its first exercise go in together; a bad row keeps the good one out too."""
+    """A workout day and its first exercise go in together. A bad row keeps the good one out too."""
     session = exampleRow("sessions")
     with pytest.raises(ValueError):
         store.saveMany([("sessions", session), ("exerciseLogs", exampleRow("exerciseLogs", targetReps=True))])

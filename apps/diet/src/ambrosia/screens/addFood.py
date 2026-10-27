@@ -62,7 +62,7 @@ def AddScreen(app, model):
         if app.mode == "pc":
             parts.append(BarcodePart(app))
     parts.append(ft.Row([faint("Not there?"), ft.TextButton("Type it from the label", on_click=lambda e: app.typeLabel(
-        "Type it from the pack's label, per 100 g (or 100 ml); it's saved as one of your foods."))], spacing=0))
+        "Type it from the pack's label, per 100 g (or 100 ml). It's saved as one of your foods."))], spacing=0))
     parts.append(faint(f"{genericCredit} {packagedCredit}", size=11))  # what their licences ask for
     return screen(parts)
 
@@ -78,7 +78,7 @@ def resultsCard(app, found: tuple[Found, ...]) -> ft.Container:
 
 @ft.component
 def RecentCard(app, recent: tuple[Found, ...]):
-    """Recent foods: "again" has the same amount as last time in one tap; the row opens How much."""
+    """Recent foods: "again" has the same amount as last time in one tap. The row opens How much."""
     def again(item: Found):
         async def tap(e):
             await app.again(item)

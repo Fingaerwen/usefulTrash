@@ -190,7 +190,7 @@ def testAFailedWriteChangesNothingOnScreen(browser, cloud):
     cloud.offline = True
     press(find(browser.screen(), "Bench Press: done as targeted", "IconButton"))
     assert browser.app.model.today.exercises[0].status == "todo"
-    assert ("No connection to the cloud right now. Nothing was changed; try again in a moment."
+    assert ("No connection to the cloud right now. Nothing was changed. Try again in a moment."
             in browser.texts())
 
 
@@ -251,7 +251,7 @@ def testTheWebsitesCodeNeverNeedsSQLite():
 
 
 def testThePcViewsHistoryTabEditsAnyDay(browser, cloud):
-    """HI1.1, SC6.1: a month at a time, any day; Edit lays the day out like Today."""
+    """HI1.1, SC6.1: a month at a time, any day. Edit lays the day out like Today."""
     planInCloud(cloud)
     signedIn(browser)
     app = browser.app

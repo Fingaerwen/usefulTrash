@@ -2,7 +2,7 @@
 
 A local SQLite file in the app's private data folder. Each note gets its final ID here, when it's written,
 so sending it again after a lost answer can never create a duplicate in Supabase. Not encrypted: gym data
-isn't sensitive (plan T1.1); the sign-in session is stored separately, encrypted."""
+isn't sensitive (plan T1.1). The sign-in session is stored separately, encrypted."""
 
 import os
 import sqlite3

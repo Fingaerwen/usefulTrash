@@ -9,7 +9,7 @@
     ┌ VOLUME       ┐ ┌ WEIGHT       ┐
     └ 18,400 kg    ┘ └ 81.2 kg      ┘   +6% vs last week · −0.4 kg
     PRS: Bench 85 kg · Squat 120 kg
-    ┌ (✓) ( ) ( ) (×) (✓) ( ) ( )   ┐   trained, rest, missed; today ringed
+    ┌ (✓) ( ) ( ) (×) (✓) ( ) ( )   ┐   trained, rest, missed. Today ringed
     └  Mo  Tu  We  Th  Fr  Sa  Su   ┘
 
 A part that's zero is left out. Tapping a day in the calendar enters or fixes that day's steps: on the
@@ -89,7 +89,7 @@ def WeekTab(app, model):
 
 def DayMark(status: str, isToday: bool) -> ft.Container:
     """A day in the calendar: a filled circle with a tick when trained, a cross when missed, a dot on a rest
-    day, a ring when it's still to come; today has a stronger ring."""
+    day, a ring when it's still to come. Today has a stronger ring."""
     ring = ft.Border.all(2, ft.Colors.PRIMARY if isToday else ft.Colors.OUTLINE_VARIANT)
     size = 34
     if status == "trained":
@@ -108,7 +108,7 @@ def DayMark(status: str, isToday: bool) -> ft.Container:
 
 @ft.component
 def DaySteps(app, date: dt.date, steps, close):
-    """Enter or fix one day's step total (CA1.1); empty clears it."""
+    """Enter or fix one day's step total (CA1.1). Empty clears it."""
     typed, setTyped = ft.use_state("" if steps is None else str(steps))
     problem, setProblem = ft.use_state("")
 

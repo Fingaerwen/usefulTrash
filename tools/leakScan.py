@@ -39,7 +39,7 @@ def envSecrets(envPath: Path) -> dict[str, bytes]:
 
 def scanBytes(where: str, content: bytes, secrets: dict[str, bytes], depth: int = 0) -> list[str]:
     """Findings in one file's bytes. A zip (an APK is one) is opened and each file in it scanned instead,
-    so a find names the innermost file; anything that isn't a readable zip is scanned as it is."""
+    so a find names the innermost file. Anything that isn't a readable zip is scanned as it is."""
     if depth < maxDepth and content[:4] == b"PK\x03\x04":
         try:
             with zipfile.ZipFile(io.BytesIO(content)) as archive:

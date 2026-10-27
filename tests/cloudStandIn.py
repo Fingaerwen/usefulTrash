@@ -37,7 +37,7 @@ class CloudStandIn:
         self.callsUntilOffline: int | None = None  # the connection drops after this many more calls
         self.acceptsWrongNonce = False  # acts out "Skip nonce checks" switched on in Supabase
         self.dropNextSignIn = False  # the next sign-in request is lost on the way (a moment without internet)
-        self.signUpsAllowedFor: set[str] = set()  # Google accounts that may sign in; others get signup_disabled
+        self.signUpsAllowedFor: set[str] = set()  # Google accounts that may sign in. Others get signup_disabled
         self.refreshTokens: dict[str, str] = {}  # live refresh token -> user id (rotation: each works once)
         self.sessionMinutes = 60
         self.calls: list[str] = []

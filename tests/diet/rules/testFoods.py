@@ -1,4 +1,4 @@
-"""Foods, amounts and what you ate (Ambrosia plan 4a, 4e; AM2.4, AM2.5)."""
+"""Foods, amounts and what you ate (Ambrosia plan 4a, 4e, AM2.4, AM2.5)."""
 
 import datetime as dt
 

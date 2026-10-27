@@ -1,7 +1,7 @@
 """Week numbers (plan 6 and 8): workouts in a week against the weekly target, for the Today header
 ("week 2/4") and the Week tab. Weeks run Monday to Sunday.
 
-Pure logic: no screen, database, network or clock; the date is passed in.
+Pure logic: no screen, database, network or clock. The date is passed in.
 """
 
 import datetime as dt

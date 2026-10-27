@@ -118,7 +118,7 @@ def testADaysTargetsAreTheImportInEffectPlusItsChanges():
     assert targetsOn([first], [], dt.date(2026, 10, 24), "training") is None  # before any import
     assert targetsOn([first], changes, dt.date(2026, 11, 21), "training") == DayTargets(3200, 160, 90, 440)
     assert targetsOn([first], changes, dt.date(2026, 11, 22), "rest") == DayTargets(3150, 160, 90, 428)
-    # A newer file replaces the targets, changes included; only its own changes count on it.
+    # A newer file replaces the targets, changes included. Only its own changes count on it.
     assert targetsOn([first, later], changes, dt.date(2026, 12, 6), "training") == DayTargets(3400, 160, 90, 440)
     assert targetsOn([first, later], changes, dt.date(2026, 12, 20), "training") == DayTargets(3250, 160, 90, 402)
 

@@ -1,4 +1,4 @@
-"""The PC view (plan 3b, PC mode; SC6.1): the website on GitHub Pages. It signs in with Google's website
+"""The PC view (plan 3b, PC mode, SC6.1): the website on GitHub Pages. It signs in with Google's website
 sign-in (6.1), loads everything from the cloud at sign-in, writes straight to the cloud (CS1.1) and
 fetches every minute so the phone's changes show up without reloading (14b).
 
@@ -61,7 +61,7 @@ class PcApp(AppBase):
                  localToday: Callable[[], dt.date] = dt.date.today, cloud: Any = None, drive: Any = None):
         super().__init__(config, services, log, clock, localToday)
         self.injectedCloud = cloud
-        self.drive = drive or DriveApi(browserTransport)  # Back up now (BK1.1); tests pass a stand-in
+        self.drive = drive or DriveApi(browserTransport)  # Back up now (BK1.1). Tests pass a stand-in
         self.cloud: Any = None
         self.store: CloudStore | None = None
         self.lastFetch = ("none", "")  # (status, problem) of the latest fetch, for Problems and banners
@@ -191,7 +191,7 @@ class PcApp(AppBase):
         return {table.name: self.store.rows(table.name) for table in appTables}
 
     async def saveRows(self, edits: Sequence[tuple[str, dict[str, Any]]]) -> list[dict[str, Any]]:
-        """Straight to the cloud; the screen changes only once the cloud has it."""
+        """Straight to the cloud. The screen changes only once the cloud has it."""
         saved = await self.store.saveMany(edits)
         self.refresh()
         return saved
@@ -239,7 +239,7 @@ class PcApp(AppBase):
         self.model.backupStatus = f"Exported {name} ({len(content):,} bytes)."
 
     def driveConsentUrl(self, state: str) -> str:
-        """Google's Drive permission page (files this app created only); it answers to site/driveToken.html."""
+        """Google's Drive permission page (files this app created only). It answers to site/driveToken.html."""
         account = str((self.session.session.get("user") or {}).get("email", "")) if self.session else ""
         query = {"client_id": self.config["googleWebClientId"], "redirect_uri": f"{pcViewAddress}driveToken.html",
                  "response_type": "token", "scope": "https://www.googleapis.com/auth/drive.file", "state": state,
@@ -249,7 +249,7 @@ class PcApp(AppBase):
         return "https://accounts.google.com/o/oauth2/v2/auth?" + urllib.parse.urlencode(query)
 
     async def backUpNow(self) -> None:
-        """Back up now (F14.1, BK1.1): Google's permission page opens in a second window; its answer, a Drive
+        """Back up now (F14.1, BK1.1): Google's permission page opens in a second window. Its answer, a Drive
         token that lasts about an hour, comes back through this site's local storage (driveToken.html), is
         removed from there at once and kept in memory only. Then the backup goes to your Drive as the
         phone's does, and its row is saved."""
@@ -276,7 +276,7 @@ class PcApp(AppBase):
             self.model.backupStatus = f"Backed up to your Google Drive: {row['fileName']}."
 
     async def _awaitDriveToken(self, state: str) -> str | None:
-        """Google's answer from driveToken.html, if it's for this request; None if it doesn't come."""
+        """Google's answer from driveToken.html, if it's for this request. None if it doesn't come."""
         for _ in range(handoverWaitSec):
             raw = await self.services.prefs.get(driveHandoverKey)
             if raw:

@@ -31,7 +31,7 @@ def ImportPlanScreen(app, model):
 
 @ft.component
 def SameExerciseQuestions(app, flow):
-    """One question per likely match; you answer each, nothing is assumed."""
+    """One question per likely match. You answer each, nothing is assumed."""
     answers, setAnswers = ft.use_state({})
 
     def answer(index: int, value: str):

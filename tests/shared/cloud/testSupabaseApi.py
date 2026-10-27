@@ -57,7 +57,7 @@ def testRequestsCarryTheKeyAndTheToken():
 
 
 def testUpsertKeepsTheNewestThroughTheCloud():
-    """One request for the batch; the cloud's trigger decides which edit wins (14b)."""
+    """One request for the batch. The cloud's trigger decides which edit wins (14b)."""
     cloud, transport = api((201, b""))
     rows = [{"id": "a", "weightKg": 81.2}, {"id": "b", "weightKg": 80.9}]
     asyncio.run(cloud.upsertRows("bodyWeight", rows, fakeToken))

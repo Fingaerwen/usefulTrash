@@ -3,7 +3,7 @@
     Backup     Last backup: 12 Sep (phone) · 32 days ago
                [ Back up now ]   [ Export CSV ]
 
-The phone backs up to your Google Drive by itself every 30 days; here Back up now does it on request
+The phone backs up to your Google Drive by itself every 30 days. Here Back up now does it on request
 (Google's permission page opens in a second window, BK1.1), and Export CSV saves a copy to this PC with a
 readable sets.csv (EX1.1). Over 60 days without a backup, a banner says so (3.4).
 """

@@ -135,7 +135,7 @@ def testProblemsPageEntriesNewestFirst(tmp_path):
 
 
 def testLogCheckCountsTokenShapedStrings(tmp_path):
-    """Phase 0's check: our log has none; Flet's own console.log is checked too."""
+    """Phase 0's check: our log has none. Flet's own console.log is checked too."""
     log = AppLog(str(tmp_path), knownSecrets=lambda: ["currentRefresh9"])
     log.problem("signIn", f"refused {fakeSecrets['jwt']}")
     consoleLog = tmp_path / "console.log"

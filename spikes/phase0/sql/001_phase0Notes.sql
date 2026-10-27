@@ -7,7 +7,7 @@ create table if not exists public."phase0Notes" (
     "userId"    uuid not null default auth.uid()                      -- owner = whoever is signed in
                 references auth.users (id) on delete cascade,
     "noteText"  text not null,                                        -- test payload
-    "updatedAt" timestamptz not null default now()                    -- edit time (sync rule G7a); spike only: real tables take this time from the device
+    "updatedAt" timestamptz not null default now()                    -- edit time (sync rule G7a). Spike only: real tables take this time from the device
 );
 
 -- Table permissions. This Supabase project does NOT hand new tables to its API roles automatically:

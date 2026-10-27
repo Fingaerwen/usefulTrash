@@ -4,10 +4,10 @@
     Monday · 2 of 5 this week
     ┌ 3 of 10 done                              30% ┐
     └ ━━━━━━━━━━━━──────────────────────────────    ┘
-    ┌ Lat pulldown                           ⋯  ( ) ┐   a card per exercise; the big circle ticks it
+    ┌ Lat pulldown                           ⋯  ( ) ┐   a card per exercise. The big circle ticks it
     │ 3×11 @ 25 kg/side  [new]                      │   "new": a step up, tap for not today (UN1.1)
     │ "RIR 1–2. Set the seat …"                     │
-    └ [2:30] [Sets]                                 ┘   2:30 starts the rest timer; Sets opens the sets
+    └ [2:30] [Sets]                                 ┘   2:30 starts the rest timer. Sets opens the sets
     ┌ Chest-supported T-bar row              ⋯  (✓) ┐   done: hollow, what was logged
     └ 3×11 @ 38.75 kg                               ┘
                   [ Finish workout ]
@@ -124,8 +124,8 @@ def WorkoutProgress(view):
 
 @ft.component
 def ExerciseRow(app, line: ExerciseLine, view=None):
-    """One exercise as a card (19.1, SC2.3): name, target, the big tick; under it the cue, the rest time (a tap
-    starts the timer) and Sets; ⋯ for the rest. Done or skipped, it turns hollow and shows what was logged.
+    """One exercise as a card (19.1, SC2.3): name, target, the big tick. Under it the cue, the rest time (a tap
+    starts the timer) and Sets. ⋯ for the rest. Done or skipped, it turns hollow and shows what was logged.
     Tapping the name unfolds its how-to (SC7.1). History's day editor passes its day's view (HI1.1): a past day
     has no weight, Undo or rest timer, which all work from today."""
     editing, setEditing = ft.use_state(False)
@@ -212,7 +212,7 @@ def ExerciseRow(app, line: ExerciseLine, view=None):
 
 
 def NewMark(line: ExerciseLine, undo) -> ft.Card:
-    """"new" beside a step up (UN1.1), a deep red chip with cut corners (LK1.4); a tap means not today, and again
+    """"new" beside a step up (UN1.1), a deep red chip with cut corners (LK1.4). A tap means not today, and again
     takes the step up after all."""
     words = "not today" if line.declined else "new"
     inner = ft.Container(ft.Row([ft.Icon(ft.Icons.UNDO if line.declined else ft.Icons.ARROW_UPWARD, size=13),
@@ -226,7 +226,7 @@ def NewMark(line: ExerciseLine, undo) -> ft.Card:
 @ft.component
 def RestTimer(app, model):
     """The rest timer (RT1.1), kept at the bottom of Today: the time left with a bar, +30 s and ×. At 0 it
-    says so; the phone's alert goes off then too, even with the screen off."""
+    says so. The phone's alert goes off then too, even with the screen off."""
     tick, setTick = ft.use_state(0)
     until = model.restUntil
 
@@ -302,7 +302,7 @@ def WeightEditor(app, exercise, weekday: int, weightKg, stepKg, close):
 def HowTo(exercise):
     """The plan's how-to under an exercise (SC7.1): Setup, the numbered steps, and the form cues."""
     def numbered(mark: str, text: str) -> ft.Row:
-        """One step or cue; a long one wraps under its own text, not under the mark."""
+        """One step or cue. A long one wraps under its own text, not under the mark."""
         return ft.Row([ft.Text(mark, width=20, color=ft.Colors.ON_SURFACE_VARIANT), ft.Text(text, expand=True)],
                       spacing=4, vertical_alignment=ft.CrossAxisAlignment.START)
 
@@ -323,7 +323,7 @@ def HowTo(exercise):
 
 @ft.component
 def SetsEditor(app, line: ExerciseLine, close, view=None):
-    """Sets: one row per set, pre-filled with what's logged or the target (19.1a-1); with no weight of yours
+    """Sets: one row per set, pre-filled with what's logged or the target (19.1a-1). With no weight of yours
     yet, the kg fields start empty, and one left empty takes the set above's (PF4). Cardio: minutes."""
     exercise = line.exercise
     weighted = not exercise.isCardio and exercise.equipment != "bodyweight"
@@ -444,12 +444,12 @@ def _whole(text: str, what: str) -> int:
 
 
 def _steps(text: str) -> int:
-    """A typed step total; "14,000", "14.000" and "14 000" all mean 14000."""
+    """A typed step total. "14,000", "14.000" and "14 000" all mean 14000."""
     return _whole(text.replace(",", "").replace(".", "").replace(" ", ""), "Steps")
 
 
 def _setWeights(typed: list[str]) -> list[float]:
-    """Each set's kg as typed; one left empty takes the set above's (PF4), so a weight is typed once."""
+    """Each set's kg as typed. One left empty takes the set above's (PF4), so a weight is typed once."""
     weights: list[float] = []
     for text in typed:
         weights.append(weights[-1] if weights and not text.strip() else _kilograms(text))
@@ -457,7 +457,7 @@ def _setWeights(typed: list[str]) -> list[float]:
 
 
 def _kilograms(text: str, what: str = "Weight") -> float:
-    """A typed weight or weight step; a comma works as the decimal point too ("82,5")."""
+    """A typed weight or weight step. A comma works as the decimal point too ("82,5")."""
     try:
         return float(text.strip().replace(",", "."))
     except ValueError:

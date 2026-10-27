@@ -6,7 +6,7 @@ description = "usefulTrash Phase 0 feasibility checks"
 requires-python = "==3.14.*"  # same Python as Flet's Android build (check 11)
 dependencies = [
     "flet==1.0.3",
-    "weighInNotify",  # our own notification extension (check 5); where to find it is set in [tool.flet.dev_packages]
+    "weighInNotify",  # our own notification extension (check 5). Where to find it is set in [tool.flet.dev_packages]
     "nativeGoogleSignIn",  # our own Google sign-in extension (check 2), same setup
     "secureStore",  # our own encrypted storage with a phone-locked key (check 4, plan T1.1), same setup
 ]

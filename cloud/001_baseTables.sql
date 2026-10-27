@@ -34,10 +34,10 @@ insert into public."cloudInfo" ("id", "schemaVersion", "minAppSchema") values (1
 -- ── The tables (plan 14) ─────────────────────────────────────────────────────────────────────
 -- Every synced table starts with the same five columns:
 --   id             the row's id, made on the device (for one-per-day rows, worked out from the date)
---   userId         whose row it is; row-level security below only lets you reach your own
---   updatedAt      when the edit was made, from the device's clock; the newest edit wins (F11.1)
+--   userId         whose row it is. Row-level security below only lets you reach your own
+--   updatedAt      when the edit was made, from the device's clock. The newest edit wins (F11.1)
 --   deleted        rows are never really removed: deleting is an edit like any other
---   cloudUpdatedAt stamped by the cloud when it stores a change; used only to fetch what's new (SY1.1)
+--   cloudUpdatedAt stamped by the cloud when it stores a change. Used only to fetch what's new (SY1.1)
 -- The database enforces no links between tables, because offline changes can arrive in any order.
 
 -- Plan imports: the plan as imported, when it takes effect and the starting step you chose.
@@ -140,7 +140,7 @@ begin
         if new."id" <> old."id" then
             raise exception 'idChange: a row''s id never changes.';
         end if;
-        -- Only a newer edit replaces the stored one; an older or equal one is quietly ignored.
+        -- Only a newer edit replaces the stored one. An older or equal one is quietly ignored.
         if new."updatedAt" <= old."updatedAt" then
             return null;
         end if;
@@ -149,7 +149,7 @@ begin
     return new;
 end
 $$;
--- Only the triggers below use it; nobody may call it directly.
+-- Only the triggers below use it. Nobody may call it directly.
 revoke all on function public."keepNewestEdit"() from public, anon, authenticated;
 
 -- The same protection for every synced table, applied in one loop so none can be forgotten.
@@ -181,7 +181,7 @@ begin
 end
 $$;
 
--- cloudInfo: signed-in apps can read it; only upgrade scripts change it.
+-- cloudInfo: signed-in apps can read it. Only upgrade scripts change it.
 revoke all on table public."cloudInfo" from anon, authenticated;
 grant select on table public."cloudInfo" to authenticated;
 alter table public."cloudInfo" enable row level security;

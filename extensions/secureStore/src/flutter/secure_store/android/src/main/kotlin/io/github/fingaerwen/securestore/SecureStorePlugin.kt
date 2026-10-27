@@ -34,7 +34,7 @@ import javax.crypto.spec.GCMParameterSpec
  * - Each item is bound to its name (AES-GCM associated data), so files can't be swapped between names,
  *   and GCM detects any change to a file.
  * - An item that can't be decrypted (key lost, file from elsewhere, damaged) is deleted and reported as
- *   "unreadable"; the app then simply signs in again.
+ *   "unreadable". The app then simply signs in again.
  * - Values are never logged. All work runs in order on one background thread, and every request gets
  *   exactly one reply on the main thread (Flet method calls have no default timeout).
  */
@@ -157,7 +157,7 @@ class SecureStorePlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
         return mapOf("status" to "ok", "keyExists" to true, "keyLocation" to keyLocation, "storedItems" to storedItems)
     }
 
-    /** The file for an item; refuses names that could point outside the store folder. */
+    /** The file for an item. Refuses names that could point outside the store folder. */
     private fun itemFile(name: String): File {
         require(validName.matches(name)) { "Invalid item name" }
         return File(storeDir, "$name.bin")

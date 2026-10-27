@@ -24,7 +24,7 @@ def testOnlyTheThreePublicValuesAreCopied():
 def testASecretLookingValueIsRefusedWithoutRepeatingIt():
     adminLookalike = "sb_" + "secret_" + "y" * 20
     config, problems = makePublicConfig.buildConfig(envText(SUPABASE_PUBLISHABLE_KEY=adminLookalike))
-    assert problems == ["SUPABASE_PUBLISHABLE_KEY looks like a SECRET. Remove it from .env; the app must never contain it."]
+    assert problems == ["SUPABASE_PUBLISHABLE_KEY looks like a SECRET. Remove it from .env. The app must never contain it."]
     assert "supabasePublishableKey" not in config
     assert adminLookalike not in "".join(problems)
 

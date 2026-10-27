@@ -5,7 +5,7 @@
 2. Writes the public config from .env (tools/makePublicConfig.py).
 3. Builds the signed APK and the PC view. The signing values come from the private signing folder
    (tools/makeSigningKey.py) and reach the build through its environment only: never typed, never on a
-   command line, never printed (F20; checked in Flet 1.0.3: its logs never show the environment).
+   command line, never printed (F20, checked in Flet 1.0.3: its logs never show the environment).
 4. Checks after: the package guard and the leak scan on both builds (secret formats, private .env values,
    the signing password), and the APK's signing certificate must match apps/gym/signingCertificate.txt.
 5. Tags the version. Then, once you confirm any cloud upgrade for this release is done (14c), publishes
@@ -41,7 +41,7 @@ tagPrefix = "gym-v"  # one repo, several apps later: tags say which app
 
 
 class ReleaseStopped(Exception):
-    """A check failed; the message says which, in plain words."""
+    """A check failed. The message says which, in plain words."""
 
 
 def run(command: list[str], **options) -> subprocess.CompletedProcess:
@@ -87,7 +87,7 @@ def readSigningValues() -> dict[str, str]:
 
 
 def javaEnvironment() -> dict[str, str]:
-    """apksigner needs Java; on this PC that's the JDK Flet installed for Android builds (~/java/<version>),
+    """apksigner needs Java. On this PC that's the JDK Flet installed for Android builds (~/java/<version>),
     which isn't on the PATH."""
     jdks = sorted((Path.home() / "java").glob("*/bin/java"))
     if not jdks:

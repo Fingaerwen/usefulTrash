@@ -1,7 +1,7 @@
 """What the Today screen shows (plan 6, SC2.1): the day's session and its weekday, the exercises with
 their targets and what's been logged, rest days, a deload week, the week's count and the day's steps.
 
-Pure logic: no screen, database, network or clock; "today" and every fact are passed in. Targets come
+Pure logic: no screen, database, network or clock. "today" and every fact are passed in. Targets come
 from progression (progression.py): each exercise's target on the day whose targets it uses (WD2.3,
 WD3.10), and in a deload week half the sets, 3 reps short (WD3.5).
 """
@@ -35,7 +35,7 @@ class ExerciseLine:
     targetMinutes: int | None
     status: str  # "todo", "done", "skipped", or "autoSkipped" (untouched in a finished workout, 19.1b-1)
     logged: LoggedExercise | None
-    trackDay: int | None = None  # the day whose targets it uses and updates (WD2.3); None if it has none
+    trackDay: int | None = None  # the day whose targets it uses and updates (WD2.3). None if it has none
     stepKg: float | None = None  # its weight step: set in the app, else the plan's (WD2.1)
     needsWeight: bool = False  # only the plan's 1 kg placeholder (PF3): "@ ? kg", no target weight, ✓ opens ▾ sets
     isNew: bool = False  # the target is a step up from the last weight: marked "new", with Undo (UN1.1)
@@ -125,7 +125,7 @@ def todayView(
 
 def _line(entry: SessionExercise, logged: LoggedExercise | None, finished: bool, training: Training | None,
           inDeload: bool) -> ExerciseLine:
-    """A planned exercise with its target from progression; in a deload, half the sets, 3 reps short."""
+    """A planned exercise with its target from progression. In a deload, half the sets, 3 reps short."""
     exercise = entry.exercise
     if logged is not None and (logged.done or logged.skipped):  # an Undo alone isn't an entry (UN1.1)
         status = "skipped" if logged.skipped else "done"

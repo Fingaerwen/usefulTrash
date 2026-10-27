@@ -19,7 +19,7 @@ def cleanBarcode(text: str) -> str:
 
 
 def checkDigitFits(digits: str) -> bool:
-    """GS1's check: from the right, the digits before the last are weighted 3, 1, 3, …; the last digit makes the
+    """GS1's check: from the right, the digits before the last are weighted 3, 1, 3, …. The last digit makes the
     sum a multiple of 10."""
     body, last = digits[:-1], int(digits[-1])
     weighted = sum(int(digit) * (3 if index % 2 == 0 else 1) for index, digit in enumerate(reversed(body)))
@@ -28,7 +28,7 @@ def checkDigitFits(digits: str) -> bool:
 
 def isShopCode(barcode: str) -> bool:
     """GS1's ranges for codes a shop gives its own items (often weighed at the counter): EAN-13 starting with 2,
-    or 02 or 04 (UPC-A's own ranges written as EAN-13); UPC-A starting with 2 or 4; EAN-8 starting with 0 or 2."""
+    or 02 or 04 (UPC-A's own ranges written as EAN-13). UPC-A starting with 2 or 4. EAN-8 starting with 0 or 2."""
     if len(barcode) == 13:
         return barcode[0] == "2" or barcode[:2] in ("02", "04")
     if len(barcode) == 12:

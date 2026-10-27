@@ -1,9 +1,9 @@
-"""Foods and what you ate (apps/diet/docs/plan.md 4a, 4d, 4e; AM2.1–AM2.5): values per 100 g (or 100 ml for a
+"""Foods and what you ate (apps/diet/docs/plan.md 4a, 4d, 4e, AM2.1–AM2.5): values per 100 g (or 100 ml for a
 drink), amounts in grams, servings or part of the pack, and the totals of a meal and a day.
 
-A food row is your copy of a food you've used; a food log row is one thing you ate, with a copy of the food's
+A food row is your copy of a food you've used. A food log row is one thing you ate, with a copy of the food's
 name and values at the time, so editing the food later never rewrites a past day (4e). Rows are plain dicts
-with the columns of 4e; nothing here reads a database or the clock.
+with the columns of 4e. Nothing here reads a database or the clock.
 """
 
 import datetime as dt
@@ -20,7 +20,7 @@ meals = ("breakfast", "lunch", "dinner", "snacks")  # AM2.5, in the day's order
 mealNames = {"breakfast": "Breakfast", "lunch": "Lunch", "dinner": "Dinner", "snacks": "Snacks"}
 portions = ("grams", "servings", "pack")  # AM2.4: grams, servings, or part of the pack
 sources = ("openFoodFacts", "usda", "label")
-maxGrams = 10_000.0  # one entry; more is a typing mistake
+maxGrams = 10_000.0  # one entry. More is a typing mistake
 
 
 class FoodProblem(ValueError):
@@ -55,7 +55,7 @@ def total(values: Iterable[Values]) -> Values:
 
 @dataclass(frozen=True, slots=True)
 class Food:
-    """A food with its values per 100 g (100 ml when unit is "ml"; 1 ml counts as 1 g, 4e)."""
+    """A food with its values per 100 g (100 ml when unit is "ml", 1 ml counts as 1 g, 4e)."""
 
     foodId: str
     source: str  # openFoodFacts, usda or label

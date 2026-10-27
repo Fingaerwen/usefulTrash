@@ -1,6 +1,6 @@
 """The whole app: one screen at a time, chosen by the model (sign-in, first download, the tabs,
 Problems, plan import). The phone's tabs are Today · Progress · Charts · Week · Weight (18.1, SC8.1) in a bar
-along the bottom; the PC view has the same and History, Plans and Backup (SC6.1) down the left, with the
+along the bottom. The PC view has the same and History, Plans and Backup (SC6.1) down the left, with the
 content kept to a phone-like width in the middle so lines stay easy to read (LK1.2)."""
 
 import flet as ft
@@ -54,7 +54,7 @@ def GymApp(app, model):
 
 @ft.component
 def Centred(body, wide: bool):
-    """A screen with its side margins; on the PC, kept to a readable width in the middle of the window."""
+    """A screen with its side margins. On the PC, kept to a readable width in the middle of the window."""
     width, setWidth = ft.use_state(0.0)
     side = max(pagePadding, (width - pcContentWidth) / 2) if wide and width else pagePadding
 

@@ -1,6 +1,6 @@
 """All your facts in memory, and what the screens show, worked out from them (plan 3b, F10.1).
 
-On start the app loads every row (phone: its own database; PC view: the cloud), and loads them again
+On start the app loads every row (phone: its own database, PC view: the cloud), and loads them again
 after each saved change or sync. Nothing worked out here is ever stored: the phone and the PC view
 work out the same answers from the same facts.
 """
@@ -222,7 +222,7 @@ def _shortDate(date: dt.date) -> str:
 
 
 def _readSets(sets: Any) -> tuple[SetDone, ...]:
-    """The sets of a log row ([{"reps": 9, "weightKg": 82.5}, ...]); anything malformed is left out."""
+    """The sets of a log row ([{"reps": 9, "weightKg": 82.5}, ...]). Anything malformed is left out."""
     done = []
     for entry in sets if isinstance(sets, list) else ():
         reps = entry.get("reps") if isinstance(entry, dict) else None

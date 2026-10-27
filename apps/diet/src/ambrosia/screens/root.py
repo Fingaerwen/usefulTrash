@@ -1,5 +1,5 @@
 """The whole app: one screen at a time, chosen by the model. The phone's tabs are Today · Week · Targets in a bar
-along the bottom (AM5.8); the PC view has Today · Week · History · Targets · Backup down the left, with the
+along the bottom (AM5.8). The PC view has Today · Week · History · Targets · Backup down the left, with the
 content kept to a readable width in the middle. Everything sits on Ambrosia's backdrop (AM7.1)."""
 
 import flet as ft
@@ -61,7 +61,7 @@ def AmbrosiaApp(app, model):
 
 @ft.component
 def Centred(body, wide: bool):
-    """A screen with its side margins and room at the top for the katana laid across it (AM9.4); on the PC, kept
+    """A screen with its side margins and room at the top for the katana laid across it (AM9.4). On the PC, kept
     to a readable width in the middle of the window."""
     width, setWidth = ft.use_state(0.0)
     side = max(pagePadding, (width - pcContentWidth) / 2) if wide and width else pagePadding

@@ -1,5 +1,5 @@
 """USDA's generic foods, bundled and searched offline (apps/diet/docs/plan.md 4d, AM5.3): rice, chicken breast,
-an apple, which Open Food Facts covers poorly. FoodData Central's data is public domain (CC0); USDA asks for
+an apple, which Open Food Facts covers poorly. FoodData Central's data is public domain (CC0). USDA asks for
 credit: "U.S. Department of Agriculture, Agricultural Research Service. FoodData Central."
 
 The file (data/genericFoods.tsv.gz, made by apps/diet/makeGenericFoods.py) is read on the first search, not
@@ -50,7 +50,7 @@ class GenericFoods:
         return next((food for _, _, _, food in self.foods if food.usdaId == usdaId), None)
 
     def search(self, words: str, limit: int = 10) -> list[Food]:
-        """Foods with a word starting with each word searched ("apple" finds apples, not pineapple; "eggs" finds
+        """Foods with a word starting with each word searched ("apple" finds apples, not pineapple, "eggs" finds
         "Egg, whole"), plainest first (see _rank)."""
         if not self.foods:
             self.load()
@@ -65,10 +65,10 @@ class GenericFoods:
 
 
 def _rank(wanted: list[str], source: str, nameWords: list[str], prepared: bool, food: Food) -> tuple:
-    """Sort key, smallest first: every searched word found whole ("salmon" before "salmonberries"); the fewest
+    """Sort key, smallest first: every searched word found whole ("salmon" before "salmonberries"). The fewest
     words not searched for in the name's leading parts that hold the searched ones ("Rice, white, raw" before
-    "Rice crackers"); not a prepared food (USDA's categories); the fewest processing words and brand names (USDA
-    writes brands in capitals); the fewest parts needed; Foundation before SR Legacy; the shortest name."""
+    "Rice crackers"). Not a prepared food (USDA's categories). The fewest processing words and brand names (USDA
+    writes brands in capitals). The fewest parts needed. Foundation before SR Legacy. The shortest name."""
     whole = all(any(_stem(word) == part for word in nameWords) for part in wanted)
     needed, extra, seen = 0, 0, set()
     for index, part in enumerate(_words(piece) for piece in food.name.split(",")):

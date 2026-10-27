@@ -110,7 +110,7 @@ def testNameLikeness():
 
 
 def testYesKeepsTheKnownId():
-    """plans.planJson stores the matched IDs (plan 14); the file as read is left alone."""
+    """plans.planJson stores the matched IDs (plan 14). The file as read is left alone."""
     data = planFile(barbell("flatBench", "Bench Press"), barbell("row", "Row"))
     renamed = renameExercises(data, {"flatBench": "benchPress"})
     assert [exercise["exerciseId"] for exercise in renamed["week"][0]["exercises"]] == ["benchPress", "row"]
@@ -119,7 +119,7 @@ def testYesKeepsTheKnownId():
 
 
 def testKnownExercisesTakeTheLatestImport():
-    """New plan weights win (8.12); exercises only in older plans stay known (Past exercises)."""
+    """New plan weights win (8.12). Exercises only in older plans stay known (Past exercises)."""
     older = checked(barbell("benchPress", "Bench Press", weightKg=60), barbell("row", "Row"))
     newer = checked(barbell("benchPress", "Bench Press", weightKg=70))
     first = dt.datetime(2026, 9, 1, tzinfo=dt.UTC)

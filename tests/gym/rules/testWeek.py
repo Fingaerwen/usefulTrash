@@ -47,7 +47,7 @@ def testNoPlanNoTarget():
 
 
 def testWorkoutsInTheWeek():
-    """Only that week's workouts count; a day counts once (one workout per day, DT1.1)."""
+    """Only that week's workouts count. A day counts once (one workout per day, DT1.1)."""
     workouts = [workout(-1), workout(0), workout(2), workout(2), workout(6), workout(7)]
     assert workoutsInWeek(workouts, day(3)) == 3
 

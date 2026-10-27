@@ -1,7 +1,7 @@
 """Plan import steps (plan 4 and 10): which of your earlier exercises a new plan's exercises are
 probably the same as (11.3), applying your answers, and when a new plan takes effect.
 
-Pure logic: no screen, database, network or clock; "today" is passed in. The exercise list isn't
+Pure logic: no screen, database, network or clock. "today" is passed in. The exercise list isn't
 stored anywhere: it's every exercise of every plan imported so far (plan 14).
 """
 

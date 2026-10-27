@@ -6,7 +6,7 @@ Rules for this module:
 - Redirects are refused, so keys and tokens can never be forwarded to another address.
 - Tokens only travel to Supabase and back to the caller: never printed, logged or put in error messages.
 - Every request has a timeout, so a dead connection can't hang the app.
-- On the phone requests go through urllib in a worker thread; in the browser (PC view, Python runs in
+- On the phone requests go through urllib in a worker thread. In the browser (PC view, Python runs in
   Pyodide: no sockets, no threads) through the browser's own fetch, with the same rules."""
 
 import asyncio
@@ -27,7 +27,7 @@ class SupabaseError(Exception):
 
     def __init__(self, statusCode: int, errorCode: str, message: str):
         super().__init__(f"{statusCode} {errorCode}: {message}")
-        self.statusCode = statusCode  # HTTP status; 0 = no answer (network problem)
+        self.statusCode = statusCode  # HTTP status. 0 = no answer (network problem)
         self.errorCode = errorCode
         self.message = message
 
@@ -48,7 +48,7 @@ def readSupabaseError(statusCode: int, rawBody: bytes) -> SupabaseError:
 
 def makeNoncePair() -> tuple[str, str]:
     """Returns (rawNonce, hashedNonce): a one-time random value and its SHA-256 hex hash.
-    Google gets the hash and puts it inside the ID token; Supabase gets the raw value, hashes it
+    Google gets the hash and puts it inside the ID token. Supabase gets the raw value, hashes it
     and checks they match. So a stolen ID token can't be replayed in another sign-in (plan F9)."""
     rawNonce = secrets.token_urlsafe(32)  # 256 random bits from the OS
     return rawNonce, hashlib.sha256(rawNonce.encode("ascii")).hexdigest()
@@ -66,8 +66,8 @@ _opener = urllib.request.build_opener(_RefuseRedirects)
 
 class SupabaseApi:
     """Talks to one Supabase project (Auth for sign-in, the Data API for table rows) with its URL and
-    publishable key (both public by design, plan K2a). Signed-in calls add the user's access token;
-    row-level security then limits every table call to that user's own rows."""
+    publishable key (both public by design, plan K2a). Signed-in calls add the user's access token.
+    Row-level security then limits every table call to that user's own rows."""
 
     def __init__(self, projectUrl: str, publishableKey: str):
         if not projectUrl.startswith("https://"):
@@ -111,7 +111,7 @@ class SupabaseApi:
 
     async def _fetch(self, method: str, path: str, body: dict | list | None = None, accessToken: str | None = None,
                      prefer: str | None = None):
-        """Browser version of _call. The browser checks HTTPS certificates itself; redirects are refused
+        """Browser version of _call. The browser checks HTTPS certificates itself. Redirects are refused
         ("error"), cookies are never sent and nothing is cached, matching the phone's rules."""
         from pyodide.http import pyfetch  # only exists in the browser build
 
@@ -178,7 +178,7 @@ class SupabaseApi:
             raise ValueError("Updates and deletes need at least one filter")
 
     async def selectRows(self, table: str, filters: dict[str, str], accessToken: str | None) -> list[dict]:
-        """Reads rows. Row-level security returns only the signed-in user's rows; no token = anonymous."""
+        """Reads rows. Row-level security returns only the signed-in user's rows. No token = anonymous."""
         return await self._send("GET", self.tablePath(table, filters), None, accessToken)
 
     async def insertRow(self, table: str, row: dict, accessToken: str | None) -> dict:

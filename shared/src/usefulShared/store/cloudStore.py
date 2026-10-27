@@ -17,7 +17,7 @@ from usefulShared.tables import Table, checkRow, editTime, toCloud
 
 
 class VersionMismatch(Exception):
-    """The cloud and this app don't fit together (UP1.1); the message says which one needs updating."""
+    """The cloud and this app don't fit together (UP1.1). The message says which one needs updating."""
 
 
 class CloudStore:
@@ -95,7 +95,7 @@ class CloudStore:
 def describeCloudError(problem: CloudError) -> str:
     """A failed write in plain words, for the PC view's notice."""
     if problem.isTemporary:
-        return "No connection to the cloud right now. Nothing was changed; try again in a moment."
+        return "No connection to the cloud right now. Nothing was changed. Try again in a moment."
     if problem.errorCode == "P0001" and problem.message.startswith("futureEdit"):
         return "The cloud refused this: your PC's clock seems to be ahead. Nothing was changed."
     return f"The cloud refused this ({problem.errorCode}). Nothing was changed."

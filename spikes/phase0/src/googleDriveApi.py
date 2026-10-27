@@ -30,14 +30,14 @@ class DriveError(Exception):
 
     def __init__(self, statusCode: int, reason: str, message: str):
         super().__init__(f"{statusCode} {reason}: {message}")
-        self.statusCode = statusCode  # HTTP status; 0 = no answer (network problem)
+        self.statusCode = statusCode  # HTTP status. 0 = no answer (network problem)
         self.reason = reason  # e.g. "authError" (token refused), "accessNotConfigured" (Drive API not enabled)
         self.message = message
 
 
 def readDriveError(statusCode: int, rawBody: bytes) -> DriveError:
     """Turns an error answer into a DriveError. Google APIs answer {"error": {"code", "message", "status",
-    "errors": [{"reason": ...}]}}; Google's sign-in servers use the OAuth style {"error": ..., "error_description": ...}."""
+    "errors": [{"reason": ...}]}}. Google's sign-in servers use the OAuth style {"error": ..., "error_description": ...}."""
     try:
         body = json.loads(rawBody or b"{}")
     except ValueError:

@@ -8,7 +8,7 @@ import flet as ft
 
 __all__ = ["SecureStore"]
 
-callTimeoutSec = 30  # every Android path replies; this only guards against a reply that never arrives
+callTimeoutSec = 30  # every Android path replies. This only guards against a reply that never arrives
 
 
 @ft.control("SecureStore")
@@ -25,7 +25,7 @@ class SecureStore(ft.Service):
 
     async def load(self, name: str) -> dict:
         """Returns {"status": "ok", "value": ...}, {"status": "missing"},
-        {"status": "unreadable", "message": ...} (can't be decrypted, e.g. the key was lost; the item is deleted)
+        {"status": "unreadable", "message": ...} (can't be decrypted, e.g. the key was lost, the item is deleted)
         or {"status": "error", ...}."""
         return await self._invoke_method(method_name="load", arguments={"name": name}, timeout=callTimeoutSec)
 

@@ -93,7 +93,7 @@ def testCheckLogsTheTargetAndStartsTheWorkout(app):
 
 
 def testCheckWontLogThePlansOneKiloPlaceholder(app):
-    """Today opens the sets instead (PF3); the action refuses too, so 1 kg never lands in your history."""
+    """Today opens the sets instead (PF3). The action refuses too, so 1 kg never lands in your history."""
     view = app.today()
     placeholder = dataclasses.replace(line(view, "benchPress"), targetWeightKg=None, needsWeight=True)
     with pytest.raises(ActionRefused, match="under Sets"):
@@ -165,7 +165,7 @@ def testFinishAutoSkipsWhatsLeft(app):
 
 def testUndoOnANewWeightIsNotTodayAndAloneIsNoWorkout(app):
     """UN1.1: bench topped at 82.5, so next Monday asks 85 kg, marked new. Undo: 4×12 @ 82.5 today, with no workout
-    made; redo takes it back; logging after Undo keeps it, and so does taking the entry back."""
+    made. Redo takes it back. Logging after Undo keeps it, and so does taking the entry back."""
     from gym.rules.today import targetText
     nextMonday = monday + dt.timedelta(days=7)
     view = app.today()
@@ -318,7 +318,7 @@ def testADeloadByHandStartsTodayOrTomorrow(app):
 
 
 def testWeighInsReplaceAndClear(app):
-    """SC5.1, DT2.1: one weight per day, entering it again replaces it; empty clears it; no future days."""
+    """SC5.1, DT2.1: one weight per day, entering it again replaces it. Empty clears it. No future days."""
     friday = monday + dt.timedelta(days=4)
     app.do(app.actions.setBodyWeight, friday, saturday, 81.4)
     app.do(app.actions.setBodyWeight, friday, saturday, 81.2)
@@ -332,7 +332,7 @@ def testWeighInsReplaceAndClear(app):
 
 
 def testDeletingADaysWorkoutKeepsItsStepsAndWeighIn(app):
-    """HI1.1: History's Delete this workout removes the workout and every entry; steps and weigh-in stay."""
+    """HI1.1: History's Delete this workout removes the workout and every entry. Steps and weigh-in stay."""
     view = app.today()
     app.do(app.actions.checkExercise, view, line(view, "benchPress"))
     app.do(app.actions.skipExercise, app.today(), line(app.today(), "dips"))

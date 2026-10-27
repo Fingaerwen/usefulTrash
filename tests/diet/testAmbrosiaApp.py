@@ -1,4 +1,4 @@
-"""Ambrosia's flows on the stand-in store (plan 4a, 4d, 4e, 4f; AM2.2–AM2.6, AM5.2, AM5.4, AM5.5)."""
+"""Ambrosia's flows on the stand-in store (plan 4a, 4d, 4e, 4f, AM2.2–AM2.6, AM5.2, AM5.4, AM5.5)."""
 
 import asyncio
 import copy

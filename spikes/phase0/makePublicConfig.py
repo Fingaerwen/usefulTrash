@@ -50,7 +50,7 @@ def readEnv(envText: str) -> dict[str, str]:
 
 
 def buildConfig(envText: str) -> tuple[dict[str, str], list[str]]:
-    """Returns (config, problems). The config holds only the allowed public values; problems name
+    """Returns (config, problems). The config holds only the allowed public values. Problems name
     every missing, malformed or secret-looking value (by variable name only, never the value)."""
     envValues = readEnv(envText)
     config, problems = {}, []
