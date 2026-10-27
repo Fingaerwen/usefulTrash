@@ -106,7 +106,7 @@ Settled point by point in the design round, as Talon's plan was: 4a, 4b and 4d o
 The same app built as a website, online-only like Talon's: the tabs down the left (SC6.2); **Today** for any day (log by searching your foods and the generic foods, or by a typed barcode; edit, delete; no scanning and no packaged-food search by name, AM5.2); **Week**; **History** to edit any day; **Targets** (importing a file is easiest here); **Backup** with Export CSV; the bulk check banner.
 
 ### 4c. Both PC views on one site
-- `fingaerwen.github.io/usefulTrash/` becomes a small start page linking **Talon** (`/usefulTrash/talos/`) and **Ambrosia** (`/usefulTrash/ambrosia/`).
+- `fingaerwen.github.io/usefulTrash/` becomes a small start page linking **Talon** (`/usefulTrash/talos/`) and **Ambrosia** (`/usefulTrash/ambrosia/`). **Built on 2026-10-27** as `site/start.html`, in the mirrored look with both figures facing each other (AM9.1). It isn't published until gate 3 adds it to `tools/buildRelease.py` as the site's index, with its images from `site/images`.
 - `about.html`, `privacy.html` and `driveToken.html` stay where they are, at the addresses Google has registered, so nothing changes in Google Cloud (the web sign-in is allowed for the whole `https://fingaerwen.github.io` origin).
 - The release script's publish step (P6.1) puts both builds into its single `gh-pages` commit.
 - Talon's PC view moves from `/usefulTrash/` to `/usefulTrash/talos/` at the changeover; the start page links it.
