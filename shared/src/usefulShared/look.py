@@ -95,9 +95,11 @@ def heading(text: str, **options) -> ft.Text:
 
 
 def label(text: str) -> ft.Text:
-    """A small capital label over a number or a part: "WORKOUTS", "HISTORY"."""
+    """A small capital label over a number or a part: "WORKOUTS", "HISTORY". A soft black halo keeps it readable
+    where it sits over the art behind a screen, like a katana's hilt (AM9.4)."""
     return ft.Text(text.upper(), size=11, weight=ft.FontWeight.W_600, color=ft.Colors.OUTLINE,
-                   style=ft.TextStyle(letter_spacing=1.1))
+                   style=ft.TextStyle(letter_spacing=1.1, shadow=[ft.BoxShadow(blur_radius=6, color="#000000"),
+                                                                 ft.BoxShadow(blur_radius=2, color="#000000")]))
 
 
 def big(text: str, size: int = 24) -> ft.Text:
