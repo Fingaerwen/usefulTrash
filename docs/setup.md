@@ -173,7 +173,8 @@ Anything that looks wrong: ⋮ → Problems → **Copy**, and paste it to me.
 
 ## 8. The joint release, in order, and its check on your phone (Talon 0.4-alpha, Ambrosia 0.1-alpha)
 **Before it (you):** sections 2b and 6b's first step, both done 2026-10-28. On release day: Talon on the phone has synced (nothing waiting), a fresh
-backup exists (the PC view's Back up now), then cloud upgrade 003 (section 1d). Then I run
+backup exists (the PC view's Back up now, skipped on 2026-10-28 because of a bug, plan BK1.2), then cloud upgrade
+003 (section 1d). Then I run
 `python3 tools/buildRelease.py talon ambrosia --cloudReady` and you make the two GitHub releases (section 5).
 
 **Then on the phone and the PC.** Anything that looks wrong: ⋮ → Problems → **Copy**, and paste it to me.

@@ -184,6 +184,7 @@ Settled 2026-10-25 at max effort and reworked for Friday weigh-ins on 2026-10-28
 ### 4j. Still open
 - **From Phase 0, still open:** duplicate generic foods and the four searches the new ranking still gets wrong (oatmeal, spaghetti, skim milk, bacon), if they bother you in use. Anything Ambrosia keeps in the browser gets its own key names (both PC views share one browser storage).
 - **Price labels (AM11.2):** waiting for a few barcodes from your counter and bakery labels, each with the product and its price.
+- **Back up now in both PC views:** didn't work for you in Brave on 2026-10-28, a bug to fix later (`docs/plan.md` BK1.2).
 - **The art (AM9.3, LK1.4):** the goddess, her katana and Talon's knight are drawn for the apps as placeholders (`apps/diet/art`, `apps/gym/art`, rendered by `tools/makeArt.py`). You may bring final art later. It swaps in as files, with transparent backgrounds, Talon facing right and the goddess left, at least about 1500 px tall, the katana as its own image if possible, and art you have the rights to use in a public app.
 - Settled on 2026-10-25: the scanner (AM5.1), the PC view's name search (AM5.2), the ranking (AM5.3), shop barcodes (AM5.4), one Drive backup per app (AM5.6), Talon's weekly summary (AM5.7), the sketches (AM5.8). On 2026-10-28: the bulk check with Friday weigh-ins (AM10.1, AM10.2).
 
