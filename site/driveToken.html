@@ -5,24 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer" content="no-referrer">
   <meta name="robots" content="noindex">
-  <title>Gym Tracker · Google Drive</title>
+  <title>Google Drive permission</title>
 </head>
 <body style="font-family: system-ui, sans-serif; margin: 24px;">
-  <p id="message">Handing Google's permission to Gym Tracker…</p>
+  <p id="message">Handing Google's permission back to the app…</p>
   <script>
-    // Back up now (BK1.1): Google sends its answer here, in the address's # part, which never reaches a
+    // Back up now (BK1.1, AM5.6): Google sends its answer here, in the address's # part, which never reaches a
     // server. The address is wiped at once, and the answer is left in this site's local storage under the
-    // key Flet's SharedPreferences reads ("flutter." + its name, the value JSON-encoded), where the Gym
-    // Tracker page picks it up and removes it. The Drive token lasts about an hour and covers only files
-    // Gym Tracker made.
+    // key Flet's SharedPreferences reads ("flutter." + its name, the value JSON-encoded), where the PC view
+    // that asked picks it up and removes it. Both PC views share this site's storage, so Ambrosia's requests
+    // (their state starts "ambrosia.") get a key of their own. The Drive token lasts about an hour and covers
+    // only files the apps made.
     (function () {
       var answer = new URLSearchParams(window.location.hash.slice(1));
       history.replaceState(null, "", window.location.pathname);
       var handover = {state: answer.get("state") || "", accessToken: answer.get("access_token") || "",
                       expiresIn: Number(answer.get("expires_in") || 0), error: answer.get("error") || ""};
+      var key = handover.state.indexOf("ambrosia.") === 0 ? "flutter.ambrosiaDriveToken" : "flutter.driveToken";
       var message = document.getElementById("message");
       try {
-        localStorage.setItem("flutter.driveToken", JSON.stringify(JSON.stringify(handover)));
+        localStorage.setItem(key, JSON.stringify(JSON.stringify(handover)));
         message.textContent = handover.error ? "Google said: " + handover.error + ". You can close this window."
                                              : "Done. You can close this window.";
       } catch (problem) {

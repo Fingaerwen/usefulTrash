@@ -56,9 +56,10 @@ def tableCsv(table: Table, rows: Sequence[Mapping[str, Any]]) -> str:
 
 def makeBackupZip(rowsByTable: Mapping[str, Sequence[Mapping[str, Any]]], tables: Sequence[Table],
                   schemaVersion: int, madeAt: dt.datetime, madeBy: str,
-                  extraFiles: Mapping[str, str] | None = None) -> bytes:
+                  extraFiles: Mapping[str, str] | None = None, appName: str | None = None) -> bytes:
     """The backup zip: <table>.csv for each table, manifest.json, and any extra files (Export CSV's
-    readable sets.csv, EX1.1)."""
+    readable sets.csv, EX1.1). appName says whose tables they are (AM5.6). Backups from before it have
+    none, and they're Gym Tracker's."""
     buffer = io.BytesIO()
     counts = {}
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
@@ -67,7 +68,7 @@ def makeBackupZip(rowsByTable: Mapping[str, Sequence[Mapping[str, Any]]], tables
             archive.writestr(f"{table.name}.csv", tableCsv(table, rows))
             counts[table.name] = len(rows)
         manifest = {"app": "usefulTrash", "schemaVersion": schemaVersion, "madeAt": momentText(madeAt),
-                    "madeBy": madeBy, "rows": counts}
+                    "madeBy": madeBy, "rows": counts, **({"appName": appName} if appName else {})}
         archive.writestr(manifestName, json.dumps(manifest, indent=2) + "\n")
         for name, content in (extraFiles or {}).items():
             archive.writestr(name, content)
@@ -76,7 +77,7 @@ def makeBackupZip(rowsByTable: Mapping[str, Sequence[Mapping[str, Any]]], tables
 
 def mergeHistory(previous: bytes | None, rowsByTable: Mapping[str, Sequence[Mapping[str, Any]]],
                  tables: Sequence[Table], schemaVersion: int, madeAt: dt.datetime, madeBy: str,
-                 extraFiles: Mapping[str, str] | None = None) -> bytes:
+                 extraFiles: Mapping[str, str] | None = None, appName: str | None = None) -> bytes:
     """The history file (BK1.2): every row ever backed up, the earlier history file's and today's together. A
     row that's no longer in the cloud stays in it. A row in both keeps its newer edit. Same format as a
     backup, so it restores the same way. Its manifest says "history"."""
@@ -101,7 +102,8 @@ def mergeHistory(previous: bytes | None, rowsByTable: Mapping[str, Sequence[Mapp
             archive.writestr(f"{name}.csv", textCsv(columns, list(rows.values())))
         manifest = {"app": "usefulTrash", "kind": "history", "schemaVersion": schemaVersion,
                     "madeAt": momentText(madeAt), "madeBy": madeBy,
-                    "rows": {name: len(rows) for name, rows in merged.items()}}
+                    "rows": {name: len(rows) for name, rows in merged.items()},
+                    **({"appName": appName} if appName else {})}
         archive.writestr(manifestName, json.dumps(manifest, indent=2) + "\n")
         for name, content in (extraFiles or {}).items():
             archive.writestr(name, content)

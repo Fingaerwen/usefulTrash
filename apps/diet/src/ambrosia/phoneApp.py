@@ -15,7 +15,9 @@ from typing import Any
 
 from ambrosia.appBase import AmbrosiaBase
 from ambrosia.phoneSteps import phoneSteps
-from ambrosia.tables import appSchema, appTables
+from ambrosia.tables import appSchema, appTables, dietTables
+from usefulShared.backup.backupJob import ambrosiaBackups, backupDue, makeBackup, withFreshToken
+from usefulShared.backup.driveApi import DriveApi, DriveError
 from usefulShared.cloud.supabaseApi import CloudError, SupabaseApi
 from usefulShared.platform.appLog import AppLog
 from usefulShared.platform.problems import SyncFacts
@@ -39,7 +41,7 @@ class PhoneApp(AmbrosiaBase):
         super().__init__(config, services, log, clock, localToday, **sources)
         self.folder = folder
         self.injectedCloud = cloud  # None: the real Supabase project. Tests pass a stand-in
-        self.drive = drive  # Google Drive, for the automatic backup (AM5.6). Tests pass a stand-in
+        self.drive = drive or DriveApi()  # Google Drive, for the automatic backup (AM5.6). Tests pass a stand-in
         self.backupTask: asyncio.Task | None = None  # the backup runs beside the app, after a start's first sync
         self.store: PhoneStore | None = None
         self.cloud: Any = None
@@ -174,7 +176,35 @@ class PhoneApp(AmbrosiaBase):
             self.backupTask = asyncio.get_running_loop().create_task(self.backUpIfDue())
 
     async def backUpIfDue(self) -> None:
-        """The automatic backup (AM5.6). Built with the backups."""
+        """The automatic backup (AM5.6): when Ambrosia's last backup (from any device) is 30+ days old, its own six
+        tables, deleted rows included, zipped to its own folder in your Google Drive, the last 3 kept, with the history
+        file and its readable food.csv and days.csv. The first time, Google asks once whether Ambrosia may keep files
+        in your Drive. A no or a failure is only logged, and it's tried again next time the app opens."""
+        try:
+            if not backupDue(self.store.rows("dietBackups"), self.clock()):
+                return
+            googleSignIn = self.services.googleSignIn
+            account = str((self.session.session.get("user") or {}).get("email", ""))
+
+            async def getToken() -> str:
+                answer = await googleSignIn.getDriveAccess(True, account)
+                if answer.get("status") != "ok" or not answer.get("accessToken"):
+                    raise DriveError(0, str(answer.get("status")), str(answer.get("errorType") or ""))
+                return answer["accessToken"]
+
+            async def dropToken(token: str) -> None:
+                await googleSignIn.clearDriveToken(token)
+
+            rows = {table.name: self.store.rows(table.name) for table in dietTables}
+            readable = self.state.historyFiles(self.localToday())
+            row = await withFreshToken(getToken, dropToken, lambda token: makeBackup(
+                self.drive, token, rows, dietTables, appSchema, self.session.userId(), self.clock(), "phone", readable,
+                ambrosiaBackups))
+            await self.saveRows([("dietBackups", row)])
+            self.log.info("backup", f"backed up to Google Drive: {row['fileName']}, {row['sizeBytes']:,} bytes")
+        except Exception as problem:  # the app works the same without it
+            self.log.problem("backup", "The backup to Google Drive didn't work. It's tried again next time the app "
+                             "opens.", f"{type(problem).__name__}: {problem}"[:300])
 
     async def syncNow(self) -> SyncOutcome:
         """One sync round right away, handled like the background ones."""

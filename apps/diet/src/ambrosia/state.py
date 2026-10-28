@@ -12,6 +12,7 @@ from typing import Any
 
 from ambrosia.rules.bulkCheck import BlockCheck, Comparison, latestCheck, nextCheckDate
 from ambrosia.rules.foods import Food, LoggedFood, UsedFood, byMeal, dayTotal, foodFromRow, loggedFromRow, yourFoods
+from ambrosia.rules.history import readableFiles
 from ambrosia.rules.targets import (
     AppliedChange,
     BulkCheckSettings,
@@ -149,6 +150,10 @@ class AmbrosiaState:
         suggestion = chosen if chosen is not None and not applied and dismissed != check.checkDate else None
         return BulkCheckView(check, suggestion, applied, nextCheckDate(self.imports, today), found.targets.bulkCheck,
                              found.importId)
+
+    def historyFiles(self, today: dt.date) -> dict[str, str]:
+        """The readable history for the backups and Export CSV (AM5.6): food.csv and days.csv."""
+        return readableFiles(self.logs, self.water, self.dayKind, self.targetsFor, today)
 
     def historyDays(self, month: dt.date, today: dt.date) -> list[HistoryDay]:
         """A month's days up to today, newest first, with what was eaten (AM5.5)."""

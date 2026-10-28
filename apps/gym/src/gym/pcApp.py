@@ -21,7 +21,7 @@ from gym.model import SyncFacts
 from usefulShared.signIn.signInFlow import signInWithGoogle
 from gym.tables import appSchema, appTables
 from usefulShared.backup.backupFile import makeBackupZip
-from usefulShared.backup.backupJob import lastBackup, makeBackup, warnAfter
+from usefulShared.backup.backupJob import lastBackup, makeBackup, talonBackups, warnAfter
 from usefulShared.backup.driveApi import DriveApi, DriveError, browserTransport
 from usefulShared.cloud.supabaseApi import CloudError, SupabaseApi
 from usefulShared.platform.appLog import AppLog
@@ -228,7 +228,7 @@ class PcApp(AppBase):
         """Export CSV (EX1.1): the backup (one CSV per table, restorable) plus the readable history (sets,
         weigh-ins, steps, the diary), in one zip saved to this PC."""
         content = makeBackupZip(self._allRows(), appTables, appSchema, self.clock(), "pcView",
-                                self.state.historyFiles(self.localToday()))
+                                self.state.historyFiles(self.localToday()), appName=talonBackups.app)
         name = f"GymTracker-export-{self.localToday().isoformat()}.zip"
         try:
             await self.services.filePicker.save_file(file_name=name, src_bytes=content)

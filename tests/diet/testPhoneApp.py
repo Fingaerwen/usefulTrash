@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 from ambrosiaStandIn import FakeOpenFoodFacts, PhoneServices, bulkInCloud, inCloud
 from cloudStandIn import CloudStandIn
+from driveStandIn import DriveStandIn
 from screenTestKit import draw, find, press, useLoop, visibleTexts
 from usefulTestKit import FakeClock, userA
 
@@ -20,6 +21,8 @@ from ambrosia.phoneApp import PhoneApp
 from ambrosia.rules.foods import Food, Values
 from ambrosia.screens.root import AmbrosiaApp
 from ambrosia.sources.openFoodFacts import OpenFoodFacts
+from usefulShared.backup.backupFile import readBackupZip
+from usefulShared.backup.driveApi import DriveApi
 from usefulShared.platform.appLog import AppLog
 
 repoRoot = Path(__file__).resolve().parents[2]
@@ -36,6 +39,7 @@ class Phone:
     def __init__(self, folder: Path, cloud: CloudStandIn, clock: FakeClock):
         self.folder, self.cloud, self.clock = folder, cloud, clock
         self.services = PhoneServices(userA)
+        self.drive = DriveStandIn()
         self.loop = asyncio.new_event_loop()
         useLoop(self.loop)
         self.app = self.restart()
@@ -43,7 +47,7 @@ class Phone:
     def restart(self) -> PhoneApp:
         net = FakeOpenFoodFacts()
         self.app = PhoneApp(config, str(self.folder), self.services, AppLog(str(self.folder), self.clock), self.clock,
-                            lambda: self.clock().date(), cloud=self.cloud,
+                            lambda: self.clock().date(), cloud=self.cloud, drive=DriveApi(self.drive),
                             foodSource=OpenFoodFacts("0.1-alpha", net, clock=lambda: 1e12))
         self.run(self.app.start())
         return self.app
@@ -69,9 +73,15 @@ def clock() -> FakeClock:
 
 @pytest.fixture
 def cloud(clock) -> CloudStandIn:
+    """The cloud, with yesterday's backup in it, so no backup is due in the tests that aren't about backups."""
     standIn = CloudStandIn(clock)
     standIn.signUpsAllowedFor = {userA}
+    inCloud(standIn, "dietBackups", madeAt=clock() - dt.timedelta(days=1))
     return standIn
+
+
+def noBackupYet(cloud: CloudStandIn) -> None:
+    cloud.rows["dietBackups"].clear()
 
 
 @pytest.fixture
@@ -229,6 +239,51 @@ def testNotNowStaysOnThisPhone(phone, cloud):
     assert app.model.bulkCheck.suggestion is None and app.model.bulkCheck.check.chosen.kcal == 250
 
 
+# --- The automatic backup (AM5.6) ---------------------------------------------------------------
+
+def testTheFirstSyncOfAStartBacksUpToAmbrosiasOwnFolder(phone, cloud):
+    """Every 30 days: Ambrosia's six tables to its own Drive folder, beside its history file with food.csv and
+    days.csv, recorded in dietBackups. Talon's backups table stays Talon's."""
+    noBackupYet(cloud)
+    bulk(cloud)
+    signedIn(phone)
+    app = phone.app
+    phone.run(app.actions.logFood(app.localToday(), "breakfast", oats, "grams", 80))
+    phone.run(app.syncNow())
+    phone.run(app.backupTask)
+    assert phone.drive.folders() == ["Ambrosia backups"]
+    [backup] = phone.drive.zips("Ambrosia-backup-")
+    manifest, tables = readBackupZip(backup["content"])
+    assert manifest["appName"] == "Ambrosia" and manifest["schemaVersion"] == 3 and manifest["madeBy"] == "phone"
+    assert set(tables) == {"foods", "foodLogs", "water", "dietTargets", "targetChanges", "dietBackups"}
+    assert len(tables["foodLogs"]) == 1 and len(tables["dietTargets"]) == 1
+    [history] = phone.drive.history("Ambrosia-history.zip")
+    import io
+    import zipfile
+    with zipfile.ZipFile(io.BytesIO(history["content"])) as archive:
+        assert "Oats, whole grain, rolled" in archive.read("food.csv").decode()
+        assert archive.read("days.csv").decode().splitlines()[1].startswith("2026-12-06,training,303,")
+    [row] = app.store.rows("dietBackups")
+    assert row["fileName"] == backup["name"] and row["madeBy"] == "phone"
+    assert app.store.rows("dietBackups") and "backups" not in app.store.tables
+    phone.run(app.syncNow())
+    assert len(cloud.rows["dietBackups"]) == 1 and "backups" not in cloud.rows
+
+
+def testABackupWithin30DaysIsntRepeated(phone, cloud):
+    noBackupYet(cloud)
+    signedIn(phone)
+    phone.run(phone.app.syncNow())
+    phone.run(phone.app.backupTask)
+    phone.app.syncLoop.stop()
+    phone.app.store.close()
+    app = phone.restart()
+    app.syncLoop.stop()
+    phone.run(app.syncNow())
+    phone.run(app.backupTask)
+    assert len(phone.drive.zips("Ambrosia-backup-")) == 1
+
+
 # --- Problems (12d) -----------------------------------------------------------------------------
 
 def testProblemsSaysTheVersionSchemaAndSync(phone, cloud):
@@ -237,7 +292,7 @@ def testProblemsSaysTheVersionSchemaAndSync(phone, cloud):
     phone.app.openProblems()
     lines = phone.app.model.problems
     assert lines[0].startswith("Ambrosia 0.1-alpha · schema 3")
-    assert lines[1].startswith("Sync: up to date") and "Last backup: none yet" in lines
+    assert lines[1].startswith("Sync: up to date") and "Last backup: 5 Dec 2026 (phone) · 1 day ago" in lines
     phone.run(phone.app.copyProblems())
     assert phone.services.clipboard.text.startswith("Ambrosia 0.1-alpha")
     phone.app.closeProblems()

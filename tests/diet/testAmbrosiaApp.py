@@ -235,3 +235,22 @@ def testRecentHasTheSameAgainInOneTap(clock):
     logs = sorted(live(app, "foodLogs"), key=lambda row: row["loggedAt"])
     assert [(row["meal"], row["grams"]) for row in logs] == [("breakfast", 30.0), ("snacks", 30.0)]
     assert app.model.screen == "main"
+
+
+def testTheReadableHistoryHasEveryEntryAndEveryDay(clock):
+    """AM5.6: food.csv and days.csv for the backups' history file and Export CSV, numbers as a spreadsheet wants them
+    (340, not 34)."""
+    app = makeApp(clock)
+    app.checkTargets(json.dumps(targetsFile).encode())
+    run(app.confirmTargets())
+    app.openAdd("dinner")
+    run(app.useBarcode("3017620422003"))
+    run(app.saveAmount("grams", 63.08, "dinner"))  # 340 kcal
+    run(app.addWater())
+    files = app.state.historyFiles(monday)
+    assert files["food.csv"].splitlines() == [
+        "date,meal,food,brand,amount,grams or ml,kcal,protein g,fat g,carbs g",
+        "2026-10-26,dinner,Nutella,Ferrero,63.1 g,63.1,340,4,19.5,36.3"]
+    assert files["days.csv"].splitlines() == [
+        "date,day,kcal,protein g,fat g,carbs g,target kcal,target protein g,target fat g,target carbs g,water ml",
+        "2026-10-26,training,340,4,19.5,36.3,3200,160,90,440,250"]

@@ -5,8 +5,8 @@ content kept to a readable width in the middle. Everything sits on Ambrosia's ba
 import flet as ft
 
 from ambrosia.screens.addFood import AddScreen, AmountScreen, LabelScreen
+from ambrosia.screens.backup import BackupTab
 from ambrosia.screens.common import (
-    ComingSoon,
     DownloadingScreen,
     FailedScreen,
     ProblemsScreen,
@@ -17,14 +17,11 @@ from ambrosia.screens.history import HistoryScreen, HistoryTab
 from ambrosia.screens.look import (
     appMark,
     backdrop,
-    card,
     goldEdge,
-    header,
     headroom,
     indicator,
     indicatorShape,
     pagePadding,
-    screen,
 )
 from ambrosia.screens.targets import ImportTargetsScreen, TargetsTab
 from ambrosia.screens.today import TodayTab
@@ -37,12 +34,6 @@ phoneTabs = (("today", "Today", ft.Icons.TODAY_OUTLINED, ft.Icons.TODAY),
 pcTabs = (phoneTabs[0], phoneTabs[1], ("history", "History", ft.Icons.HISTORY, ft.Icons.HISTORY), phoneTabs[2],
           ("backup", "Backup", ft.Icons.BACKUP_OUTLINED, ft.Icons.BACKUP))
 pcContentWidth = 960  # the PC view's content, at most this wide (two columns of meals fit)
-
-
-@ft.component
-def BackupTab(app, model):
-    return screen([header("Backup"), ComingSoon("Backups to your Google Drive come with the cloud part (gate 2): "
-                                                "Ambrosia's own folder, every 30 days, the last 3 kept (AM5.6).")])
 
 
 tabScreens = {"today": TodayTab, "week": WeekTab, "targets": TargetsTab, "history": HistoryTab, "backup": BackupTab}

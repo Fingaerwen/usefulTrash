@@ -479,6 +479,25 @@ def testARestoreKeepsNewerEditsUnlessTheBackupWins(database):
     assert database.ok('select "weightKg" from public."bodyWeight";') == ["81.20"]  # the backup's
 
 
+def testAnAmbrosiaBackupRestoresIntoItsTables(database):
+    """AM5.6: Ambrosia's backup holds its own six tables, and they come back exactly, JSON and decimals included."""
+    import datetime as dt
+
+    import restoreBackup
+    from usefulTestKit import exampleRow
+
+    from ambrosia.tables import dietTables
+    from usefulShared.backup.backupFile import makeBackupZip
+    moment = dt.datetime(2026, 10, 26, 17, 0, 0, 123456, tzinfo=dt.UTC)  # in the past: the cloud refuses the future
+    rows = {table.name: [exampleRow(table.name, userId=userA, updatedAt=moment)] for table in dietTables}
+    content = makeBackupZip(rows, dietTables, dietSchema, moment, "phone", appName="Ambrosia")
+    assert database.ok(restoreBackup.restoreSql(content))[-1] == "done: 6 rows from the backup"
+    assert database.ok("""select "targetsJson"->>'name', "effectiveDate" from public."dietTargets";""") == [
+        "Bulk from 26 Oct|2026-10-26"]
+    assert database.ok('select "proteinG", "portionCount", "grams" from public."foodLogs";') == ["6.30|2.00|30.0"]
+    assert database.ok('select count(*) from public."bodyWeight";') == ["0"]  # Talon's backup has those
+
+
 def testARestoreWaitsForTheCloudUpgradeItNeeds(emptyDatabase):
     import restoreBackup
     emptyDatabase.ok(cloudScripts[0].read_text(encoding="utf-8"))  # the cloud is still at upgrade 001

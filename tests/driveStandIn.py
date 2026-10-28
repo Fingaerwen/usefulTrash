@@ -20,12 +20,16 @@ class DriveStandIn:
         self.files[file["id"]] = file
         return file
 
-    def zips(self) -> list[dict]:
-        """The dated backups (the history file is apart, history())."""
-        return [file for file in self.files.values() if file["name"].startswith("GymTracker-backup-")]
+    def zips(self, prefix: str = "GymTracker-backup-") -> list[dict]:
+        """The dated backups (the history file is apart, history()). Ambrosia's start "Ambrosia-backup-"."""
+        return [file for file in self.files.values() if file["name"].startswith(prefix)]
 
-    def history(self) -> list[dict]:
-        return [file for file in self.files.values() if file["name"] == "GymTracker-history.zip"]
+    def history(self, name: str = "GymTracker-history.zip") -> list[dict]:
+        return [file for file in self.files.values() if file["name"] == name]
+
+    def folders(self) -> list[str]:
+        return sorted(file["name"] for file in self.files.values()
+                      if file["mimeType"] == "application/vnd.google-apps.folder")
 
     async def __call__(self, method: str, url: str, headers: dict[str, str], body: bytes | None) -> tuple[int, bytes]:
         if headers.get("Authorization", "").removeprefix("Bearer ") not in self.validTokens:

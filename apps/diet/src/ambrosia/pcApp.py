@@ -9,14 +9,19 @@ storage (4j), and Ambrosia keeps nothing in it.
 
 import asyncio
 import datetime as dt
+import json
+import secrets
+import urllib.parse
 from collections.abc import Callable, Sequence
 from typing import Any
 
 import flet as ft
 
 from ambrosia.appBase import AmbrosiaBase
-from ambrosia.tables import appSchema, appTables
-from usefulShared.backup.backupJob import lastBackup, warnAfter
+from ambrosia.tables import appSchema, appTables, dietTables
+from usefulShared.backup.backupFile import makeBackupZip
+from usefulShared.backup.backupJob import ambrosiaBackups, lastBackup, makeBackup, warnAfter
+from usefulShared.backup.driveApi import DriveApi, DriveError, browserTransport
 from usefulShared.cloud.supabaseApi import CloudError, SupabaseApi
 from usefulShared.platform.appLog import AppLog
 from usefulShared.platform.problems import SyncFacts
@@ -26,6 +31,9 @@ from usefulShared.store.cloudStore import CloudStore, VersionMismatch, describeC
 
 refreshEverySec = 60
 backupWarning = "Your last backup is over 60 days old: see the Backup tab."  # plan 3.4
+siteAddress = "https://fingaerwen.github.io/usefulTrash/"  # driveToken.html stays here, for both PC views (4c)
+driveHandoverKey = "ambrosiaDriveToken"  # what site/driveToken.html leaves for a request whose state starts "ambrosia."
+handoverWaitSec = 180  # how long Back up now waits for Google's answer
 
 
 class PcServices:
@@ -54,7 +62,7 @@ class PcApp(AmbrosiaBase):
                  **sources: Any):
         super().__init__(config, services, log, clock, localToday, **sources)
         self.injectedCloud = cloud
-        self.drive = drive  # Back up now. Tests pass a stand-in
+        self.drive = drive or DriveApi(browserTransport)  # Back up now (AM5.6). Tests pass a stand-in
         self.cloud: Any = None
         self.store: CloudStore | None = None
         self.lastFetch = ("none", "")  # (status, problem) of the latest fetch, for Problems and banners
@@ -223,3 +231,80 @@ class PcApp(AmbrosiaBase):
     def syncFacts(self) -> SyncFacts:
         status, problem = self.lastFetch
         return SyncFacts(status, problem, self.lastFetchAt, 0, None, ())
+
+    # --- Backup: Export CSV and Back up now (AM5.6, like Talon's EX1.1 and BK1.1) --------------
+
+    def _ownRows(self) -> dict[str, list[dict[str, Any]]]:
+        """Ambrosia's own tables as loaded, deleted rows included, so the file restores exactly (14b). Talon's tables
+        are in Talon's backups."""
+        return {table.name: list(self.state.rows.get(table.name, {}).values()) for table in dietTables}
+
+    async def exportCsv(self) -> None:
+        """Export CSV: the backup (one CSV per table, restorable) plus the readable food.csv and days.csv, in one zip
+        saved to this PC."""
+        content = makeBackupZip(self._ownRows(), dietTables, appSchema, self.clock(), "pcView",
+                                self.state.historyFiles(self.localToday()), appName=ambrosiaBackups.app)
+        name = f"Ambrosia-export-{self.localToday().isoformat()}.zip"
+        try:
+            await self.services.filePicker.save_file(file_name=name, src_bytes=content)
+        except Exception as problem:
+            self.log.problem("backup", "Export CSV didn't work.", f"{type(problem).__name__}: {problem}"[:300])
+            self.model.backupStatus = "Export CSV didn't work. Details are on the Problems page."
+            return
+        self.model.backupStatus = f"Exported {name} ({len(content):,} bytes)."
+
+    def driveConsentUrl(self, state: str) -> str:
+        """Google's Drive permission page (files this app created only). It answers to site/driveToken.html."""
+        account = str((self.session.session.get("user") or {}).get("email", "")) if self.session else ""
+        query = {"client_id": self.config["googleWebClientId"], "redirect_uri": f"{siteAddress}driveToken.html",
+                 "response_type": "token", "scope": "https://www.googleapis.com/auth/drive.file", "state": state,
+                 "include_granted_scopes": "true", "prompt": "select_account"}
+        if account:
+            query["login_hint"] = account
+        return "https://accounts.google.com/o/oauth2/v2/auth?" + urllib.parse.urlencode(query)
+
+    async def backUpNow(self) -> None:
+        """Back up now: Google's permission page opens in a second window. Its answer, a Drive token that lasts about
+        an hour, comes back through the site's local storage (driveToken.html, under Ambrosia's own key), is removed
+        from there at once and kept in memory only. Then the backup goes to Ambrosia's Drive folder as the phone's
+        does, and its row is saved."""
+        state = "ambrosia." + secrets.token_urlsafe(24)
+        try:
+            await self.services.prefs.remove(driveHandoverKey)  # nothing old can be taken for the answer
+            self.model.backupStatus = "Waiting for Google's permission in the other window…"
+            await self.services.urlLauncher.launch_url(self.driveConsentUrl(state), web_only_window_name="ambrosiaDrive")
+            token = await self._awaitDriveToken(state)
+            if token is None:
+                self.model.backupStatus = ("No permission came back from Google (the window was closed, or it took "
+                                           "over 3 minutes). Press Back up now to try again.")
+                return
+            row = await makeBackup(self.drive, token, self._ownRows(), dietTables, appSchema, self.session.userId(),
+                                   self.clock(), "pcView", self.state.historyFiles(self.localToday()), ambrosiaBackups)
+        except Exception as problem:
+            reason = problem.reason if isinstance(problem, DriveError) else type(problem).__name__
+            self.log.problem("backup", "Back up now didn't work.", f"{reason}: {problem}"[:300])
+            self.model.backupStatus = "Back up now didn't work. Details are on the Problems page."
+            return
+        self.model.notice = ""
+        await self._act(self.saveRows([("dietBackups", row)]))
+        if not self.model.notice:
+            self.model.backupStatus = f"Backed up to your Google Drive: {row['fileName']}."
+
+    async def _awaitDriveToken(self, state: str) -> str | None:
+        """Google's answer from driveToken.html, if it's for this request. None if it doesn't come."""
+        for _ in range(handoverWaitSec):
+            raw = await self.services.prefs.get(driveHandoverKey)
+            if raw:
+                await self.services.prefs.remove(driveHandoverKey)
+                try:
+                    handover = json.loads(raw)
+                except (TypeError, ValueError):
+                    return None
+                if not isinstance(handover, dict) or handover.get("state") != state:
+                    return None  # not the answer to this request
+                if handover.get("error"):
+                    self.log.info("backup", f"Google answered: {str(handover['error'])[:60]}")
+                    return None
+                return str(handover.get("accessToken") or "") or None
+            await asyncio.sleep(1)
+        return None

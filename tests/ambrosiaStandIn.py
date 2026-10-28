@@ -53,9 +53,13 @@ class FakeFile:
 class FakePicker:
     def __init__(self):
         self.next: list | None = None
+        self.saved: dict[str, bytes] = {}  # Export CSV's files, by name
 
     async def pick_files(self, **options):
         return self.next
+
+    async def save_file(self, file_name: str, src_bytes: bytes, **options):
+        self.saved[file_name] = src_bytes
 
 
 class FakeClipboard:
@@ -93,6 +97,39 @@ class FakeGoogle:
     async def clearDriveToken(self, accessToken: str) -> dict:
         self.driveToken = "driveToken2"
         return {"status": "ok"}
+
+
+class FakePrefs:
+    """This site's local storage, as Flet's SharedPreferences reads it (both PC views share it)."""
+
+    def __init__(self):
+        self.values: dict[str, str] = {}
+
+    async def get(self, key):
+        return self.values.get(key)
+
+    async def remove(self, key):
+        self.values.pop(key, None)
+        return True
+
+
+class FakeGoogleWindow:
+    """The second window with Google's Drive permission page, answering the way site/driveToken.html does: under
+    Ambrosia's own key when the request's state starts "ambrosia.", else under Talon's."""
+
+    def __init__(self, prefs: FakePrefs):
+        self.prefs = prefs
+        self.opened: list[str] = []
+        self.answer: dict | None = None  # None: allow, with the request's state
+
+    async def launch_url(self, url, web_only_window_name=None, **options):
+        import urllib.parse
+
+        self.opened.append(url)
+        state = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)["state"][0]
+        answer = self.answer or {"state": state, "accessToken": "driveToken1", "expiresIn": 3599, "error": ""}
+        key = "ambrosiaDriveToken" if answer["state"].startswith("ambrosia.") else "driveToken"
+        self.prefs.values[key] = json.dumps(answer)
 
 
 class PhoneServices(Services):
@@ -179,3 +216,12 @@ def bulkInCloud(cloud, targetsFile: dict, kilos: tuple[float, ...] = (80.0, 80.0
     for week, kilo in enumerate(kilos):
         date = dt.date(2026, 10, 30) + dt.timedelta(weeks=week)
         inCloud(cloud, "bodyWeight", date=date, weightKg=kilo, id=dayRowId(tablesByName["bodyWeight"], userA, date=date))
+
+
+class PcServices(PhoneServices):
+    """The browser's: the phone's fakes plus this site's storage and the second window."""
+
+    def __init__(self, account: str):
+        super().__init__(account)
+        self.prefs = FakePrefs()
+        self.urlLauncher = FakeGoogleWindow(self.prefs)

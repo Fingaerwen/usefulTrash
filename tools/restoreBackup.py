@@ -1,6 +1,7 @@
 """Restores a backup into the cloud (F13.1): turns a backup zip (from Google Drive or Export CSV) into one
 SQL script for Supabase's SQL editor, run the same way as a cloud upgrade. It needs no secret and sends
-nothing anywhere: it only reads the zip and prints SQL. The guide is docs/restore.md.
+nothing anywhere: it only reads the zip and prints SQL. The guide is docs/restore.md. A backup says whose
+it is in its manifest (Gym Tracker's, or Ambrosia's own tables, AM5.6). One from before that is Gym Tracker's.
 
 Usage (from the repo root): python3 tools/restoreBackup.py <backup.zip> [--backupWins] > restore.sql
   Without --backupWins it fills in what's missing: the cloud keeps the newest edit of every row (F11.1),
@@ -16,10 +17,15 @@ import sys
 from pathlib import Path
 
 repoRoot = Path(__file__).resolve().parents[1]
-sys.path[:0] = [str(repoRoot / "apps/gym/src"), str(repoRoot / "shared/src")]
+sys.path[:0] = [str(repoRoot / "apps/gym/src"), str(repoRoot / "apps/diet/src"), str(repoRoot / "shared/src")]
 
-from gym.tables import appSchema, appTables  # noqa: E402
+from ambrosia import tables as dietTables  # noqa: E402
+from gym import tables as gymTables  # noqa: E402
 from usefulShared.backup.backupFile import readBackupZip  # noqa: E402
+
+# Each app's tables and the data structure this code knows, by the name in a backup's manifest
+apps = {"Gym Tracker": (gymTables.appTables, gymTables.appSchema),
+        "Ambrosia": (dietTables.dietTables, dietTables.appSchema)}
 
 rowsPerInsert = 200  # rows in one INSERT, so a big table makes a handful of statements
 
@@ -35,14 +41,19 @@ def restoreSql(content: bytes, backupWins: bool = False) -> str:
     """The restore script for a backup zip."""
     manifest, rowsByTable = readBackupZip(content)
     if manifest.get("app") != "usefulTrash":
-        raise ValueError("This isn't a Gym Tracker backup (its manifest.json doesn't say usefulTrash).")
+        raise ValueError("This isn't a usefulTrash backup (its manifest.json doesn't say usefulTrash).")
+    appName = manifest.get("appName", "Gym Tracker")
+    if appName not in apps:
+        raise ValueError(f"This backup is from {appName}, which this code doesn't know: update the repo first.")
+    appTables, appSchema = apps[appName]
     schema = int(manifest["schemaVersion"])
     if schema > appSchema:
         raise ValueError(f"The backup has data structure {schema}, this code only knows up to {appSchema}: "
                          "update the repo first.")
     tables = {table.name: table for table in appTables}
     total = sum(len(rows) for name, rows in rowsByTable.items() if name in tables)
-    lines = [f"-- Restore of a Gym Tracker backup made {manifest['madeAt']} by the {manifest['madeBy']}, data "
+    article = "an" if appName[0] in "AEIOU" else "a"
+    lines = [f"-- Restore of {article} {appName} backup made {manifest['madeAt']} by the {manifest['madeBy']}, data "
              f"structure {schema}; {total} rows. " + ("Every row back as it was in the backup."
                                                       if backupWins else "Fills in what's missing."),
              "begin;",
