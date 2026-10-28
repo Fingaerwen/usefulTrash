@@ -173,6 +173,13 @@ Anything that looks wrong: ⋮ → Problems → **Copy**, and paste it to me.
     expected). It can be muted on its own: Android settings → Apps → Gym Tracker → Notifications → Rest timer.
 
 ## 8. The joint release, in order, and its check on your phone (Talon 0.4-alpha, Ambrosia 0.1-alpha)
+**Done on 2026-10-28, checked over USB:** 1 (`Talon 0.4-alpha · schema 3 · started in 0.5 s`, same data, signed
+in), 4 (`Ambrosia 0.1-alpha · schema 3 · started in 0.4 s`, Talon's plan read), 7 with water only (1 waiting in
+airplane mode, sent about 57 s after it went off, then set back to 0), 8 (`Last backup: 28 Oct 2026 (phone) ·
+today`) and 10 up to the sign-in. Play Protect asked to scan each new APK once: Scan app, then Install. Left: 2 on
+a Friday with a weigh-in, 3 at Talon's next backup (by 25 Nov), 5 (your scans), 6 (your targets file), 7's PC view
+half, 9 once a day has entries, 11 from 6 Dec.
+
 **Before it (you):** sections 2b and 6b's first step, both done 2026-10-28. On release day: Talon on the phone has synced (nothing waiting), a fresh
 backup exists (the PC view's Back up now, skipped on 2026-10-28 because of a bug, plan BK1.2), then cloud upgrade
 003 (section 1d). Then I run
