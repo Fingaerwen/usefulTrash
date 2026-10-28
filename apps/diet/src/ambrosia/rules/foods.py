@@ -94,10 +94,11 @@ def foodRowId(userId: str, barcode: str = "", usdaId: int | None = None) -> str 
 
 
 def checkValues(values: Values) -> None:
-    """Values per 100 g must be possible: kcal 0 to 900 (pure fat), each macro 0 to 100 g, and the macros
-    together at most 100 g (a little more is label rounding)."""
-    if not 0 <= values.kcal <= 900:
-        raise FoodProblem("kcal per 100 g must be between 0 and 900.")
+    """Values per 100 g must be possible: kcal 0 to 950 (pure fat is about 900, USDA's lard 902), each macro 0 to
+    100 g, and the macros together at most 100 g (a little more is label rounding). The cloud keeps the same
+    limits (cloud/003)."""
+    if not 0 <= values.kcal <= 950:
+        raise FoodProblem("kcal per 100 g must be between 0 and 950.")
     for name, grams in (("Protein", values.proteinG), ("Fat", values.fatG), ("Carbs", values.carbsG)):
         if not 0 <= grams <= 100:
             raise FoodProblem(f"{name} per 100 g must be between 0 and 100 g.")

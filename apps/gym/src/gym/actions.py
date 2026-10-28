@@ -139,7 +139,8 @@ class GymActions:
     # --- Body weight (SC5.1, DT2.1) -----------------------------------------------------------
 
     async def setBodyWeight(self, date: dt.date, today: dt.date, weightKg: float | None) -> None:
-        """A day's weigh-in: entering it again replaces it (DT2.1). None clears it. Any day up to today."""
+        """A day's weigh-in: entering it again replaces it (DT2.1). None clears it. Any day up to today. Saving
+        today's keeps the time you saved it (AM6.3). A past day's keeps the time it had, if any."""
         if date > today:
             raise ActionRefused("A weigh-in can't be for a day that hasn't come yet.")
         rowId = dayRowId(bodyWeight, self.userId, date=date)
@@ -150,8 +151,10 @@ class GymActions:
             return
         if not _isKilograms(weightKg) or not 0 < weightKg < 1000:
             raise ActionRefused("Weight must be a number above 0 and under 1000 kg, with at most 2 decimals.")
+        weighedAt = self.clock() if date == today else (existing or {}).get("weighedAt")
         await self.store.saveRows([("bodyWeight", {**(existing or {}), "id": rowId, "userId": self.userId,
-                                                   "deleted": False, "date": date, "weightKg": float(weightKg)})])
+                                                   "deleted": False, "date": date, "weightKg": float(weightKg),
+                                                   "weighedAt": weighedAt})])
 
     # --- Weights and weight steps (WD2.1, WD3.7) ----------------------------------------------
 

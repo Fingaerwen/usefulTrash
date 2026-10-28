@@ -568,11 +568,18 @@ class WeightView:
     lastText: str  # "Last 4:  82.0 · 81.8 · 81.6 · 81.2   (−0.8 kg)". "" before the first weigh-in
     last: tuple[str, ...] = ()  # the last four as written: "82.0", "81.8", …
     changeText: str = ""  # across them: "−0.8 kg". "" without a change
+    lastTimes: tuple[str, ...] = ()  # the time each of the last four was saved, "07:12" (AM6.3), "" for none
 
 
-def weightView(weights: Mapping[dt.date, float], today: dt.date, chartRange: str = "3M") -> WeightView:
+def clockText(moment: dt.datetime, zone: dt.tzinfo | None = None) -> str:
+    """A moment on this device's clock (or in `zone`): "07:12"."""
+    return moment.astimezone(zone).strftime("%H:%M")
+
+
+def weightView(weights: Mapping[dt.date, float], today: dt.date, chartRange: str = "3M",
+               times: Mapping[dt.date, dt.datetime] | None = None, zone: dt.tzinfo | None = None) -> WeightView:
     """The Weight tab (SC5.1): Friday preselected (any day can be chosen), the weigh-ins in the span for the
-    chart, and the last four with the change across them."""
+    chart, and the last four with the change across them and the time each was saved, if it has one (AM6.3)."""
     days = chartRanges.get(chartRange)
     dates = [date for date in sorted(weights) if date <= today]
     shown = evenlyPicked([(date, weights[date]) for date in dates if days is None or date > today - dt.timedelta(days=days)])
@@ -584,8 +591,10 @@ def weightView(weights: Mapping[dt.date, float], today: dt.date, chartRange: str
         if change:
             changeText = f"{signed(change)} kg"
             text += f"   ({changeText})"
+    times = times or {}
+    lastTimes = tuple(clockText(times[date], zone) if date in times else "" for date in dates[-4:])
     return WeightView(today - dt.timedelta(days=(today.weekday() - weighInDay) % 7), chartRange, tuple(shown),
-                      text, tuple(_weighIn(kg) for kg in last), changeText)
+                      text, tuple(_weighIn(kg) for kg in last), changeText, lastTimes if any(lastTimes) else ())
 
 
 summaryBanner = "Last week's summary is ready."  # Mondays, until you've looked at it (18.4a, BN1.1)

@@ -8,8 +8,11 @@ import datetime as dt
 import uuid
 from typing import Any
 
-from gym.tables import appTables, tablesByName
+from ambrosia.tables import tablesByName as dietTablesByName
+from gym.tables import appTables, tablesByName as gymTablesByName
 from usefulShared.tables import Table, dayRowId, newRowId
+
+tablesByName = {**gymTablesByName, **dietTablesByName}  # every table of both apps (the shared ones are the same)
 
 userA = str(uuid.UUID(int=1))
 userB = str(uuid.UUID(int=2))
@@ -45,10 +48,28 @@ def exampleRow(tableName: str, userId: str = userA, updatedAt: dt.datetime = sta
                             "fromDate": dt.date(2026, 10, 12)},
         "exerciseSteps": {"exerciseId": "benchPress", "incrementKg": 2.5, "fromDate": dt.date(2026, 10, 12)},
         "deloads": {"startDate": dt.date(2026, 10, 19)},
-        "bodyWeight": {"date": dt.date(2026, 10, 16), "weightKg": 81.2},
+        "bodyWeight": {"date": dt.date(2026, 10, 16), "weightKg": 81.2, "weighedAt": None},
         "dailySteps": {"date": dt.date(2026, 10, 12), "steps": 14000},
         "backups": {"madeAt": updatedAt, "fileName": "gymBackup.zip", "driveFileId": None, "sizeBytes": 2048,
                     "schemaVersion": 1, "madeBy": "phone"},
+        # Ambrosia's (apps/diet/docs/plan.md 4e)
+        "foods": {"source": "openFoodFacts", "barcode": "3017620422003", "usdaId": None, "name": "Nutella",
+                  "brand": "Ferrero", "unit": "g", "kcal": 539.0, "proteinG": 6.3, "fatG": 30.9, "carbsG": 57.5,
+                  "servingG": 15.0, "packG": 400.0},
+        "foodLogs": {"date": dt.date(2026, 10, 26), "meal": "breakfast", "loggedAt": updatedAt,
+                     "foodId": str(uuid.UUID(int=77)), "portion": "servings", "portionCount": 2.0, "grams": 30.0,
+                     "name": "Nutella", "brand": "Ferrero", "unit": "g", "kcal": 539.0, "proteinG": 6.3, "fatG": 30.9,
+                     "carbsG": 57.5},
+        "water": {"date": dt.date(2026, 10, 26), "ml": 1500},
+        "dietTargets": {"importedAt": updatedAt, "effectiveDate": dt.date(2026, 10, 26),
+                        "targetsJson": {"format": "ambrosiaTargets", "name": "Bulk from 26 Oct"}},
+        "targetChanges": {"checkDate": dt.date(2026, 12, 6), "fromDate": dt.date(2026, 12, 6),
+                          "targetsImportId": str(uuid.UUID(int=88)), "reason": "bigMissLow", "kcalChange": 250,
+                          "macro": "carbs", "macroChangeG": 63, "blockAvgKg": 81.13, "blockWeighIns": 2,
+                          "comparedStart": dt.date(2026, 10, 26), "comparedAvgKg": 81.25, "comparedWeighIns": 2,
+                          "rateKgPerWeek": None},
+        "dietBackups": {"madeAt": updatedAt, "fileName": "Ambrosia-backup.zip", "driveFileId": None,
+                        "sizeBytes": 1024, "schemaVersion": 3, "madeBy": "phone"},
     }[tableName]
     values.update(columns)
     row = {"userId": userId, "updatedAt": updatedAt, "deleted": False, "cloudUpdatedAt": None, **values}

@@ -69,12 +69,13 @@ def testAmountsReadAsYouSaidThem():
 
 
 @pytest.mark.parametrize("values, why", [
-    (Values(950, 0, 100, 0), "kcal"), (Values(100, 120, 0, 0), "Protein"), (Values(100, 50, 40, 30), "together"),
+    (Values(951, 0, 100, 0), "kcal"), (Values(100, 120, 0, 0), "Protein"), (Values(100, 50, 40, 30), "together"),
 ])
 def testImpossibleLabelValuesAreRefused(values, why):
     with pytest.raises(FoodProblem, match=why):
         checkValues(values)
     checkValues(Values(884, 0, 100, 0))  # olive oil is possible
+    checkValues(Values(902, 0, 100, 0))  # and USDA's lard
 
 
 def testFoodIdsComeFromWhatTheFoodIs():

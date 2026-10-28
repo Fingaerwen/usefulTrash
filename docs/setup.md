@@ -32,6 +32,13 @@ uses) →
 
 → **Save**. It can take a few minutes to apply. Nothing secret is involved: both addresses are public.
 
+### 1d. Cloud upgrade 003 (you, in Supabase, at the joint release)
+For Talon 0.4-alpha and Ambrosia 0.1-alpha. In the release order (plan 14c): your phone has synced (nothing
+waiting), a fresh backup exists, then New query → paste the whole of
+[`cloud/003_ambrosiaAndWeighInTime.sql`](https://github.com/Fingaerwen/usefulTrash/blob/main/cloud/003_ambrosiaAndWeighInTime.sql)
+→ **Run**. The last line must read `upgrade 003 done`. It adds Ambrosia's tables and the time of today's weigh-in.
+It only adds, refuses to run twice or before 002, and Talon 0.3 keeps syncing after it.
+
 ## 2. Two Android sign-in clients (you, in Google Cloud)
 Google Play services only hands a sign-in token to an app whose package and signing key it knows.
 Gym Tracker is a new package, so it needs its own clients, in the same project as the Web client.

@@ -331,6 +331,23 @@ def testWeighInsReplaceAndClear(app):
         app.do(app.actions.setBodyWeight, friday, saturday, 81.255)
 
 
+def testTodaysWeighInKeepsTheTimeItWasSaved(app):
+    """AM6.3: saving today's weigh-in stamps the time, saving it again restamps it. A past day's gets none, and
+    correcting one keeps the time it had."""
+    friday = monday + dt.timedelta(days=4)
+    app.do(app.actions.setBodyWeight, friday, friday, 81.4)
+    stamped = app.state.weighTimes[friday]
+    assert stamped == app.clock.now
+    app.clock.advance(minutes=3)
+    app.do(app.actions.setBodyWeight, friday, friday, 81.2)
+    assert app.state.weighTimes[friday] == app.clock.now
+    later = app.clock.advance(days=1)
+    app.do(app.actions.setBodyWeight, friday, saturday, 81.25)  # corrected the next day
+    assert app.state.weighTimes[friday] == later - dt.timedelta(days=1) and app.state.weights[friday] == 81.25
+    app.do(app.actions.setBodyWeight, monday, saturday, 82.0)  # a past day's
+    assert monday not in app.state.weighTimes
+
+
 def testDeletingADaysWorkoutKeepsItsStepsAndWeighIn(app):
     """HI1.1: History's Delete this workout removes the workout and every entry. Steps and weigh-in stay."""
     view = app.today()

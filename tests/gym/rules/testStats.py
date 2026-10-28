@@ -277,6 +277,17 @@ def testWeightPreselectsTheLatestFridayAndShowsTheLastFour():
     assert weightView(weighIns, day(3), "3M").preselected == day(-3)  # Thursday: the Friday before
 
 
+def testWeightShowsWhenEachWeighInWasSaved():
+    """AM6.3: on the device's clock (here Berlin, UTC+1 in winter). One saved for a past day has no time."""
+    berlin = dt.timezone(dt.timedelta(hours=1))
+    dates = sorted(weighIns)[-4:]
+    times = {dates[0]: dt.datetime.combine(dates[0], dt.time(6, 5), dt.UTC),
+             dates[3]: dt.datetime.combine(dates[3], dt.time(6, 12, 59), dt.UTC)}
+    view = weightView(weighIns, day(5), "3M", times, berlin)
+    assert view.lastTimes == ("07:05", "", "", "07:12")
+    assert weightView(weighIns, day(5), "3M", {}, berlin).lastTimes == ()  # none at all: no line for them
+
+
 def testWeightWithFewOrNoWeighIns():
     assert weightView({}, day(5), "3M").lastText == "" and weightView({}, day(5), "3M").points == ()
     assert weightView({day(4): 80.0}, day(5), "3M").lastText == "Last 1:  80.0"

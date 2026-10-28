@@ -145,7 +145,7 @@ class AmbrosiaBase:
         title = f"{product.name} · {product.brand}" if product.brand else product.name
         if product.complete:
             return Found(product.asFood(), title, _valuesText(product.asFood()))
-        return Found(None, title, "values missing: type them from the label", product)
+        return Found(None, title, "values missing or wrong: type them from the label", product)
 
     async def scan(self) -> None:
         """The phone's camera (AM5.1: ZXing)."""
@@ -186,8 +186,7 @@ class AmbrosiaBase:
             self.typeLabel(f"Barcode {barcode} isn't in Open Food Facts. Type it from the label once; the next scan "
                            "finds it.", barcode=barcode)
         elif not product.complete:
-            self.typeLabel("Open Food Facts doesn't have all four values for this one: type the rest from the label.",
-                           product=product)
+            self.typeLabel(product.labelWhy, product=product)
         else:
             self.pick(product.asFood())
 
@@ -202,8 +201,7 @@ class AmbrosiaBase:
         if found.food is not None:
             self.pick(found.food)
         elif found.product is not None:
-            self.typeLabel("Open Food Facts doesn't have all four values for this one: type the rest from the "
-                           "label.", product=found.product)
+            self.typeLabel(found.product.labelWhy, product=found.product)
 
     async def again(self, found: Found) -> None:
         """Recent's one tap (4a): the same food and amount as last time, into the meal being added to."""

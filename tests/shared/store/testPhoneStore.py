@@ -55,6 +55,26 @@ def testStepsBuildExactlyTheAppTables(path):
     assert phoneOnly - {table.name for table in appTables} == {"outbox", "syncState", "meta"}
 
 
+def testStep3KeepsAPhonesDataAndWhatsWaiting(path, clock):
+    """A phone at schema 2 (Talon 0.3) with a weigh-in not sent yet: step 3 adds weighedAt (AM6.3), empty, and
+    the weigh-in still waits in the outbox."""
+    runPhoneSteps(path, phoneSteps[:2])
+    db = sqlite3.connect(path, isolation_level=None)
+    db.execute('insert into "bodyWeight" values (?, ?, ?, 0, null, ?, ?)',
+               ("be055b0d-fdfa-5290-8a6f-eb9d25bde5f3", userA, "2026-10-16T07:05:00.000000+00:00", "2026-10-16", 81.2))
+    db.execute('insert into "outbox" values (?, ?, ?, ?, null)', ("bodyWeight", "be055b0d-fdfa-5290-8a6f-eb9d25bde5f3",
+                                                                  "2026-10-16T07:05:00.000000+00:00",
+                                                                  "2026-10-16T07:05:00.000000+00:00"))
+    db.execute("insert into \"meta\" values ('userId', ?)", (userA,))
+    db.close()
+    assert runPhoneSteps(path, phoneSteps) == 1
+    store = PhoneStore(path, appTables, clock)
+    row = store.row("bodyWeight", "be055b0d-fdfa-5290-8a6f-eb9d25bde5f3")
+    assert (row["weightKg"], row["weighedAt"]) == (81.2, None)
+    assert [(name, row["id"]) for name, row in store.changesToSend(10)] == [("bodyWeight", row["id"])]
+    store.close()
+
+
 def testStepsRunOnlyOnce(path):
     assert runPhoneSteps(path, phoneSteps) == len(phoneSteps)
     assert runPhoneSteps(path, phoneSteps) == 0

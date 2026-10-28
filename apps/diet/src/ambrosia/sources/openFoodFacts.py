@@ -16,7 +16,7 @@ import urllib.parse
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from ambrosia.rules.foods import Food, Values
+from ambrosia.rules.foods import Food, FoodProblem, Values, checkValues
 from usefulShared.cloud.supabaseApi import CloudError, Transport, fetchTransport, runsInBrowser, urllibTransport
 
 productUrl = "https://world.openfoodfacts.org/api/v2/product/{}.json"
@@ -50,7 +50,19 @@ class Product:
 
     @property
     def complete(self) -> bool:
-        return None not in (self.kcal, self.proteinG, self.fatG, self.carbsG) and bool(self.name)
+        """A name and all four values, and values that are possible. Otherwise it's typed from the label."""
+        return not self.labelWhy
+
+    @property
+    def labelWhy(self) -> str:
+        """Why this one is typed from the label (AM2.3), in plain words. "" when it can be logged as it is."""
+        if None in (self.kcal, self.proteinG, self.fatG, self.carbsG) or not self.name:
+            return "Open Food Facts doesn't have all four values for this one: type the rest from the label."
+        try:
+            checkValues(self.asFood().per100)
+        except FoodProblem:
+            return "Open Food Facts' values for this one can't be right: check them against the label."
+        return ""
 
     def asFood(self) -> Food:
         """The product as a food to log. Only when complete."""
@@ -131,7 +143,14 @@ def productFromJson(product: dict, barcode: str) -> Product:
     if isinstance(brands, list):  # the newer search gives a list
         brands = ", ".join(str(brand) for brand in brands)
     unit = "ml" if str(product.get("product_quantity_unit") or "").lower() == "ml" else "g"
-    servingG, packG = _number(product.get("serving_quantity")), _number(product.get("product_quantity"))
+    servingG, packG = _size(product.get("serving_quantity")), _size(product.get("product_quantity"))
+    barcode = barcode.strip() if barcode.strip().isdigit() and len(barcode.strip()) <= 20 else ""
     return Product(barcode, str(product.get("product_name") or "").strip(), str(brands).strip(), unit, kcal,
                    _number(nutriments.get("proteins_100g")), _number(nutriments.get("fat_100g")),
-                   _number(nutriments.get("carbohydrates_100g")), servingG or None, packG or None, fromKj)
+                   _number(nutriments.get("carbohydrates_100g")), servingG, packG, fromKj)
+
+
+def _size(value) -> float | None:
+    """A serving or pack size in g (or ml) that can be one: above 0 (to 0.1) and at most 10 kg."""
+    number = _number(value)
+    return number if number is not None and 0.05 <= number <= 10_000 else None

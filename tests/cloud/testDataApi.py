@@ -29,13 +29,17 @@ from pathlib import Path
 import pytest
 from usefulTestKit import FakeClock, exampleRow, userA, userB
 
+from ambrosia import phoneSteps as dietSteps
+from ambrosia import tables as dietTables
 from gym.phoneSteps import phoneSteps
-from gym.tables import appSchema, appTables, tablesByName
+from gym.tables import appSchema, appTables
 from usefulShared.cloud.supabaseApi import CloudError, SupabaseApi, urllibTransport
 from usefulShared.store.phoneStore import PhoneStore, runPhoneSteps
 from usefulShared.sync import fetchChanges as fetching
 from usefulShared.sync.syncEngine import SyncEngine
-from usefulShared.tables import fromCloud, momentText, toCloud
+from usefulShared.tables import Table, bodyWeight, fromCloud, momentText, toCloud
+
+tablesByName = {table.name: table for table in (*appTables, *dietTables.appTables)}  # both apps' tables
 
 repoRoot = Path(__file__).resolve().parents[2]
 cloudScripts = sorted((repoRoot / "cloud").glob("[0-9][0-9][0-9]_*.sql"))
@@ -160,7 +164,7 @@ def localCloud():
 @pytest.fixture
 def cloud(localCloud) -> LocalCloud:
     """The local cloud with every synced table emptied before the test."""
-    names = ", ".join(f'public."{table.name}"' for table in appTables)
+    names = ", ".join(f'public."{name}"' for name in tablesByName)
     localCloud.admin(f"truncate {names};")
     return localCloud
 
@@ -316,12 +320,15 @@ class TokenSession:
         pass
 
 
-def device(cloud: LocalCloud, folder: Path, name: str) -> tuple[PhoneStore, SyncEngine]:
+def device(cloud: LocalCloud, folder: Path, name: str, app: str = "talon") -> tuple[PhoneStore, SyncEngine]:
+    """A phone with Talon's database (or with app="ambrosia", Ambrosia's), signed in as user A."""
     path = str(folder / f"{name}.sqlite3")
-    runPhoneSteps(path, phoneSteps)
-    store = PhoneStore(path, appTables, RealClock())
+    steps, tables, schema = ((dietSteps.phoneSteps, dietTables.appTables, dietTables.appSchema) if app == "ambrosia"
+                             else (phoneSteps, appTables, appSchema))
+    runPhoneSteps(path, steps)
+    store = PhoneStore(path, tables, RealClock())
     store.claimFor(userA)
-    return store, SyncEngine(store, cloud.api(), TokenSession(cloud), appTables, appSchema, RealClock())
+    return store, SyncEngine(store, cloud.api(), TokenSession(cloud), tables, schema, RealClock())
 
 
 def testTwoDevicesSyncThroughTheRealDataApi(cloud, tmp_path, monkeypatch):
@@ -375,3 +382,83 @@ def testWeightsStepsAndDeloadsSetInTheAppSyncToo(cloud, tmp_path):
     run(phoneSync.runRound())
     assert phone.row("deloads", deload["id"])["deleted"] is True
     assert phone.waiting().count == 0 and other.waiting().count == 0
+
+
+# --- Ambrosia and Talon on one cloud (upgrade 003) ---------------------------------------------
+
+def testAmbrosiaAndTalonShareOneCloud(cloud, tmp_path):
+    """Talon logs a plan, a workout and today's weigh-in with its time (AM6.3). Ambrosia logs food, water, targets
+    and a change. Each gets what it reads: Ambrosia Talon's three tables, Talon nothing of Ambrosia's. Ambrosia
+    never sends Talon's tables."""
+    talon, talonSync = device(cloud, tmp_path, "talon")
+    ambrosia, ambrosiaSync = device(cloud, tmp_path, "ambrosia", app="ambrosia")
+    now = RealClock()()
+    plan = talon.save("plans", exampleRow("plans", updatedAt=now))
+    log = talon.save("exerciseLogs", exampleRow("exerciseLogs", updatedAt=now))
+    weighedAt = dt.datetime(2026, 10, 30, 6, 12, 33, 250000, tzinfo=dt.UTC)
+    weight = talon.save("bodyWeight", exampleRow("bodyWeight", updatedAt=now, weighedAt=weighedAt))
+    talon.save("dailySteps", exampleRow("dailySteps", updatedAt=now))
+    food = ambrosia.save("foods", exampleRow("foods", updatedAt=now))
+    for name in ("foodLogs", "water", "dietTargets", "targetChanges", "dietBackups"):
+        ambrosia.save(name, exampleRow(name, updatedAt=now))
+    assert run(talonSync.runRound()).status == "done"
+    outcome = run(ambrosiaSync.runRound())
+    assert (outcome.status, outcome.sent) == ("done", 6)
+    assert run(talonSync.runRound()).status == "done"
+
+    assert ambrosia.row("plans", plan["id"])["planJson"] == plan["planJson"]
+    assert ambrosia.row("exerciseLogs", log["id"])["sets"] == log["sets"]
+    assert ambrosia.row("bodyWeight", weight["id"])["weighedAt"] == weighedAt
+    assert ambrosia.waiting().count == 0 and talon.waiting().count == 0
+    assert "foods" not in talon.tables and len(cloudRows(cloud, "foods")) == 1
+    assert cloudRows(cloud, "foods")[0]["name"] == food["name"] == "Nutella"
+
+
+def testAnOlderTalonLeavesTheWeighInTimeAsItWas(cloud):
+    """Talon 0.3 knows bodyWeight without weighedAt: its newer edit of a weigh-in changes the weight and keeps the
+    time 0.4 stamped (an upsert changes only the columns it sends, 4e)."""
+    api, token = cloud.api(), cloud.tokenFor(userA)
+    weighedAt = dt.datetime(2026, 10, 30, 6, 12, tzinfo=dt.UTC)
+    row = nowRow("bodyWeight", minutesAgo=2, weighedAt=weighedAt)
+    run(api.upsertRows("bodyWeight", [toCloud(tablesByName["bodyWeight"], row)], token))
+    talon03 = Table("bodyWeight", tuple(column for column in bodyWeight.columns if column.name != "weighedAt"),
+                    bodyWeight.dayKey)
+    edited = dict(row, weightKg=80.4, updatedAt=row["updatedAt"] + dt.timedelta(minutes=1))
+    del edited["weighedAt"]
+    run(api.upsertRows("bodyWeight", [toCloud(talon03, edited)], token))
+    stored = cloudRows(cloud, "bodyWeight")[0]
+    assert (stored["weightKg"], stored["weighedAt"]) == (80.4, weighedAt)
+
+
+def testEveryRowAmbrosiasActionsMakeFitsTheCloud(cloud):
+    """Rows from ambrosia/actions.py at the edges of what it allows (a 300-character name, USDA's lard at 902 kcal,
+    a hundredth of a pack, 10 kg in one entry, a long barcode from a search) are all kept by the cloud's checks
+    (cloud/003)."""
+    from ambrosia.actions import AmbrosiaActions
+    from ambrosia.rules.foods import Food, Values
+    from ambrosia.state import AmbrosiaState
+
+    saved: list[tuple[str, dict]] = []
+
+    class Capture:
+        async def saveRows(self, edits):
+            saved.extend(edits)
+            return [row for _, row in edits]
+
+    actions = AmbrosiaActions(Capture(), AmbrosiaState(), userA, RealClock())
+    lard = Food("", "usda", "Lard", Values(902, 0, 100, 0), usdaId=171401)
+    longName = Food("", "openFoodFacts", "Crunchy " * 40, Values(450.25, 7.555, 20, 60), "Brand " * 40,
+                    "12345678901234567890", servingG=0.1, packG=10_000)
+    day = dt.date(2026, 10, 30)
+    run(actions.logFood(day, "breakfast", lard, "grams", 10_000))
+    run(actions.logFood(day, "snacks", longName, "pack", 0.01))
+    run(actions.logFood(day, "snacks", longName, "servings", 100_000))
+    run(actions.saveLabel(Food("", "label", "Rye bread from the counter", Values(220, 7, 1.5, 41), barcode="2000000000015",
+                               unit="g", servingG=45)))
+    run(actions.setWater(day, 20_000))
+    api, token = cloud.api(), cloud.tokenFor(userA)
+    for tableName, row in saved:
+        stamped = dict(row, updatedAt=RealClock()() - dt.timedelta(seconds=1), cloudUpdatedAt=None)
+        run(api.upsertRows(tableName, [toCloud(tablesByName[tableName], stamped)], token))
+    assert len(cloudRows(cloud, "foodLogs")) == 3 and len(cloudRows(cloud, "foods")) == 3
+    assert 190 < max(len(row["name"]) for row in cloudRows(cloud, "foods")) <= 200  # cut, then trimmed

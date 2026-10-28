@@ -1,24 +1,15 @@
 """The gym app's tables (plan 14) and the cloud upgrade it's built for (14c).
 
-The shared tables (body weight, daily steps, backups) come from usefulShared.tables. A test runs the
-cloud scripts in a local Postgres and checks these definitions match the real tables exactly.
+The tables Ambrosia reads too (plans, exercise logs, body weight) and the other shared ones (daily steps,
+backups) come from usefulShared.tables. A test runs the cloud scripts in a local Postgres and checks these
+definitions match the real tables exactly.
 """
 
-from usefulShared.tables import Column, moment, sharedTables, table
+from usefulShared.tables import Column, exerciseLogs, moment, plans, sharedTables, table
 
 # The last cloud upgrade (cloud/NNN_*.sql) this app is built for. Before each sync the app reads
 # cloudInfo and syncs only if minAppSchema <= appSchema <= schemaVersion (14b, UP1.1).
-appSchema = 2
-
-# Plan imports: the plan as imported, when it takes effect and the starting step you chose.
-plans = table(
-    "plans",
-    Column("importedAt", moment),  # orders imports taking effect the same day
-    Column("effectiveDate", "date"),
-    Column("startStep", "integer"),
-    Column("planJson", "jsonb"),  # the plan file as read, with matched exercise IDs (11.3)
-    Column("archived", "boolean"),
-)
+appSchema = 3
 
 # Workouts: one per day (DT1.1), each recording which plan step it was.
 sessions = table(
@@ -28,20 +19,6 @@ sessions = table(
     Column("stepIndex", "integer"),
     Column("finishedAt", moment, required=False),  # empty until you tap Finish
     dayKey=("date",),
-)
-
-# One exercise on one workout day: what was suggested and what you did.
-exerciseLogs = table(
-    "exerciseLogs",
-    Column("date", "date"),
-    Column("exerciseId", "text"),
-    Column("targetReps", "integer", required=False),  # what Today suggested
-    Column("targetWeightKg", "numeric(6,2)", required=False),
-    Column("sets", "jsonb"),  # [{"reps": 9, "weightKg": 82.5}, ...]
-    Column("minutes", "integer", required=False),  # cardio
-    Column("skipped", "boolean"),
-    Column("declinedSuggestion", "boolean"),  # you pressed Undo on ↑new
-    dayKey=("date", "exerciseId"),
 )
 
 # A weight you set in the app for one exercise on one day (WD2.1): from fromDate on, that day's target

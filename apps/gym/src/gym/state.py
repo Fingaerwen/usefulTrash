@@ -61,6 +61,7 @@ class GymState:
         self.logs: dict[dt.date, dict[str, LoggedExercise]] = {}
         self.steps: dict[dt.date, int] = {}
         self.weights: dict[dt.date, float] = {}
+        self.weighTimes: dict[dt.date, dt.datetime] = {}  # when today's weigh-in was saved (AM6.3)
         self.known: dict[str, PlanExercise] = {}  # every exercise of every plan so far (R8)
         self.weightEdits: list[WeightEdit] = []  # weights set in the app (WD2.1), oldest first
         self.stepEdits: list[StepEdit] = []  # weight steps set in the app, oldest first
@@ -92,6 +93,7 @@ class GymState:
         self.workouts = withCounts(self.plans, workouts, self.logs)  # which ones count (WD4.1)
         self.steps = {row["date"]: row["steps"] for row in self._live("dailySteps")}
         self.weights = {row["date"]: row["weightKg"] for row in self._live("bodyWeight")}
+        self.weighTimes = {row["date"]: row["weighedAt"] for row in self._live("bodyWeight") if row.get("weighedAt")}
         self.weightEdits = [WeightEdit(row["exerciseId"], row["weekday"], row["weightKg"], row["fromDate"])
                             for row in _inOrder(self._live("exerciseWeights"))]
         self.stepEdits = [StepEdit(row["exerciseId"], row["incrementKg"], row["fromDate"])
@@ -132,8 +134,8 @@ class GymState:
         return chartView(exercise, self.logs, self.training(date), date, chartRange) if exercise else None
 
     def weightView(self, date: dt.date, chartRange: str) -> WeightView:
-        """The Weight tab (SC5.1)."""
-        return weightView(self.weights, date, chartRange)
+        """The Weight tab (SC5.1), with the time of each weigh-in saved on its day (AM6.3)."""
+        return weightView(self.weights, date, chartRange, self.weighTimes)
 
     def historyDays(self, dates: list[dt.date], today: dt.date) -> tuple[HistoryDay, ...]:
         """History's days (SC6.1, HI1.1)."""

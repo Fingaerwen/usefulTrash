@@ -70,4 +70,8 @@ phoneSteps: tuple[tuple[str, ...], ...] = (
             "deleted" integer not null, "cloudUpdatedAt" text,
             "startDate" text not null)""",
     ),
+    # Step 3 (cloud 003): the time you saved today's weigh-in (AM6.3). Ambrosia's tables are its own app's.
+    (
+        """alter table "bodyWeight" add column "weighedAt" text""",
+    ),
 )

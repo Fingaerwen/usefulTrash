@@ -1,22 +1,24 @@
 """Everything Ambrosia changes, as rows (plan 3b: one write path). Each action builds the rows with the columns of
-apps/diet/docs/plan.md 4e and hands them to the store in one go, so they're saved (and later sent) together.
-The store stamps edit times. IDs follow 4e: a food from its barcode or USDA number, a day's water from the date.
+apps/diet/docs/plan.md 4e (ambrosia/tables.py) and hands them to the store in one go, so they're saved (and later
+sent) together. The store stamps edit times. IDs follow 4e: a food from its barcode or USDA number, a day's water
+from the date, an applied bulk-check change from its check's Sunday.
 
-Saving these rows for real (the phone's database, the cloud upgrade and sync) is built at max effort (gate 2).
-Until then the store is a stand-in.
+Every row an action makes fits the cloud's checks (cloud/003): names at most 200 characters, values per 100 g that
+are possible, amounts and counts the cloud's columns can hold. A test sends such rows to a local copy of the cloud.
 """
 
 import datetime as dt
-import uuid
 from collections.abc import Callable, Sequence
 from typing import Any, Protocol
 
 from ambrosia.rules.foods import Food, FoodProblem, checkValues, foodRowId, gramsFor, meals, portions
 from ambrosia.rules.targets import targetsFromJson
 from ambrosia.state import AmbrosiaState
-from usefulShared.tables import idNamespace, newRowId
+from ambrosia.tables import water
+from usefulShared.tables import dayRowId, newRowId
 
 maxWaterMl = 20_000  # a day's total
+maxNameLength = 200  # a food's name and brand, as the cloud keeps them (cloud/003)
 
 
 class ActionRefused(Exception):
@@ -28,22 +30,28 @@ class RowStore(Protocol):
 
 
 def waterRowId(userId: str, date: dt.date) -> str:
-    """A day's water row ID, made like every one-per-day row (usefulShared.tables.dayRowId): the phone and the PC
-    view adding water the same day write one row."""
-    return str(uuid.uuid5(idNamespace, f"water/{uuid.UUID(userId)}/{date.isoformat()}"))
+    """A day's water row ID, made like every one-per-day row: the phone and the PC view adding water the same day
+    write one row."""
+    return dayRowId(water, userId, date=date)
 
 
 def foodRow(food: Food, foodId: str, userId: str) -> dict[str, Any]:
     """A foods row (4e). Values are kept to the precision the cloud keeps: kcal to 0.1, grams to 0.01."""
     values = food.per100
     return {"id": foodId, "userId": userId, "deleted": False, "source": food.source, "barcode": food.barcode or None,
-            "usdaId": food.usdaId, "name": food.name, "brand": food.brand or None, "unit": food.unit,
+            "usdaId": food.usdaId, "name": _text(food.name), "brand": _text(food.brand) or None, "unit": food.unit,
             "kcal": round(values.kcal, 1), "proteinG": round(values.proteinG, 2), "fatG": round(values.fatG, 2),
-            "carbsG": round(values.carbsG, 2), "servingG": _grams(food.servingG), "packG": _grams(food.packG)}
+            "carbsG": round(values.carbsG, 2), "servingG": _size(food.servingG), "packG": _size(food.packG)}
 
 
-def _grams(value: float | None) -> float | None:
-    return round(value, 1) if value else None
+def _text(value: str) -> str:
+    """A name or brand as the cloud keeps it: trimmed, at most 200 characters."""
+    return value.strip()[:maxNameLength].strip()
+
+
+def _size(value: float | None) -> float | None:
+    """A serving or pack size to 0.1 g, or nothing if it isn't one the cloud keeps (above 0, at most 10 kg)."""
+    return round(value, 1) if value and 0 < round(value, 1) <= 10_000 else None
 
 
 class AmbrosiaActions:
@@ -64,9 +72,11 @@ class AmbrosiaActions:
         if meal not in meals:
             raise ActionRefused("That isn't one of the day's meals.")
         try:
+            checkValues(food.per100)
             grams = gramsFor(food, portion, count)
         except FoodProblem as problem:
             raise ActionRefused(str(problem)) from None
+        _checkCount(portion, count)
         foodId = self._foodId(food)
         edits: list[tuple[str, dict[str, Any]]] = []
         existing = self.state.row("foods", foodId)
@@ -78,7 +88,7 @@ class AmbrosiaActions:
             "id": logId, "userId": self.userId, "deleted": False, "date": date, "meal": meal,
             "loggedAt": self.clock(), "foodId": foodId, "portion": portion,
             "portionCount": None if portion == "grams" else round(float(count), 2), "grams": grams,
-            "name": food.name, "brand": food.brand or None, "unit": food.unit, "kcal": round(values.kcal, 1),
+            "name": _text(food.name), "brand": _text(food.brand) or None, "unit": food.unit, "kcal": round(values.kcal, 1),
             "proteinG": round(values.proteinG, 2), "fatG": round(values.fatG, 2), "carbsG": round(values.carbsG, 2)}))
         await self.store.saveRows(edits)
         return logId
@@ -88,6 +98,8 @@ class AmbrosiaActions:
         food keeps its ID, so typing over a wrong Open Food Facts entry corrects it."""
         if not food.name.strip():
             raise ActionRefused("Give the food a name.")
+        if food.unit not in ("g", "ml"):
+            raise ActionRefused("A label's values are per 100 g, or per 100 ml for a drink.")
         try:
             checkValues(food.per100)
         except FoodProblem as problem:
@@ -121,9 +133,11 @@ class AmbrosiaActions:
                 grams = gramsFor(food, portion, count)
             except FoodProblem as problem:
                 raise ActionRefused(str(problem)) from None
+        grams = round(grams, 1)
         if not 0 < grams <= 10_000:
             raise ActionRefused("The amount must be above 0 and at most 10 kg.")
-        await self.store.saveRows([("foodLogs", dict(row, meal=meal, portion=portion, grams=round(grams, 1),
+        _checkCount(portion, count)
+        await self.store.saveRows([("foodLogs", dict(row, meal=meal, portion=portion, grams=grams,
                                                      portionCount=None if portion == "grams" else round(count, 2)))])
 
     async def deleteLog(self, logId: str) -> None:
@@ -155,3 +169,9 @@ class AmbrosiaActions:
                                                     "importedAt": self.clock(), "effectiveDate": today,
                                                     "targetsJson": data})])
         return importId
+
+
+def _checkCount(portion: str, count: float) -> None:
+    """A count of servings or packs is kept to 0.01, so it must be at least that."""
+    if portion != "grams" and round(float(count), 2) <= 0:
+        raise ActionRefused("A number of servings or packs must be at least 0.01.")

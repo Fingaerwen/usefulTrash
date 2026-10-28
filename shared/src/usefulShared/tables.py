@@ -4,7 +4,8 @@ agree with the cloud scripts in cloud/ (a test compares them with the real table
 
 Rows are plain dicts of Python values: uuid and text are str, integers int, decimals float, booleans
 bool, dates datetime.date, moments timezone-aware datetime.datetime in UTC, and JSON columns the
-parsed JSON. This module holds the tables every app shares. Each app adds its own (gym/tables.py).
+parsed JSON. This module holds the tables more than one app uses. Each app adds its own (gym/tables.py,
+ambrosia/tables.py).
 """
 
 import datetime as dt
@@ -68,9 +69,38 @@ def table(name: str, *columns: Column, dayKey: tuple[str, ...] = ()) -> Table:
     return Table(name, commonColumns + columns, dayKey)
 
 
-# --- The tables every app shares ---------------------------------------------------------------
+# --- Tables more than one app uses -------------------------------------------------------------
+# Talon writes them all. Ambrosia reads plans, exerciseLogs and bodyWeight and never writes them
+# (apps/diet/docs/plan.md 4e).
 
-bodyWeight = table("bodyWeight", Column("date", "date"), Column("weightKg", "numeric(5,2)"), dayKey=("date",))
+# Plan imports: the plan as imported, when it takes effect and the starting step you chose.
+plans = table(
+    "plans",
+    Column("importedAt", moment),  # orders imports taking effect the same day
+    Column("effectiveDate", "date"),
+    Column("startStep", "integer"),
+    Column("planJson", "jsonb"),  # the plan file as read, with matched exercise IDs (11.3)
+    Column("archived", "boolean"),
+)
+
+# One exercise on one workout day: what was suggested and what you did.
+exerciseLogs = table(
+    "exerciseLogs",
+    Column("date", "date"),
+    Column("exerciseId", "text"),
+    Column("targetReps", "integer", required=False),  # what Today suggested
+    Column("targetWeightKg", "numeric(6,2)", required=False),
+    Column("sets", "jsonb"),  # [{"reps": 9, "weightKg": 82.5}, ...]
+    Column("minutes", "integer", required=False),  # cardio
+    Column("skipped", "boolean"),
+    Column("declinedSuggestion", "boolean"),  # you pressed Undo on ↑new
+    dayKey=("date", "exerciseId"),
+)
+
+# Body weight, one per day. weighedAt (upgrade 003, AM6.3): when you saved today's weigh-in, empty for a past
+# day's and for every one from before Talon 0.4.
+bodyWeight = table("bodyWeight", Column("date", "date"), Column("weightKg", "numeric(5,2)"),
+                   Column("weighedAt", moment, required=False), dayKey=("date",))
 dailySteps = table("dailySteps", Column("date", "date"), Column("steps", "integer"), dayKey=("date",))
 backups = table(
     "backups",
@@ -81,7 +111,7 @@ backups = table(
     Column("schemaVersion", "integer"),
     Column("madeBy", "text"),  # "phone" or "pcView"
 )
-sharedTables = (bodyWeight, dailySteps, backups)
+sharedTables = (bodyWeight, dailySteps, backups)  # Talon syncs these besides its own
 
 
 # --- IDs and edit times -------------------------------------------------------------------------

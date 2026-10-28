@@ -14,7 +14,9 @@ from pathlib import Path
 
 import pytest
 
-from gym.tables import appSchema, appTables
+from ambrosia.tables import appSchema as dietSchema
+from ambrosia.tables import appTables as dietTables
+from gym.tables import appSchema, appTables as gymTables
 
 repoRoot = Path(__file__).resolve().parents[2]
 cloudScripts = sorted((repoRoot / "cloud").glob("[0-9][0-9][0-9]_*.sql"))
@@ -27,7 +29,9 @@ postgresImage = (
 )
 
 syncedTables = ["plans", "sessions", "exerciseLogs", "bodyWeight", "dailySteps", "backups", "exerciseWeights",
-                "exerciseSteps", "deloads"]
+                "exerciseSteps", "deloads", "foods", "foodLogs", "water", "dietTargets", "targetChanges", "dietBackups"]
+# Both apps' tables, each once (they share plans, exerciseLogs and bodyWeight)
+appTables = tuple({table.name: table for table in (*gymTables, *dietTables)}.values())
 userA = str(uuid.UUID(int=1))
 userB = str(uuid.UUID(int=2))
 
@@ -136,6 +140,19 @@ def newRow(table: str, userId: str = userA, updatedAt: str = "now()", **columns)
                             "fromDate": "'2026-10-12'"},
         "exerciseSteps": {"exerciseId": "'benchPress'", "incrementKg": "2.5", "fromDate": "'2026-10-12'"},
         "deloads": {"startDate": "'2026-10-19'"},
+        "foods": {"source": "'openFoodFacts'", "barcode": "'3017620422003'", "name": "'Nutella'", "unit": "'g'",
+                  "kcal": "539", "proteinG": "6.3", "fatG": "30.9", "carbsG": "57.5"},
+        "foodLogs": {"date": "'2026-10-26'", "meal": "'breakfast'", "loggedAt": "now()", "foodId": f"'{uuid.uuid4()}'",
+                     "portion": "'grams'", "grams": "30", "name": "'Nutella'", "unit": "'g'", "kcal": "539",
+                     "proteinG": "6.3", "fatG": "30.9", "carbsG": "57.5"},
+        "water": {"date": "'2026-10-26'", "ml": "1500"},
+        "dietTargets": {"importedAt": "now()", "effectiveDate": "'2026-10-26'",
+                        "targetsJson": "'{\"format\": \"ambrosiaTargets\"}'"},
+        "targetChanges": {"checkDate": "'2026-12-06'", "fromDate": "'2026-12-06'", "targetsImportId": f"'{uuid.uuid4()}'",
+                          "reason": "'bigMissLow'", "kcalChange": "250", "macro": "'carbs'", "macroChangeG": "63",
+                          "blockAvgKg": "81.13", "blockWeighIns": "2", "comparedStart": "'2026-10-26'",
+                          "comparedAvgKg": "81.25", "comparedWeighIns": "2"},
+        "dietBackups": {"madeAt": "now()", "fileName": "'backup.zip'", "schemaVersion": "3", "madeBy": "'phone'"},
     }[table]
     values = {"id": f"'{uuid.uuid4()}'", "userId": f"'{userId}'", "updatedAt": updatedAt, **defaults, **columns}
     names = ", ".join(f'"{name}"' for name in values)
@@ -162,15 +179,36 @@ def testRunningAnUpgradeTwiceIsRefused(database):
     database.fails(cloudScripts[0].read_text(encoding="utf-8"), "has already been run")
     assert database.ok('select count(*) from public."cloudInfo";') == ["1"]
     database.fails(cloudScripts[1].read_text(encoding="utf-8"), "has already been run")
+    database.fails(cloudScripts[2].read_text(encoding="utf-8"), "has already been run")
 
 
 def testUpgrade002NeedsUpgrade001First(emptyDatabase):
     emptyDatabase.fails(cloudScripts[1].read_text(encoding="utf-8"), "Upgrade 001 has to be run first")
 
 
-def testUpgrade002LetsAppsBuiltFor001KeepSyncing(database):
-    """It only adds tables (UP1.1), so minAppSchema stays 1."""
-    assert database.ok('select "schemaVersion", "minAppSchema" from public."cloudInfo";') == ["2|1"]
+def testUpgrade003RunsOnlyRightAfter002(emptyDatabase):
+    emptyDatabase.fails(cloudScripts[2].read_text(encoding="utf-8"), "Upgrade 001 has to be run first")
+    emptyDatabase.ok(cloudScripts[0].read_text(encoding="utf-8"))
+    emptyDatabase.fails(cloudScripts[2].read_text(encoding="utf-8"), "003 needs 002")
+    assert emptyDatabase.ok("""select to_regclass('public."foods"') is null;""") == ["t"]  # nothing changed
+
+
+def testTheUpgradesLetOlderAppsKeepSyncing(database):
+    """They only add (UP1.1), so minAppSchema stays 1: Talon 0.3 (schema 2) keeps syncing after 003."""
+    assert database.ok('select "schemaVersion", "minAppSchema" from public."cloudInfo";') == [
+        f"{len(cloudScripts)}|1"]
+
+
+def testAWeighInFromBefore003KeepsItsPlaceAndGetsNoTime(emptyDatabase):
+    """Upgrade 003 on a cloud holding Talon's weigh-ins: they stay as they were, with no time (AM6.3)."""
+    for script in cloudScripts[:2]:
+        emptyDatabase.ok(script.read_text(encoding="utf-8"))
+    rowId = str(uuid.uuid4())
+    emptyDatabase.ok(newRow("bodyWeight", id=f"'{rowId}'"), asUser=userA)
+    before = emptyDatabase.ok(f'select "cloudUpdatedAt", "weightKg" from public."bodyWeight" where "id" = \'{rowId}\';')
+    emptyDatabase.ok(cloudScripts[2].read_text(encoding="utf-8"))
+    assert emptyDatabase.ok(f'select "cloudUpdatedAt", "weightKg", "weighedAt" is null from public."bodyWeight" '
+                            f'where "id" = \'{rowId}\';') == [before[0] + "|t"]
 
 
 def testAFailedUpgradeChangesNothing(emptyDatabase):
@@ -282,9 +320,12 @@ def testARowsIdNeverChanges(database):
     ("exerciseLogs", {"exerciseId": "'benchPress'"}),
     ("bodyWeight", {}),
     ("dailySteps", {}),
+    ("water", {}),
+    ("targetChanges", {}),  # one change per check Sunday (4e)
 ])
 def testOneRowPerDay(database, table, sameDayColumns):
-    """DT1.1 / DT2.1 / CA1.1: a second row for the same day (with a different id) is refused."""
+    """DT1.1 / DT2.1 / CA1.1, and Ambrosia's water and changes: a second row for the same day (with a different id)
+    is refused."""
     database.ok(newRow(table, **sameDayColumns), asUser=userA)
     database.fails(newRow(table, **sameDayColumns), "duplicate key", asUser=userA)
     database.ok(newRow(table, userId=userB, **sameDayColumns), asUser=userB)  # another user's same day is fine
@@ -335,7 +376,8 @@ def testEverySyncedTableHasTheCommonColumns(database, table):
 
 @pytest.mark.parametrize("table", appTables, ids=lambda table: table.name)
 def testAppTablesMatchTheCloud(database, table):
-    """gym/tables.py and usefulShared/tables.py list every column with the cloud's own type, in order."""
+    """gym/tables.py, ambrosia/tables.py and usefulShared/tables.py list every column with the cloud's own type,
+    in order."""
     rows = database.ok(f"""
         select a.attname || '|' || format_type(a.atttypid, a.atttypmod) || '|' || a.attnotnull
         from pg_attribute a
@@ -350,10 +392,47 @@ def testEveryCloudTableIsDefinedInTheApp(database):
     assert sorted(syncedTables) == sorted(table.name for table in appTables)
 
 
-def testTheAppIsBuiltForTheLatestUpgrade(database):
+def testTheAppsAreBuiltForTheLatestUpgrade(database):
     """Raising appSchema with each new cloud script can't be forgotten (version check, 14b)."""
     assert database.ok('select "schemaVersion" from public."cloudInfo";') == [str(appSchema)]
-    assert appSchema == len(cloudScripts)
+    assert appSchema == dietSchema == len(cloudScripts)
+
+
+# --- Ambrosia's checks (cloud/003) --------------------------------------------------------------
+
+@pytest.mark.parametrize(("table", "columns"), [
+    ("foods", {"source": "'shop'"}),
+    ("foods", {"unit": "'kg'"}),
+    ("foods", {"barcode": "'30176x0422003'"}),
+    ("foods", {"name": "''"}),
+    ("foods", {"kcal": "951"}),
+    ("foods", {"proteinG": "100.01"}),
+    ("foods", {"servingG": "0"}),
+    ("foodLogs", {"meal": "'brunch'"}),
+    ("foodLogs", {"portion": "'handful'"}),
+    ("foodLogs", {"grams": "0"}),
+    ("foodLogs", {"grams": "10000.1"}),
+    ("foodLogs", {"portionCount": "0"}),
+    ("water", {"ml": "20001"}),
+    ("dietTargets", {"targetsJson": "'[1, 2]'"}),
+    ("targetChanges", {"reason": "'feeling'"}),
+    ("targetChanges", {"kcalChange": "0"}),
+    ("targetChanges", {"macro": "'protein'"}),
+    ("targetChanges", {"blockWeighIns": "0"}),
+    ("dietBackups", {"madeBy": "'tablet'"}),
+])
+def testAmbrosiasTablesRefuseWhatTheAppNeverMakes(database, table, columns):
+    database.fails(newRow(table, **columns), "violates check constraint", asUser=userA)
+
+
+def testAmbrosiasRowsAtTheirLimitsAreKept(database):
+    """The largest and smallest values the app makes (ambrosia/actions.py) fit the columns."""
+    database.ok(newRow("foods", name=f"'{'n' * 200}'", brand=f"'{'b' * 200}'", barcode="'12345678901234567890'",
+                       kcal="950", proteinG="100", fatG="0", carbsG="0", servingG="0.1", packG="10000"), asUser=userA)
+    database.ok(newRow("foodLogs", portion="'servings'", portionCount="100000", grams="10000", kcal="0"), asUser=userA)
+    database.ok(newRow("foodLogs", portion="'pack'", portionCount="0.01", grams="0.1"), asUser=userA)
+    database.ok(newRow("targetChanges", kcalChange="-1000", macroChangeG="-250", rateKgPerWeek="-499.99",
+                       blockWeighIns="14"), asUser=userA)
 
 
 
@@ -367,11 +446,11 @@ def backupOfEveryTable(updatedAt=None):
 
     from usefulShared.backup.backupFile import makeBackupZip
     moment = updatedAt or dt.datetime(2026, 10, 12, 17, 0, 0, 123456, tzinfo=dt.UTC)
-    rows = {table.name: [exampleRow(table.name, userId=userA, updatedAt=moment)] for table in appTables}
+    rows = {table.name: [exampleRow(table.name, userId=userA, updatedAt=moment)] for table in gymTables}
     rows["plans"][0]["planJson"] = {"name": "Tom's \"plan\"", "week": [1, 2]}
     rows["dailySteps"].append(exampleRow("dailySteps", userId=userA, updatedAt=moment, date=dt.date(2026, 10, 13),
                                          steps=9500, deleted=True))
-    return rows, makeBackupZip(rows, appTables, appSchema, moment, "phone")
+    return rows, makeBackupZip(rows, gymTables, appSchema, moment, "phone")
 
 
 def testARestoreFillsAnEmptyCloudExactly(database):
