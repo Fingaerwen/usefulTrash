@@ -42,7 +42,7 @@ def ruleText(view: BulkCheckView, comparison: Comparison) -> str:
     if comparison.rule == "regular":
         where = "below" if comparison.kcal > 0 else "above"
         return (f"{signed(comparison.rateKgPerWeek)} kg a week over {weeks} weeks, {where} your "
-                f"{settings.rateMinKg:g} to {settings.rateMaxKg:g}.")
+                f"{settings.rateMinKg:g} to {settings.rateMaxKg:g} kg a week.")
     if comparison.kcal > 0:
         return f"{signed(comparison.differenceKg)} kg against {weeks} weeks earlier: lower, a big miss."
     return (f"{signed(comparison.differenceKg)} kg against {weeks} weeks earlier: more than {settings.bigGainKg:g} kg, "
@@ -61,7 +61,7 @@ def outcomeText(view: BulkCheckView) -> str:
     if chosen is not None:
         verb = "adding" if chosen.kcal > 0 else "removing"
         return f"{day}: suggests {verb} {abs(chosen.kcal)} kcal a day" + (
-            "." if view.suggestion is not None else ", not now.")
+            "." if view.suggestion is not None else ", you tapped Not now.")
     ran = [part for part in (check.regular, check.bigMiss) if isinstance(part, Comparison)]
     if ran:
         numbers = ", ".join(f"{signed(part.rateKgPerWeek)} kg a week" if part.rule == "regular"
