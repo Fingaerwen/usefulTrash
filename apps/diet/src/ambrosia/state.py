@@ -10,9 +10,11 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from ambrosia.rules.bulkCheck import BlockCheck, Comparison, latestCheck, nextCheckDate
 from ambrosia.rules.foods import Food, LoggedFood, UsedFood, byMeal, dayTotal, foodFromRow, loggedFromRow, yourFoods
 from ambrosia.rules.targets import (
     AppliedChange,
+    BulkCheckSettings,
     DayTargets,
     TargetsImport,
     changesFromRows,
@@ -26,8 +28,6 @@ from ambrosia.rules.targets import (
 from ambrosia.rules.today import DayView
 from ambrosia.rules.week import WeekView, weekView, weighIns
 
-ambrosiaTables = ("foods", "foodLogs", "water", "dietTargets", "targetChanges", "dietBackups")
-talonTables = ("bodyWeight", "plans", "sessions", "exerciseLogs")  # read, never written (4e)
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,6 +42,18 @@ class TargetsView:
     waterMl: int | None
     firstBlockStart: dt.date | None  # None: the bulk check is off
     changes: tuple[AppliedChange, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class BulkCheckView:
+    """The bulk check (4g) as Today's banner and the Targets tab show it."""
+
+    check: BlockCheck | None  # the newest check day's outcome by today. None before the first block ends
+    suggestion: Comparison | None  # the change it suggests, while it's neither applied nor dismissed
+    applied: bool  # the newest check's change is applied
+    nextCheck: dt.date
+    settings: BulkCheckSettings
+    importId: str  # the targets import a change goes onto: the one in effect today
 
 
 @dataclass(frozen=True, slots=True)
@@ -124,6 +136,19 @@ class AmbrosiaState:
                            settings.firstBlockStart if settings else None,
                            tuple(sorted((change for change in self.changes if change.targetsImportId == found.importId),
                                         key=lambda change: change.fromDate)))
+
+    def bulkCheckView(self, today: dt.date, dismissed: dt.date | None) -> BulkCheckView | None:
+        """The newest check day's outcome and its suggestion (4g). dismissed is the check day whose suggestion
+        you tapped Not now on, on this device. None when the check is off."""
+        found = importInEffect(self.imports, today)
+        if found is None or found.targets.bulkCheck is None:
+            return None
+        check = latestCheck(self.imports, self.changes, self.weights, today)
+        applied = check is not None and any(change.checkDate == check.checkDate for change in self.changes)
+        chosen = check.chosen if check is not None else None
+        suggestion = chosen if chosen is not None and not applied and dismissed != check.checkDate else None
+        return BulkCheckView(check, suggestion, applied, nextCheckDate(self.imports, today), found.targets.bulkCheck,
+                             found.importId)
 
     def historyDays(self, month: dt.date, today: dt.date) -> list[HistoryDay]:
         """A month's days up to today, newest first, with what was eaten (AM5.5)."""

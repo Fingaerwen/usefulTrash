@@ -5,7 +5,14 @@ content kept to a readable width in the middle. Everything sits on Ambrosia's ba
 import flet as ft
 
 from ambrosia.screens.addFood import AddScreen, AmountScreen, LabelScreen
-from ambrosia.screens.common import ComingSoon, FailedScreen, StartingScreen, backButton
+from ambrosia.screens.common import (
+    ComingSoon,
+    DownloadingScreen,
+    FailedScreen,
+    ProblemsScreen,
+    SignInScreen,
+    StartingScreen,
+)
 from ambrosia.screens.history import HistoryScreen, HistoryTab
 from ambrosia.screens.look import (
     appMark,
@@ -38,19 +45,14 @@ def BackupTab(app, model):
                                                 "Ambrosia's own folder, every 30 days, the last 3 kept (AM5.6).")])
 
 
-@ft.component
-def ProblemsScreen(app, model):
-    return screen([header("Problems", leading=backButton(app)),
-                   card(ft.Column([ft.Text(line, size=13, selectable=True) for line in model.problems], spacing=4))])
-
-
 tabScreens = {"today": TodayTab, "week": WeekTab, "targets": TargetsTab, "history": HistoryTab, "backup": BackupTab}
 
 
 @ft.component
 def AmbrosiaApp(app, model):
     """The root: model is passed in so every change to it redraws what it touches."""
-    screens = {"starting": StartingScreen, "failed": FailedScreen, "main": PcMain if app.mode == "pc" else PhoneMain,
+    screens = {"starting": StartingScreen, "failed": FailedScreen, "signIn": SignInScreen,
+               "downloading": DownloadingScreen, "main": PcMain if app.mode == "pc" else PhoneMain,
                "add": AddScreen, "amount": AmountScreen, "label": LabelScreen, "importTargets": ImportTargetsScreen,
                "history": HistoryScreen, "problems": ProblemsScreen}
     body = screens.get(model.screen, StartingScreen)(app, model)

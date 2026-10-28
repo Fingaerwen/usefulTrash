@@ -540,19 +540,6 @@ def historyFiles(current: ImportedPlan | None, known: Mapping[str, PlanExercise]
     }
 
 
-def lastBackupText(backupRows: Sequence[Mapping[str, Any]], now: dt.datetime) -> str:
-    """"24 Oct 2026 (phone) · 3 days ago", or "none yet" (the Problems page, the PC view's Backup tab)."""
-    live = [row for row in backupRows if not row["deleted"]]
-    last = max(live, key=lambda row: row["madeAt"], default=None)
-    if last is None:
-        return "none yet"
-    madeAt = last["madeAt"]
-    days = (now - madeAt).days
-    when = "today" if days == 0 else "1 day ago" if days == 1 else f"{days} days ago"
-    by = "PC view" if last["madeBy"] == "pcView" else "phone"
-    return f"{madeAt.day} {madeAt:%b %Y} ({by}) · {when}"
-
-
 # --- The Weight tab (SC5.1) ----------------------------------------------------------------------
 
 weighInDay = 4  # Friday (G9.1): preselected on the Weight tab, and the weigh-in banner's day (18.4a)

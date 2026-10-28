@@ -6,7 +6,7 @@ underneath, and nothing secret or personal in it (no tokens, no email address, n
 """
 
 import datetime as dt
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import flet as ft
 
@@ -14,6 +14,8 @@ from gym.planImporter import PlanImport, PlanSwitch
 from gym.rules.stats import ChartView, ExerciseDetail, HistoryDay, MonthDiary, ProgressLine, WeekSummary, WeightView
 from gym.rules.today import TodayView
 from gym.state import PlanEntry
+from usefulShared.platform import problems
+from usefulShared.platform.problems import LogFacts, SyncFacts
 
 appName = "Gym Tracker"
 appVersion = "0.3-alpha"  # the release script checks it matches pyproject.toml (V3a)
@@ -62,95 +64,12 @@ class AppModel:
     tab: str = "today"
 
 
-# --- Plain words for the cloud's reasons (12d) ------------------------------------------------
-
-def plainReason(reason: str) -> str:
-    """A refused change's reason in plain words. The cloud's own text stays in the technical line."""
-    if reason.startswith("P0001: futureEdit"):
-        return "Your phone's clock seems to be ahead. Set it to automatic time, then tap Try again."
-    if reason.startswith("23514"):
-        return "The cloud refused a value in this entry as impossible."
-    if reason.startswith("42501"):
-        return "The cloud says this entry belongs to another account."
-    if reason.startswith("badRow"):
-        return "This entry couldn't be put into the cloud's form."
-    return "The cloud refused this entry."
-
-
-def plainSyncStatus(status: str) -> str:
-    return {
-        "done": "up to date",
-        "offline": "no internet right now, trying again every minute",
-        "signedOut": "paused: signed out",
-        "appTooOld": "stopped: this app needs an update",
-        "cloudTooOld": "stopped: the cloud needs an upgrade first",
-        "failed": "failed (see below)",
-        "busy": "running",
-        "versions": "stopped: the cloud and this app don't fit together (see the banner)",
-        "none": "not run yet",
-    }.get(status, status)
-
-
-def ago(moment: dt.datetime | None, now: dt.datetime) -> str:
-    """"5 min ago", "3 h ago", "2 days ago". "never" for None."""
-    if moment is None:
-        return "never"
-    seconds = max(0, (now - moment).total_seconds())
-    if seconds < 90:
-        return "just now"
-    if seconds < 90 * 60:
-        return f"{round(seconds / 60)} min ago"
-    if seconds < 36 * 3600:
-        return f"{round(seconds / 3600)} h ago"
-    return f"{round(seconds / 86400)} days ago"
-
-
-@dataclass(frozen=True, slots=True)
-class SyncFacts:
-    """What the Problems page says about sync."""
-
-    lastStatus: str
-    lastProblem: str
-    lastSyncAt: dt.datetime | None
-    waiting: int
-    oldestWaiting: dt.datetime | None
-    refused: tuple[tuple[str, str, str], ...]  # (table, row id, reason)
-
-
-@dataclass(frozen=True, slots=True)
-class LogFacts:
-    lines: int
-    tokenShapedStrings: int
-    knownSecretsFound: int
-    recent: tuple[tuple[str, str, str, str], ...] = field(default=())  # (time, area, plain words, technical)
-
+# --- The Problems report (12d): shared with Ambrosia, in usefulShared.platform.problems --------------------------
 
 def problemsReport(schema: int, sync: SyncFacts, log: LogFacts, now: dt.datetime, unreadablePlans: int = 0,
                    lastBackup: str = "none yet",
                    startedIn: float | None = None) -> tuple[str, ...]:
     """The Problems page as lines of text. Copy puts exactly these on the clipboard (12d)."""
-    started = f" · started in {startedIn:.1f} s" if startedIn is not None else ""  # cold start under 5 s (check 8)
-    lines = [f"{appName} {appVersion} · schema {schema}{started}",
-             f"Sync: {plainSyncStatus(sync.lastStatus)} · last synced {ago(sync.lastSyncAt, now)}",
-             f"Waiting to be sent: {sync.waiting}" + (f" (oldest from {ago(sync.oldestWaiting, now)})"
-                                                     if sync.oldestWaiting else "")]
-    if sync.lastProblem:
-        lines.append(f"  last sync problem: {sync.lastProblem}")
-    for table, rowId, reason in sync.refused:
-        lines.append(f"Refused: {plainReason(reason)}")
-        lines.append(f"  {table} {rowId[:8]}…: {reason}")
-    if unreadablePlans:
-        lines.append(f"Plans that can't be read: {unreadablePlans} (made by a newer app version? Update the app.)")
-    lines.append(f"Last backup: {lastBackup}")
-    clean = log.tokenShapedStrings == 0 and log.knownSecretsFound == 0
-    lines.append(f"Log check: {log.lines} lines, {log.tokenShapedStrings} token-shaped strings, "
-                 f"{log.knownSecretsFound} current tokens found" + (", clean" if clean else ", not clean"))
-    if log.recent:
-        lines.append("Recent problems:")
-        for at, area, plainWords, technical in log.recent:
-            lines.append(f"  {at} {area}: {plainWords}")
-            if technical:
-                lines.append(f"    {technical}")
-    else:
-        lines.append("Recent problems: none")
-    return tuple(lines)
+    notes = ([f"Plans that can't be read: {unreadablePlans} (made by a newer app version? Update the app.)"]
+             if unreadablePlans else [])
+    return problems.problemsReport(f"{appName} {appVersion}", schema, sync, log, now, notes, lastBackup, startedIn)

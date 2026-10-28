@@ -10,7 +10,7 @@ readable sets.csv (EX1.1). Over 60 days without a backup, a banner says so (3.4)
 
 import flet as ft
 
-from gym.rules.stats import lastBackupText
+from usefulShared.backup.backupJob import lastBackupText
 from gym.screens.common import Banners, Menu, Notice
 from gym.screens.look import card, faint, header, label, mainButton, quiet, screen, softButton
 

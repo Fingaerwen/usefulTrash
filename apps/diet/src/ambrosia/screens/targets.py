@@ -5,6 +5,7 @@ import, the new file next to the current targets, or its problems in plain words
 import flet as ft
 
 from ambrosia.rules.targets import DayTargets
+from ambrosia.screens.bulkCheck import changeText, outcomeText
 from ambrosia.screens.common import Menu, Notice, backButton, dayText, shortDay
 from ambrosia.screens.look import (
     card,
@@ -45,10 +46,21 @@ def TargetsTab(app, model):
         return screen([header("Targets", trailing=[Menu(app)]), Notice(app, model),
                        card(quiet("No targets yet. Your Claude project writes a targets file "
                                   "(apps/diet/plans/targetsFormat.md). Import it here.", size=14)), button])
-    changes = [listRow(_row(f"From {shortDay(change.fromDate)}",
-                            f"{change.kcalChange:+,} kcal, {change.macroChangeG:+} g {change.macro}".replace("-", "−")))
-               for change in view.changes] or [listRow(_row("Changes applied", "none yet"))]
-    check = ([listRow(_row("First block", f"from {dayText(view.firstBlockStart)}"))] if view.firstBlockStart
+    def changeRow(change) -> ft.Control:
+        async def undo(e):
+            await app.undoChange(change.checkDate)
+
+        return listRow(ft.Row([quiet(f"From {shortDay(change.fromDate)}", size=14), ft.Container(expand=True),
+                               ft.Text(changeText(change.kcalChange, change.macro, change.macroChangeG), size=14,
+                                       weight=ft.FontWeight.W_600),
+                               ft.TextButton("Undo", on_click=undo, visible=change.checkDate is not None)]),
+                       padding=ft.Padding.only(left=16, right=4, top=4, bottom=4))
+
+    changes = [changeRow(change) for change in view.changes] or [listRow(_row("Changes applied", "none yet"))]
+    bulk = model.bulkCheck
+    check = ([listRow(_row("First block", f"from {dayText(view.firstBlockStart)}")),
+              listRow(ft.Text(outcomeText(bulk), size=14)),
+              listRow(_row("Next check", shortDay(bulk.nextCheck)))] if view.firstBlockStart and bulk is not None
              else [listRow(_row("Bulk check", "off in this file"))])
     return screen([
         header("Targets", f"From \"{view.name}\", imported {shortDay(view.importedAt.date())}", trailing=[Menu(app)]),
@@ -57,7 +69,6 @@ def TargetsTab(app, model):
         dayCard("Rest day", view.restDay, "the other days", view.waterMl),
         label("Bulk check"),
         listCard([*check, *changes]),
-        faint("The bulk check's suggestions come with the cloud part (gate 2)."),
         button,
     ])
 

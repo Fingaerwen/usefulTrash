@@ -1,6 +1,7 @@
-"""What Ambrosia's phone app and PC view share (plan 3b): the model, the facts, adding food, water, targets,
-History and the Problems page. Each mode adds where rows come from and go to: sign-in, the phone's database
-and sync, built at max effort (gate 2). Until then a stand-in store keeps the rows (tests and screenshots).
+"""What Ambrosia's phone app and PC view share (plan 3b): the model, the facts, adding food, water, targets, the
+bulk check's suggestion, History and the Problems page. Each mode adds where rows come from and go to
+(phoneApp.py: the phone's database and sync, pcApp.py: the cloud), and signing in. Tests use a stand-in store
+(tests/ambrosiaStandIn.py).
 """
 
 import datetime as dt
@@ -20,7 +21,10 @@ from ambrosia.rules.week import mondayOf
 from ambrosia.sources.genericFoods import GenericFoods
 from ambrosia.sources.openFoodFacts import FoodSourceError, OpenFoodFacts, Product
 from ambrosia.state import AmbrosiaState
+from ambrosia.tables import appSchema
+from usefulShared.backup.backupJob import lastBackupText
 from usefulShared.platform.appLog import AppLog
+from usefulShared.platform.problems import LogFacts, SyncFacts, problemsReport
 
 waterStepMl = 250  # the water card's +250 ml (4a)
 phoneEditableDays = 7  # History: the phone edits the last 7 days (AM5.5)
@@ -30,35 +34,85 @@ class AmbrosiaBase:
     """The shared part of both controllers."""
 
     mode = "phone"  # or "pc": the PC view has no scanner and no packaged-food search by name (AM5.2)
+    menuItems: tuple[str, ...] = ("history", "importTargets", "problems", "signOut")  # the ⋮ menu (4a)
 
-    def __init__(self, services: Any, log: AppLog, clock: Callable[[], dt.datetime],
-                 localToday: Callable[[], dt.date], userId: str, foodSource: OpenFoodFacts | None = None,
+    def __init__(self, config: dict[str, str], services: Any, log: AppLog, clock: Callable[[], dt.datetime],
+                 localToday: Callable[[], dt.date], foodSource: OpenFoodFacts | None = None,
                  genericFoods: GenericFoods | None = None):
+        self.config = config  # the public identifiers only (K2a)
         self.services = services
         self.log = log
         self.clock = clock
-        self.localToday = localToday
-        self.userId = userId
+        self.localToday = localToday  # this device's calendar date (16.4c)
         self.model = AppModel()
         self.state = AmbrosiaState()
-        self.actions = AmbrosiaActions(self, self.state, userId, clock)
+        self.session = None  # usefulShared.signIn.sessionKeeper.SessionKeeper once started
+        self.userId = ""
+        self.actions: AmbrosiaActions | None = None  # once signed in
+        self.startedIn: float | None = None  # seconds from Python starting to the first real screen (main.py)
         self.foodSource = foodSource or OpenFoodFacts(appVersion)
         self.genericFoods = genericFoods or GenericFoods()
 
+    def hasCloudSettings(self) -> bool:
+        return all(self.config.get(name) for name in ("supabaseUrl", "supabasePublishableKey", "googleWebClientId"))
+
+    def _fail(self, why: str) -> None:
+        self.model.failure = why
+        self.model.screen = "failed"
+
+    def startActions(self, userId: str) -> None:
+        """Signed in: the actions write rows for this account."""
+        self.userId = userId
+        self.actions = AmbrosiaActions(self, self.state, userId, self.clock)
+
     # --- What each mode provides -------------------------------------------------------------
 
-    def rowsByTable(self) -> dict[str, list[dict[str, Any]]]:
+    def rowsByTable(self) -> dict[str, list[dict[str, Any]]] | None:
+        """Every row of every table. None before the store is open."""
         raise NotImplementedError
 
     async def saveRows(self, edits: Sequence[tuple[str, dict[str, Any]]]) -> list[dict[str, Any]]:
         """The RowStore the actions save through: save, then redraw."""
         raise NotImplementedError
 
+    def syncFacts(self) -> SyncFacts:
+        raise NotImplementedError
+
+    def syncedToday(self) -> bool:
+        """Whether the cloud's rows were fetched today: the bulk check's Apply waits for it (4g)."""
+        return True
+
+    def dismissedCheck(self) -> dt.date | None:
+        """The check day whose suggestion you tapped Not now on, remembered on each device (4g, like BN1.1)."""
+        return None
+
+    def rememberDismissed(self, checkDate: dt.date) -> None:
+        """Keeps Not now for that check day on this device."""
+
+    def extraLogFiles(self) -> list[str]:
+        return []
+
+    def afterRefresh(self) -> None:
+        """Anything a mode adds to the model after the facts are worked out again (its banners)."""
+
+    def onResume(self) -> None:
+        """Back on screen."""
+
+    def describeFailure(self, problem: Exception) -> str | None:
+        """Plain words for an expected failure (the PC view's refused writes). None: unexpected."""
+        return None
+
+    def openBanner(self, banner: str) -> None:
+        """A banner tapped. Only the PC view's old-backup banner leads somewhere (its Backup tab)."""
+
     # --- The facts ---------------------------------------------------------------------------
 
     def refresh(self) -> None:
         """Works out the facts again and redraws what changed."""
-        self.state.load(self.rowsByTable())
+        rows = self.rowsByTable()
+        if rows is None:
+            return
+        self.state.load(rows)
         today = self.localToday()
         self.model.today = self.state.dayView(today)
         monday = mondayOf(today) - dt.timedelta(weeks=self.model.weekOffset)
@@ -73,15 +127,24 @@ class AmbrosiaBase:
             self.model.historyDays = tuple(self.state.historyDays(self.model.historyMonth, today))
         if self.model.historyDay is not None:
             self.model.historyDay = self._dayForHistory(self.model.historyDay.date)
+        self.model.bulkCheck = self.state.bulkCheckView(today, self.dismissedCheck())
+        self.model.applyReady = self.syncedToday()
+        self.afterRefresh()
 
     async def _act(self, work) -> bool:
-        """Runs an action. A refusal shows as a notice. True if it went through."""
+        """Runs an action. A refused entry shows why, anything unexpected goes to the log. True if it worked."""
         try:
             await work
+            return True
         except ActionRefused as refused:
             self.model.notice = str(refused)
-            return False
-        return True
+        except Exception as problem:
+            notice = self.describeFailure(problem)
+            if notice is None:
+                self.log.crash(problem, "save")
+                notice = "That didn't work. Details are on the Problems page."
+            self.model.notice = notice
+        return False
 
     def selectTab(self, tab: str) -> None:
         self.model.tab = tab
@@ -322,17 +385,60 @@ class AmbrosiaBase:
     def closeDay(self) -> None:
         self.model.historyDay = None
 
-    # --- Problems (DG1.1) --------------------------------------------------------------------
+    # --- The bulk check's suggestion (4g) ----------------------------------------------------
+
+    async def applySuggestion(self) -> None:
+        """Apply: the suggested change from today. It waits until Ambrosia has synced today, so a weigh-in
+        logged late in Talon isn't missed."""
+        view = self.model.bulkCheck
+        if view is None or view.suggestion is None:
+            return
+        if not self.syncedToday():
+            self.model.notice = ("Apply waits until Ambrosia has synced today, so a late weigh-in isn't missed. "
+                                 "Check the internet and try again in a minute.")
+            return
+        if await self._act(self.actions.applyChange(view.check, view.settings, view.importId, self.localToday())):
+            change = view.suggestion.kcal
+            self.model.notice = f"{'Added' if change > 0 else 'Removed'} {abs(change)} kcal a day from today."
+
+    def dismissSuggestion(self) -> None:
+        """Not now: the suggestion goes away on this device, and nothing changes."""
+        view = self.model.bulkCheck
+        if view is not None and view.check is not None:
+            self.rememberDismissed(view.check.checkDate)
+            self.refresh()
+
+    async def undoChange(self, checkDate: dt.date) -> None:
+        """Undo on Targets: the change is deleted, as if it never happened (4g)."""
+        await self._act(self.actions.undoChange(checkDate))
+
+    # --- Problems (12d, DG1.1) ---------------------------------------------------------------
 
     def openProblems(self) -> None:
-        check = self.log.check()
-        lines = [f"{appName} {appVersion} ({self.mode}) · not syncing yet: the cloud part comes with gate 2",
-                 f"Log check: {check.lines} lines, {check.tokenShapedStrings} token-shaped strings"]
-        recent = self.log.entries()
-        lines += ["Recent problems:", *[f"  {entry.at} {entry.area}: {entry.plainWords}" for entry in recent]] \
-            if recent else ["Recent problems: none"]
-        self.model.problems = tuple(lines)
+        self.model.problems = self.problemsLines()
         self.model.screen = "problems"
+
+    def closeProblems(self) -> None:
+        self.model.screen = "main" if self.session is not None and self.session.isSignedIn() else "signIn"
+
+    async def copyProblems(self) -> None:
+        await self.services.clipboard.set("\n".join(self.model.problems))
+        self.model.notice = "Copied."
+
+    def clearProblems(self) -> None:
+        self.log.clear()
+        self.model.problems = self.problemsLines()
+
+    def tryRefusedAgain(self) -> None:
+        """The phone sends refused changes again. The PC view has none."""
+
+    def problemsLines(self) -> tuple[str, ...]:
+        check = self.log.check(self.extraLogFiles())
+        recent = tuple((entry.at, entry.area, entry.plainWords, entry.technical) for entry in self.log.entries(limit=20))
+        backups = [row for row in self.state.rows.get("dietBackups", {}).values()]
+        return problemsReport(f"{appName} {appVersion}", appSchema, self.syncFacts(),
+                              LogFacts(check.lines, check.tokenShapedStrings, check.knownSecretsFound, recent),
+                              self.clock(), lastBackup=lastBackupText(backups, self.clock()), startedIn=self.startedIn)
 
 
 def _valuesText(food: Food) -> str:

@@ -11,7 +11,7 @@ from ambrosia.rules.targets import FileCheck
 from ambrosia.rules.today import DayView
 from ambrosia.rules.week import WeekView
 from ambrosia.sources.openFoodFacts import Product
-from ambrosia.state import HistoryDay, TargetsView
+from ambrosia.state import BulkCheckView, HistoryDay, TargetsView
 
 appName = "Ambrosia"
 appVersion = "0.1-alpha"
@@ -73,17 +73,22 @@ class LabelDraft:
 class AppModel:
     """Everything the screens show. Fields are replaced, never changed in place, so each change redraws."""
 
-    screen: str = "starting"  # starting, signIn, main, add, amount, label, importTargets, history, problems, failed
+    screen: str = "starting"  # starting, signIn, downloading, main, add, amount, label, importTargets, history,
+    # problems or failed
     tab: str = "today"  # phone: today, week, targets. The PC view also history, backup
-    busy: str = ""
-    notice: str = ""
-    failure: str = ""
+    busy: str = ""  # what's running right now ("Signing in…"). Buttons wait while it's set
+    notice: str = ""  # a message shown once, like a refused entry or a sign-in problem
+    failure: str = ""  # why the app can't start (screen "failed")
+    downloaded: int = 0  # first download: "Downloading your data… N rows" (plan 14b)
     today: DayView | None = None
     weekOffset: int = 0
     week: WeekView | None = None
     targets: TargetsView | None = None
-    banners: tuple[str, ...] = ()
-    waiting: int = 0
+    banners: tuple[str, ...] = ()  # sync and backup problems, at the top of any tab
+    bulkCheck: BulkCheckView | None = None  # the bulk check's newest result and suggestion (4g). None: it's off
+    applyReady: bool = False  # synced today, so the suggestion's Apply can go ahead (4g)
+    waiting: int = 0  # changes not sent yet: "3 waiting"
+    backupStatus: str = ""  # the PC view's Backup tab: what Back up now or Export CSV just did
     # Adding food (4a): for which meal and day, how, and what was found
     addMeal: str = "lunch"
     addDate: dt.date | None = None

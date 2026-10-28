@@ -10,10 +10,11 @@ import flet as ft
 from gym.actions import ActionRefused, GymActions
 from gym.model import AppModel, LogFacts, SyncFacts, problemsReport
 from gym.planImporter import answerQuestions, askSwitch, finishImport, startImport, switchBack
-from gym.rules.stats import lastBackupText, summaryBanner, weighInBanner
+from gym.rules.stats import summaryBanner, weighInBanner
 from gym.rules.today import ExerciseLine, SetDone, TodayView
 from gym.state import GymState, PlanEntry
 from gym.tables import appSchema
+from usefulShared.backup.backupJob import lastBackupText
 from usefulShared.platform.appLog import AppLog
 
 

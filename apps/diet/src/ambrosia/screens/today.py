@@ -21,6 +21,7 @@ import flet as ft
 
 from ambrosia.rules.foods import LoggedFood, mealNames, meals, total
 from ambrosia.rules.today import DayView
+from ambrosia.screens.bulkCheck import blockLine, ruleText, suggestionTitle
 from ambrosia.screens.common import Banners, Menu, Notice, dayText, kcalText
 from ambrosia.screens.look import (
     big,
@@ -48,10 +49,37 @@ def TodayTab(app, model):
         return screen([])
     return screen([
         ft.Row([ft.Column([ft.Text("Today", size=26, weight=ft.FontWeight.BOLD),
-                           quiet(f"{dayText(day.date)} · {day.kind} day", size=14)], spacing=2, expand=True),
+                           quiet(f"{dayText(day.date)} · {day.kind} day"
+                                 + (f" · {model.waiting} waiting" if model.waiting else ""), size=14)],
+                          spacing=2, expand=True),
                 Menu(app)], vertical_alignment=ft.CrossAxisAlignment.START),
-        Banners(app, model), Notice(app, model), *dayParts(app, day),
+        Banners(app, model), BulkCheckBanner(app, model), Notice(app, model), *dayParts(app, day),
     ])
+
+
+@ft.component
+def BulkCheckBanner(app, model):
+    """The bulk check's suggestion (4g, AM3.3): the rule that fired with both blocks' averages and weigh-ins, Apply
+    and Not now. Nothing changes until you tap Apply, and Apply waits until Ambrosia has synced today."""
+    view = model.bulkCheck
+    if view is None or view.suggestion is None:
+        return ft.Container(visible=False)
+    chosen = view.suggestion
+
+    async def apply(e):
+        await app.applySuggestion()
+
+    return card(ft.Column([
+        ft.Row([ft.Icon(ft.Icons.MONITOR_WEIGHT_OUTLINED, size=20),
+                ft.Text(f"Bulk check: {suggestionTitle(chosen)}", size=16, weight=ft.FontWeight.W_600, expand=True)],
+               spacing=12),
+        ft.Text(ruleText(view, chosen), size=14),
+        quiet(blockLine(view.check.block), size=13),
+        quiet(blockLine(chosen.compared), size=13),
+        ft.Row([mainButton("Apply", apply), softButton("Not now", lambda e: app.dismissSuggestion())], spacing=8),
+        faint("Apply waits until Ambrosia has synced today, so a late weigh-in isn't missed.")
+        if not model.applyReady else ft.Container(visible=False),
+    ], spacing=8), padding=16, raised=True)
 
 
 def dayParts(app, day: DayView) -> list[ft.Control]:

@@ -11,10 +11,11 @@ import datetime as dt
 from collections.abc import Callable, Sequence
 from typing import Any, Protocol
 
+from ambrosia.rules.bulkCheck import BlockCheck
 from ambrosia.rules.foods import Food, FoodProblem, checkValues, foodRowId, gramsFor, meals, portions
-from ambrosia.rules.targets import targetsFromJson
+from ambrosia.rules.targets import BulkCheckSettings, macroGrams, targetsFromJson
 from ambrosia.state import AmbrosiaState
-from ambrosia.tables import water
+from ambrosia.tables import targetChanges, water
 from usefulShared.tables import dayRowId, newRowId
 
 maxWaterMl = 20_000  # a day's total
@@ -169,6 +170,31 @@ class AmbrosiaActions:
                                                     "importedAt": self.clock(), "effectiveDate": today,
                                                     "targetsJson": data})])
         return importId
+
+    # --- The bulk check (4g) -----------------------------------------------------------------
+
+    async def applyChange(self, check: BlockCheck, settings: BulkCheckSettings, importId: str, today: dt.date) -> None:
+        """A check's suggestion applied: its kcal on training and rest days alike, the file's macro taking the
+        grams, from today, onto the import in effect. A check makes one change at most: its row ID comes from the
+        check's Sunday, so applying it again (after an Undo) brings the same row back."""
+        chosen = check.chosen
+        if chosen is None:
+            raise ActionRefused("This check doesn't suggest a change.")
+        rowId = dayRowId(targetChanges, self.userId, checkDate=check.checkDate)
+        existing = self.state.row("targetChanges", rowId) or {}
+        await self.store.saveRows([("targetChanges", {
+            **existing, "id": rowId, "userId": self.userId, "deleted": False, "checkDate": check.checkDate,
+            "fromDate": today, "targetsImportId": importId, "reason": chosen.reason, "kcalChange": chosen.kcal,
+            "macro": settings.changeMacro, "macroChangeG": macroGrams(chosen.kcal, settings.changeMacro),
+            "blockAvgKg": check.block.averageKg, "blockWeighIns": check.block.weighIns,
+            "comparedStart": chosen.compared.start, "comparedAvgKg": chosen.compared.averageKg,
+            "comparedWeighIns": chosen.compared.weighIns, "rateKgPerWeek": chosen.rateKgPerWeek})])
+
+    async def undoChange(self, checkDate: dt.date) -> None:
+        """Undoing an applied change deletes it, as if it never happened (4g)."""
+        row = self.state.row("targetChanges", dayRowId(targetChanges, self.userId, checkDate=checkDate))
+        if row is not None and not row["deleted"]:
+            await self.store.saveRows([("targetChanges", dict(row, deleted=True))])
 
 
 def _checkCount(portion: str, count: float) -> None:

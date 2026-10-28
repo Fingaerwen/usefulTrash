@@ -18,7 +18,7 @@ import flet as ft
 
 from gym.appBase import AppBase
 from gym.model import SyncFacts
-from gym.signInFlow import signInWithGoogle
+from usefulShared.signIn.signInFlow import signInWithGoogle
 from gym.tables import appSchema, appTables
 from usefulShared.backup.backupFile import makeBackupZip
 from usefulShared.backup.backupJob import lastBackup, makeBackup, warnAfter

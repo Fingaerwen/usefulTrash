@@ -1,5 +1,6 @@
-"""Ambrosia on a stand-in store (until gate 2 builds the real one): rows kept in memory, edit times stamped like the
-phone's store does, and a fake Open Food Facts. Used by the tests and the screenshot server. Not a test file."""
+"""Ambrosia on a stand-in store: rows kept in memory, edit times stamped like the phone's store does, and a fake Open
+Food Facts. Used by the tests of the shared flows and by the screenshot server. The phone and PC modes have their
+own tests on the cloud stand-in (tests/diet/testPhoneApp.py, testPcApp.py). Not a test file."""
 
 import datetime as dt
 import json
@@ -9,7 +10,11 @@ from typing import Any
 from ambrosia.appBase import AmbrosiaBase
 from ambrosia.sources.openFoodFacts import OpenFoodFacts
 from usefulShared.platform.appLog import AppLog
+from usefulShared.platform.problems import SyncFacts
 from usefulShared.tables import editTime
+
+config = {"supabaseUrl": "https://example.supabase.co", "supabasePublishableKey": "testPublishableKey",
+          "googleWebClientId": "testClient.apps.googleusercontent.com"}
 
 
 class FakeOpenFoodFacts:
@@ -53,9 +58,51 @@ class FakePicker:
         return self.next
 
 
+class FakeClipboard:
+    def __init__(self):
+        self.text = ""
+
+    async def set(self, text: str) -> None:
+        self.text = text
+
+
 class Services:
     def __init__(self):
-        self.scanner, self.filePicker = FakeScanner(), FakePicker()
+        self.scanner, self.filePicker, self.clipboard = FakeScanner(), FakePicker(), FakeClipboard()
+
+
+class FakeGoogle:
+    """Google's account picker: hands out an ID token carrying the hashed nonce, like the real one (the cloud stand-in
+    checks it). And Google Play services' Drive permission, with a token that expires when a test says so."""
+
+    def __init__(self, account: str):
+        self.account = account
+        self.answer: dict | None = None  # set to act out "cancelled" or an error
+        self.driveToken = "driveToken1"
+        self.driveAnswer: dict | None = None
+
+    async def getIdToken(self, serverClientId: str, hashedNonce: str) -> dict:
+        return self.answer or {"status": "ok", "idToken": f"googleIdToken:{self.account}:{hashedNonce}"}
+
+    async def clearSignInState(self) -> dict:
+        return {"status": "ok"}
+
+    async def getDriveAccess(self, interactive: bool, accountEmail: str = "") -> dict:
+        return self.driveAnswer or {"status": "ok", "accessToken": self.driveToken}
+
+    async def clearDriveToken(self, accessToken: str) -> dict:
+        self.driveToken = "driveToken2"
+        return {"status": "ok"}
+
+
+class PhoneServices(Services):
+    """The phone's: the scanner, file picker and clipboard, Google's sign-in and the phone-locked secret store."""
+
+    def __init__(self, account: str):
+        from usefulShared.signIn.sessionKeeper import MemoryStore
+
+        super().__init__()
+        self.googleSignIn, self.secretStore = FakeGoogle(account), MemoryStore()
 
 
 class StandInApp(AmbrosiaBase):
@@ -65,8 +112,10 @@ class StandInApp(AmbrosiaBase):
                  rows: dict[str, list[dict[str, Any]]] | None = None):
         self.mode = mode
         self.net = FakeOpenFoodFacts(products)
-        super().__init__(Services(), AppLog(None, clock), clock, localToday, userId,
+        super().__init__(config, Services(), AppLog(None, clock), clock, localToday,
                          foodSource=OpenFoodFacts("0.1-alpha", self.net, clock=lambda: 1e9))
+        self.startActions(userId)
+        self.dismissed = None
         self.foodSource._last = {"lookup": -1e12, "search": -1e12}  # no waiting between calls in tests
         self.foodSource.clock = lambda: 1e12 + len(self.net.asked) * 100
         self.rows: dict[str, dict[str, dict[str, Any]]] = {}
@@ -78,6 +127,15 @@ class StandInApp(AmbrosiaBase):
 
     def rowsByTable(self) -> dict[str, list[dict[str, Any]]]:
         return {table: list(rows.values()) for table, rows in self.rows.items()}
+
+    def syncFacts(self) -> SyncFacts:
+        return SyncFacts("done", "", self.clock(), 0, None, ())
+
+    def dismissedCheck(self):
+        return self.dismissed
+
+    def rememberDismissed(self, checkDate) -> None:
+        self.dismissed = checkDate
 
     async def saveRows(self, edits: Sequence[tuple[str, dict[str, Any]]]) -> list[dict[str, Any]]:
         saved = []
@@ -93,3 +151,31 @@ class StandInApp(AmbrosiaBase):
 
 def localDay(clock) -> dt.date:
     return clock().date()
+
+
+# --- A cloud with your bulk so far (tests/diet/testPhoneApp.py, testPcApp.py) ---------------------
+
+def inCloud(cloud, tableName: str, **columns) -> dict:
+    """A row another device (Talon, the PC view) put in the cloud stand-in earlier."""
+    from usefulTestKit import exampleRow
+
+    from ambrosia.tables import tablesByName
+    from usefulShared.tables import toCloud
+
+    row = exampleRow(tableName, updatedAt=dt.datetime(2026, 10, 25, 9, 0, tzinfo=dt.UTC), **columns)
+    cloud.storeDirectly(tableName, toCloud(tablesByName[tableName], row))
+    return row
+
+
+def bulkInCloud(cloud, targetsFile: dict, kilos: tuple[float, ...] = (80.0, 80.0, 80.1, 80.1, 79.8, 79.8)) -> None:
+    """Your targets file from 26 Oct and a Friday weigh-in a week from 30 Oct in Talon. With the default weights the
+    block ending 6 Dec came in lower than the one 4 weeks earlier: a big miss (4g)."""
+    from usefulTestKit import userA
+
+    from ambrosia.tables import tablesByName
+    from usefulShared.tables import dayRowId
+
+    inCloud(cloud, "dietTargets", effectiveDate=dt.date(2026, 10, 26), targetsJson=targetsFile)
+    for week, kilo in enumerate(kilos):
+        date = dt.date(2026, 10, 30) + dt.timedelta(weeks=week)
+        inCloud(cloud, "bodyWeight", date=date, weightKg=kilo, id=dayRowId(tablesByName["bodyWeight"], userA, date=date))

@@ -205,6 +205,7 @@ class AppliedChange:
     kcalChange: int
     macro: str
     macroChangeG: int
+    checkDate: dt.date | None = None  # the check's Sunday, which also makes its row ID
 
 
 def importsFromRows(rows: Iterable[Mapping[str, Any]]) -> list[TargetsImport]:
@@ -220,7 +221,8 @@ def importsFromRows(rows: Iterable[Mapping[str, Any]]) -> list[TargetsImport]:
 
 
 def changesFromRows(rows: Iterable[Mapping[str, Any]]) -> list[AppliedChange]:
-    return [AppliedChange(row["targetsImportId"], row["fromDate"], row["kcalChange"], row["macro"], row["macroChangeG"])
+    return [AppliedChange(row["targetsImportId"], row["fromDate"], row["kcalChange"], row["macro"], row["macroChangeG"],
+                          row.get("checkDate"))
             for row in rows if not row.get("deleted")]
 
 
