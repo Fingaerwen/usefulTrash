@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>usefulTrash</title>
+  <!-- The start page linking both PC views (apps/diet/docs/plan.md 4c, AM9.1): Talon on the left, Ambrosia on the
+       right, their figures facing each other across the middle, stacked on a phone. It becomes the site's index at
+       the joint release (gate 3), when Talon's PC view moves to talon/ and Ambrosia's goes to ambrosia/. Plain
+       HTML: no scripts, cookies or outside files. The images come from tools/makeArt.py. -->
+  <style>
+    body { margin: 0; background: #000; color: #F5F5F5; font: 16px/1.5 system-ui, sans-serif; }
+    .site { position: relative; min-height: 100vh; display: flex; flex-wrap: wrap; }
+    .name { position: absolute; top: 24px; left: 32px; margin: 0; font-size: 14px; font-weight: 600; color: #8A8A8A; z-index: 2; }
+    .half { position: relative; overflow: hidden; flex: 1 1 480px; min-width: 0; min-height: 800px; }
+    .art { position: absolute; pointer-events: none; }
+    .words { position: relative; padding: 112px 56px 56px; max-width: 360px; display: flex; flex-direction: column;
+             align-items: flex-start; gap: 16px; }
+    h2 { margin: 0; font-size: 72px; font-weight: 700; letter-spacing: -1px; line-height: 1; }
+    .words p { margin: 0; font-size: 17px; color: #A6A6A6; }
+    .open { display: inline-flex; align-items: center; gap: 10px; margin-top: 8px; padding: 14px 22px; background: #FFF;
+            color: #000; text-decoration: none; font-size: 15px; font-weight: 600; }
+    .open:hover, .open:focus-visible { background: #E6E6E6; }
+    .open svg { width: 18px; height: 18px; }
+    footer { position: absolute; left: 32px; bottom: 16px; z-index: 2; font-size: 13px; color: #6B6B6B; }
+    footer a { color: #A6A6A6; }
+    @media (max-width: 520px) { .words { padding: 96px 24px 40px; } h2 { font-size: 56px; } }
+
+    /* Talon: the red Slash look, cut corners, the knight at the inner edge facing right (LK1.3, LK1.4) */
+    .talon { background: radial-gradient(circle 760px at 12% -8%, rgba(255,38,51,.34), rgba(255,38,51,.12) 40%, transparent),
+                         radial-gradient(circle 560px at 105% 105%, rgba(255,38,51,.16), transparent); }
+    .talon .open { clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); }
+    .blade { left: -1300px; top: -40px; width: 2800px; height: 260px; transform: rotate(-24deg);
+             background: linear-gradient(to bottom, rgba(255,38,51,0), rgba(255,38,51,.5) 1.5%, rgba(255,38,51,.12) 50%, rgba(255,38,51,0)); }
+    .line { left: -1300px; top: 430px; width: 2800px; height: 2.5px; transform: rotate(-24deg);
+            background: linear-gradient(to right, rgba(227,36,43,0) 40%, rgba(227,36,43,.95) 55%, rgba(227,36,43,.25) 70%); }
+    .slash { left: -150px; bottom: 150px; width: 620px; height: 2px; transform: rotate(-24deg);
+             background: linear-gradient(to right, rgba(227,36,43,0), rgba(227,36,43,.55), rgba(227,36,43,0)); }
+    .slash.thin { left: -110px; bottom: 124px; width: 460px; height: 1.5px;
+                  background: linear-gradient(to right, rgba(227,36,43,0), rgba(227,36,43,.4), rgba(227,36,43,0)); }
+    .knight { right: -40px; bottom: -60px; height: 700px; opacity: .8; }
+    .redEdge { top: 0; bottom: 0; right: 0; width: 2px;
+               background: linear-gradient(to bottom, rgba(227,36,43,.15), rgba(227,36,43,.9) 35%, rgba(227,36,43,.15)); }
+
+    /* Ambrosia: the mirror, softened, round corners, the goddess at the inner edge facing left, two katanas (AM9) */
+    .ambrosia { background: radial-gradient(circle 760px at 88% -8%, rgba(255,176,218,.5), rgba(255,176,218,.18) 42%, transparent),
+                            radial-gradient(circle 560px at -5% 105%, rgba(255,176,218,.24), transparent); }
+    .ambrosia .words { margin-left: auto; align-items: flex-end; text-align: right; }
+    .ambrosia .open { border-radius: 26px; }
+    .curves { top: 0; right: 0; }
+    .goddess { left: -30px; bottom: -60px; height: 700px; opacity: .8; }
+    .katana { transform-origin: 0 50%; filter: drop-shadow(0 0 8px rgba(255,199,44,.5)); }
+    .shoulder { left: 58px; bottom: 166px; width: 560px; height: 34px; transform: rotate(-30deg); }
+    .across { left: -60px; top: 10px; width: 600px; height: 36px; transform: rotate(1.5deg); }
+    .goldEdge { top: 0; bottom: 0; left: 0; width: 1.5px;
+                background: linear-gradient(to bottom, rgba(255,199,44,.12), rgba(255,199,44,.9) 55%, #FFF4B8 65%, rgba(255,199,44,.9) 75%, rgba(255,199,44,.12)); }
+  </style>
+</head>
+<body>
+<div class="site">
+  <p class="name">usefulTrash</p>
+
+  <section class="half talon" aria-label="Talon">
+    <div class="art blade" aria-hidden="true"></div>
+    <div class="art line" aria-hidden="true"></div>
+    <div class="art slash" aria-hidden="true"></div>
+    <div class="art slash thin" aria-hidden="true"></div>
+    <img class="art knight" src="images/talon.webp" alt="">
+    <div class="art redEdge" aria-hidden="true"></div>
+    <div class="words">
+      <h2>Talon</h2>
+      <p>Your gym plan, today's workout, progress and weigh-ins.</p>
+      <a class="open" href="talon/">Open Talon
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+    </div>
+  </section>
+
+  <section class="half ambrosia" aria-label="Ambrosia">
+    <svg class="art curves" width="640" height="800" viewBox="0 0 640 800" aria-hidden="true">
+      <defs>
+        <linearGradient id="softA" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#FFB8DD" stop-opacity="0"/><stop offset=".55" stop-color="#FFD6EC" stop-opacity=".9"/>
+          <stop offset="1" stop-color="#FFB8DD" stop-opacity=".1"/>
+        </linearGradient>
+        <linearGradient id="softB" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#FFB8DD" stop-opacity="0"/><stop offset=".5" stop-color="#FFB8DD" stop-opacity=".6"/>
+          <stop offset="1" stop-color="#FFB8DD" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <path d="M 260 -20 C 360 110, 470 60, 560 160 C 600 205, 620 212, 660 212 L 660 280 C 600 276, 560 250, 520 210 C 430 120, 340 160, 260 -20 Z" fill="#FFB8DD" fill-opacity=".07"/>
+      <path d="M 260 -20 C 360 110, 470 60, 560 160 C 600 205, 620 212, 660 212" fill="none" stroke="url(#softA)" stroke-width="2" stroke-linecap="round"/>
+      <path d="M 300 -20 C 390 80, 480 40, 570 120 C 610 156, 630 162, 660 160" fill="none" stroke="url(#softB)" stroke-width="1.2" stroke-linecap="round"/>
+      <path d="M 300 690 C 400 610, 500 680, 660 590" fill="none" stroke="url(#softB)" stroke-width="2" stroke-linecap="round"/>
+      <path d="M 350 726 C 440 670, 530 712, 660 650" fill="none" stroke="url(#softB)" stroke-width="1.4" stroke-linecap="round"/>
+    </svg>
+    <img class="art goddess" src="images/goddess.webp" alt="">
+    <img class="art katana shoulder" src="images/katana.webp" alt="">
+    <img class="art katana across" src="images/katana.webp" alt="">
+    <div class="art goldEdge" aria-hidden="true"></div>
+    <div class="words">
+      <h2>Ambrosia</h2>
+      <p>What you eat against your targets, with the bulk check on your weight.</p>
+      <a class="open" href="ambrosia/">Open Ambrosia
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+    </div>
+  </section>
+
+  <footer><a href="about.html">About</a> · <a href="privacy.html">Privacy</a> · <a href="https://github.com/Fingaerwen/usefulTrash">Source code</a></footer>
+</div>
+</body>
+</html>

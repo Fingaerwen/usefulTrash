@@ -1,0 +1,10 @@
+# gh-pages branch: the built PC view website (Phase 0 check 6, plan P6.1).
+# Only the deterministic check runs here: it blocks the exact secret formats this project can meet.
+# (detect-secrets is left out: it would flag thousands of random-looking strings in compiled Flutter code.)
+repos:
+  - repo: local
+    hooks:
+      - id: block-known-secret-formats
+        name: block known secret formats (Supabase secret, Google client secret, private keys)
+        language: pygrep
+        entry: '(sb_secret_[A-Za-z0-9_-]{10,}|GOCSPX-[A-Za-z0-9_-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY-----)'
