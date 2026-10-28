@@ -33,7 +33,7 @@ uses) →
 
 → **Save**. It can take a few minutes to apply. Nothing secret is involved: both addresses are public.
 
-### 1d. Cloud upgrade 003 (you, in Supabase, at the joint release)
+### 1d. Cloud upgrade 003 (you, in Supabase, at the joint release, done 2026-10-28)
 For Talon 0.4-alpha and Ambrosia 0.1-alpha. In the release order (plan 14c): your phone has synced (nothing
 waiting), a fresh backup exists, then New query → paste the whole of
 [`cloud/003_ambrosiaAndWeighInTime.sql`](https://github.com/Fingaerwen/usefulTrash/blob/main/cloud/003_ambrosiaAndWeighInTime.sql)
@@ -84,7 +84,8 @@ to uninstall, reinstall and sign in again (only changes not yet synced would be 
 ## 5. A release
 0.1-alpha was published on 2026-10-14, before the weekly schedule and everything after it. 0.2-alpha on
 2026-10-24 (RL4.1). 0.3-alpha needs no cloud upgrade. Talon 0.4-alpha and Ambrosia 0.1-alpha come out together
-and need cloud upgrade 003 (section 1d).
+and need cloud upgrade 003 (section 1d). Both were built, tagged and the site published on 2026-10-28, with 003
+in the cloud the same day.
 1. Once the release's cloud upgrade is done (if it has one), I run `python3 tools/buildRelease.py talon` (or
    `ambrosia`, or `talon ambrosia` for both at once) with `--cloudReady`: every check, the signed APKs, the tags,
    and the site published to GitHub Pages: the start page at `https://fingaerwen.github.io/usefulTrash/` with both
