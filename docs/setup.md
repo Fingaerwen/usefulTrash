@@ -91,7 +91,7 @@ and need cloud upgrade 003 (section 1d).
    PC views, `talon/` and `ambrosia/`. An app that isn't in the release keeps the PC view it has there.
 2. You create each release on GitHub from the link it prints: title `Talon <version>` or `Ambrosia <version>`,
    like `Talon 0.4-alpha`, **not** a pre-release (Obtainium skips those), and drag in the APK it names.
-3. On the phone, Obtainium offers it as an update (Talon) or a new install (Ambrosia's first).
+3. On the phone, Obtainium offers it as an update (Talon). Ambrosia's first gets its entry then (section 6b, step 2).
 
 ## 6. On the phone
 1. **Obtainium** → **+** (Add App) → source URL `https://github.com/Fingaerwen/usefulTrash` → **Add**,
@@ -103,13 +103,19 @@ and need cloud upgrade 003 (section 1d).
    Friday 07:00 weigh-in from 0.3-alpha): Settings → Apps → Gym Tracker → Battery → **Unrestricted**.
 4. The Phase 0 app was uninstalled on 2026-10-14 (PH1.1).
 
-### 6b. Two apps from one repo in Obtainium (before the joint release)
+### 6b. Two apps from one repo in Obtainium (one step before the joint release, one on release day)
 Both apps' releases come from the same repo, so each Obtainium entry needs a filter, or it would take the other app's
 release as its own newest one:
-1. The existing entry (Gym Tracker, Talon from 0.4-alpha) → **Edit** → **Filter release titles by regular
-   expression**: `^(Talon|Gym Tracker)`. Both names, so it still knows its current release before Talon's is out.
-2. **+** (Add App) → the same source URL `https://github.com/Fingaerwen/usefulTrash` → the same filter field:
-   `^Ambrosia` → **Add**, then install Ambrosia once its release is out.
+1. The existing entry (Gym Tracker, Talon from 0.4-alpha) → the pencil (Additional options) → **Filter release
+   titles by regex**: `^(Talon|Gym Tracker)` → back, it saves by itself. Both names, so it still knows its current
+   release before Talon's is out. **Done 2026-10-28**, it still shows 0.3-alpha as installed and latest.
+2. **On release day, once Ambrosia's release is out** (before that Obtainium refuses with "Could not find a suitable
+   release"): **+ Add** → the same source URL `https://github.com/Fingaerwen/usefulTrash` → **Filter release titles
+   by regex**: `^Ambrosia` → further down, switch off **Try inferring app ID from source code** (the repo holds two
+   apps, so it could guess Talon's) → the **+** beside the URL, then install Ambrosia.
+
+Leave **Fallback to older releases** on in both, it's the default. With it an entry skips the other app's release
+when that one is GitHub's newest.
 
 ## 7. The check on your phone (0.2-alpha and 0.3-alpha)
 What only the phone can show (Staging: each release is checked on your phone before the next one starts, 0.3-alpha
@@ -166,7 +172,7 @@ Anything that looks wrong: ⋮ → Problems → **Copy**, and paste it to me.
     expected). It can be muted on its own: Android settings → Apps → Gym Tracker → Notifications → Rest timer.
 
 ## 8. The joint release, in order, and its check on your phone (Talon 0.4-alpha, Ambrosia 0.1-alpha)
-**Before it (you):** sections 2b and 6b. On release day: Talon on the phone has synced (nothing waiting), a fresh
+**Before it (you):** section 2b (6b's first step is done). On release day: Talon on the phone has synced (nothing waiting), a fresh
 backup exists (the PC view's Back up now), then cloud upgrade 003 (section 1d). Then I run
 `python3 tools/buildRelease.py talon ambrosia --cloudReady` and you make the two GitHub releases (section 5).
 
@@ -177,7 +183,7 @@ backup exists (the PC view's Back up now), then cloud upgrade 003 (section 1d). 
    phone's clock, and the time under it in LAST 4. A past day's has none.
 3. **Talon's backup** (at its next one, within 30 days): Google Drive's folder **Gym Tracker backups** is now
    **Talon backups**, with `Talon-history.zip` in it and the old dated backups still there until they rotate out.
-4. **Ambrosia:** install it from its Obtainium entry → Sign in with Google (the same account) → it downloads your
+4. **Ambrosia:** add its Obtainium entry (section 6b, step 2) and install it → Sign in with Google (the same account) → it downloads your
    data → Today. ⋮ → Problems: `Ambrosia 0.1-alpha · schema 3 · started in … s`, under 5 s.
 5. **Scanning:** + on a meal → Scan: Android asks once for the camera. Scan about 10 of your usual groceries. A
    shop's own code goes straight to typing the label, a missing one too. Search a few generic foods. Note how many of
