@@ -23,8 +23,10 @@
     },
     "stepKcal": 150,
     "bigStepKcal": 250,
-    "bigGainKg": 1.0,
-    "minWeighIns": 8,
-    "changeMacro": "carbs"
+    "bigGainKg": 2.0,
+    "minWeighIns": 2,
+    "changeMacro": "carbs",
+    "regularWeeks": 8,
+    "bigMissWeeks": 4
   }
 }

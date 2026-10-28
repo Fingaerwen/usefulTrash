@@ -23,7 +23,8 @@ targetsFile = {
     "trainingDay": {"kcal": 3200, "proteinG": 160, "fatG": 90, "carbsG": 440},
     "restDay": {"kcal": 2900, "proteinG": 160, "fatG": 90, "carbsG": 365}, "waterMl": 3000,
     "bulkCheck": {"firstBlockStart": "2026-10-26", "rateKgPerWeek": {"min": 0.15, "max": 0.35}, "stepKcal": 150,
-                  "bigStepKcal": 250, "bigGainKg": 1.0, "minWeighIns": 8, "changeMacro": "carbs"},
+                  "bigStepKcal": 250, "bigGainKg": 2.0, "minWeighIns": 2, "changeMacro": "carbs",
+                  "regularWeeks": 8, "bigMissWeeks": 4},
 }
 
 

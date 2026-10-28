@@ -25,7 +25,8 @@ example = {
     "restDay": {"kcal": 2900, "proteinG": 160, "fatG": 90, "carbsG": 365},
     "waterMl": 3000,
     "bulkCheck": {"firstBlockStart": "2026-10-26", "rateKgPerWeek": {"min": 0.15, "max": 0.35}, "stepKcal": 150,
-                  "bigStepKcal": 250, "bigGainKg": 1.0, "minWeighIns": 8, "changeMacro": "carbs"},
+                  "bigStepKcal": 250, "bigGainKg": 2.0, "minWeighIns": 2, "changeMacro": "carbs",
+                  "regularWeeks": 8, "bigMissWeeks": 4},
 }
 moment = dt.datetime(2026, 10, 25, 18, 0, tzinfo=dt.UTC)
 
@@ -53,8 +54,9 @@ def testTheExampleFileIsRead():
     assert targets.waterMl == 3000
     settings = targets.bulkCheck
     assert settings.firstBlockStart == dt.date(2026, 10, 26) and (settings.rateMinKg, settings.rateMaxKg) == (0.15, 0.35)
-    assert (settings.stepKcal, settings.bigStepKcal, settings.bigGainKg) == (150, 250, 1.0)
-    assert (settings.minWeighIns, settings.changeMacro) == (8, "carbs")
+    assert (settings.stepKcal, settings.bigStepKcal, settings.bigGainKg) == (150, 250, 2.0)
+    assert (settings.minWeighIns, settings.changeMacro) == (2, "carbs")
+    assert (settings.regularWeeks, settings.bigMissWeeks) == (8, 4)
 
 
 def testWithoutTheBulkCheckItsOff():
@@ -78,6 +80,10 @@ def testWithoutTheBulkCheckItsOff():
     ({"bulkCheck__minWeighIns": 20}, '"bulkCheck.minWeighIns"'),
     ({"bulkCheck__changeMacro": "protein"}, '"carbs" or "fat"'),
     ({"bulkCheck__wait": 3}, '"bulkCheck.wait" isn\'t a setting'),
+    ({"bulkCheck__regularWeeks": 7}, '"bulkCheck.regularWeeks" must be an even number of weeks from 2 to 16'),
+    ({"bulkCheck__regularWeeks": 18}, '"bulkCheck.regularWeeks" must be an even number'),
+    ({"bulkCheck__bigMissWeeks": ...}, '"bulkCheck.bigMissWeeks" must be an even number'),
+    ({"bulkCheck__bigMissWeeks": 10}, '"bulkCheck.bigMissWeeks" can\'t be more than "bulkCheck.regularWeeks"'),
     ({"extra": True}, '"extra" isn\'t a targets field'),
 ])
 def testEveryProblemIsSaidInPlainWords(edits, problem):

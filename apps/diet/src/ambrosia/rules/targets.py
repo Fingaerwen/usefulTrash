@@ -3,7 +3,7 @@ problem in plain words (like Talon's plan import, G8a). The day's targets from t
 plus the bulk-check changes you applied to it. And whether a day is a training day or a rest day, from the
 Talon plan in effect and whether you trained (AM3.2).
 
-The bulk check itself (4g) is built at max effort (gate 2). This module only reads its settings.
+The bulk check itself (4g) is in bulkCheck.py. This module only reads its settings.
 """
 
 import datetime as dt
@@ -42,9 +42,11 @@ class BulkCheckSettings:
     rateMaxKg: float  # 0.35
     stepKcal: int  # 150
     bigStepKcal: int  # 250
-    bigGainKg: float  # 1.0
-    minWeighIns: int  # 8
+    bigGainKg: float  # 2.0, against the block bigMissWeeks earlier
+    minWeighIns: int  # 2: both Fridays (AM10.2)
     changeMacro: str  # carbs or fat
+    regularWeeks: int  # 8: the regular check compares with the block this many weeks earlier (AM10.1)
+    bigMissWeeks: int  # 4: the big miss compares with the block this many weeks earlier
 
 
 @dataclass(frozen=True, slots=True)
@@ -159,12 +161,20 @@ def _bulkCheck(data: Any, problems: list[str]) -> BulkCheckSettings | None:
         problems.append('"bulkCheck.minWeighIns" must be a whole number from 1 to 14.')
     if data.get("changeMacro") not in macroKcal:
         problems.append('"bulkCheck.changeMacro" must be "carbs" or "fat": the macro that takes a change.')
-    known = {"firstBlockStart", "rateKgPerWeek", "stepKcal", "bigStepKcal", "bigGainKg", "minWeighIns", "changeMacro"}
+    spans = {key: data.get(key) for key in ("regularWeeks", "bigMissWeeks")}
+    for key, weeks in spans.items():
+        if not _whole(weeks, 2, 16) or weeks % 2:
+            problems.append(f'"bulkCheck.{key}" must be an even number of weeks from 2 to 16 (blocks are two weeks).')
+    if all(_whole(weeks, 2, 16) for weeks in spans.values()) and spans["bigMissWeeks"] > spans["regularWeeks"]:
+        problems.append('"bulkCheck.bigMissWeeks" can\'t be more than "bulkCheck.regularWeeks".')
+    known = {"firstBlockStart", "rateKgPerWeek", "stepKcal", "bigStepKcal", "bigGainKg", "minWeighIns", "changeMacro",
+             "regularWeeks", "bigMissWeeks"}
     problems += [f'"bulkCheck.{key}" isn\'t a setting: check the spelling.' for key in data if key not in known]
     if len(problems) > count:
         return None
     return BulkCheckSettings(start, float(rate["min"]), float(rate["max"]), data["stepKcal"], data["bigStepKcal"],
-                             float(data["bigGainKg"]), data["minWeighIns"], data["changeMacro"])
+                             float(data["bigGainKg"]), data["minWeighIns"], data["changeMacro"],
+                             data["regularWeeks"], data["bigMissWeeks"])
 
 
 def macroGrams(kcal: int, macro: str) -> int:
