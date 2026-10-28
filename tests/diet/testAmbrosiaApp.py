@@ -101,6 +101,28 @@ def testAnUnknownBarcodeOrAShopsCodeIsTypedFromTheLabel(clock):
     assert app.model.screen == "amount" and app.model.picked.food.name == "Deli ham"
 
 
+def testAWeighedPackIsFoundWhateverItWeighs(clock):
+    """AM11.1: a Finnish weighed pack is typed from the label once, then every pack of it finds that food. The
+    amount starts as usual, the pack's weight is kept for the Whole pack button."""
+    app = makeApp(clock)
+    app.openAdd("dinner")
+    run(app.useBarcode("2301234504004"))  # 400 g
+    assert app.model.screen == "label" and "weighed pack" in app.model.label.why
+    assert not any("23012345" in url for url in app.net.asked)
+    run(app.saveLabel({"name": "Minced beef", "kcal": "180", "proteinG": "20", "fatG": "11", "carbsG": "0"}))
+    picked = app.model.picked
+    assert app.model.screen == "amount" and (picked.portion, picked.count, picked.weighedG) == ("grams", 100, 400)
+    [food] = live(app, "foods")
+    assert food["barcode"] == "2301234500006" and food["id"] == foodRowId(userA, barcode="2301234500006")
+    run(app.saveAmount("grams", 400, "dinner"))
+    app.openAdd("lunch")
+    run(app.useBarcode("2301234505230"))  # another pack, 523 g
+    picked = app.model.picked
+    assert app.model.screen == "amount" and picked.food.name == "Minced beef" and picked.weighedG == 523
+    run(app.useBarcode("3017620422003"))  # any other food has no Whole pack
+    assert app.model.picked.weighedG is None
+
+
 def testMissingValuesStartTheLabelWithWhatsKnown(clock):
     app = makeApp(clock)
     app.openAdd("lunch")

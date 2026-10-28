@@ -47,6 +47,7 @@ class Picked:
     date: dt.date
     portion: str = "grams"
     count: float = 100
+    weighedG: float | None = None  # a weighed pack's weight from its barcode, for the Whole pack button (AM11.1)
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +67,7 @@ class LabelDraft:
     packG: str = ""
     meal: str = "lunch"
     date: dt.date | None = None
+    weighedG: float | None = None  # kept for How much after the label is saved
 
 
 @ft.observable

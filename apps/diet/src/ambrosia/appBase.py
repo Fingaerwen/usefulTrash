@@ -14,7 +14,7 @@ import flet as ft
 
 from ambrosia.actions import ActionRefused, AmbrosiaActions
 from ambrosia.model import AppModel, Found, LabelDraft, Picked, SearchResults, appName, appVersion
-from ambrosia.rules.barcodes import cleanBarcode, isShopCode
+from ambrosia.rules.barcodes import cleanBarcode, isShopCode, weighedPack
 from ambrosia.rules.foods import Food, UsedFood, Values, searchYourFoods
 from ambrosia.rules.targets import FileCheck, readTargetsFile, targetsFromJson
 from ambrosia.rules.week import mondayOf
@@ -222,16 +222,25 @@ class AmbrosiaBase:
         await self.useBarcode(str(answer.get("barcode", "")))
 
     async def useBarcode(self, text: str) -> None:
-        """A scanned or typed barcode: your food if you have it. A shop's own code goes straight to typing the
-        label (AM5.4). Otherwise Open Food Facts, and typing the label if it doesn't have it all (AM2.3)."""
+        """A scanned or typed barcode: your food if you have it. A weighed pack is found by its item whatever it
+        weighs (AM11.1). A shop's own code goes straight to typing the label (AM5.4). Otherwise Open Food Facts, and
+        typing the label if it doesn't have it all (AM2.3)."""
         try:
             barcode = cleanBarcode(text)
         except ValueError as problem:
             self.model.notice = str(problem)
             return
+        weighed = weighedPack(barcode)
+        weighedG = None
+        if weighed is not None:
+            barcode, weighedG = weighed
         yours = self.state.foodWithBarcode(barcode)
         if yours is not None:
-            self.pick(yours)
+            self.pick(yours, weighedG)
+            return
+        if weighed is not None:
+            self.typeLabel("A weighed pack: type it from the label once, per 100 g, and every pack of it is found "
+                           "whatever it weighs.", barcode=barcode, weighedG=weighedG)
             return
         if isShopCode(barcode):
             self.typeLabel(f"Barcode {barcode} is a shop's own code: type it from the label once, and the next scan "
@@ -246,17 +255,19 @@ class AmbrosiaBase:
         finally:
             self.model.busy = ""
         if product is None:
-            self.typeLabel(f"Barcode {barcode} isn't in Open Food Facts. Type it from the label once; the next scan "
-                           "finds it.", barcode=barcode)
+            self.typeLabel(f"Barcode {barcode} isn't in Open Food Facts. Type it from the label once, and the next "
+                           "scan finds it.", barcode=barcode)
         elif not product.complete:
             self.typeLabel(product.labelWhy, product=product)
         else:
             self.pick(product.asFood())
 
-    def pick(self, food: Food) -> None:
-        """How much (4a): a serving if the food has one, else 100 g (or ml)."""
+    def pick(self, food: Food, weighedG: float | None = None) -> None:
+        """How much (4a): a serving if the food has one, else 100 g (or ml). A weighed pack's weight only fills in
+        when you tap Whole pack (AM11.1)."""
         portion, count = ("servings", 1.0) if food.servingG else ("grams", 100.0)
-        self.model.picked = Picked(food, self.model.addMeal, self.model.addDate or self.localToday(), portion, count)
+        self.model.picked = Picked(food, self.model.addMeal, self.model.addDate or self.localToday(), portion, count,
+                                   weighedG or None)
         self.model.notice = ""
         self.model.screen = "amount"
 
@@ -284,11 +295,12 @@ class AmbrosiaBase:
             self.model.picked = None
             self.model.screen = "history" if self.model.historyDay is not None else "main"
 
-    def typeLabel(self, why: str, barcode: str = "", product: Product | None = None) -> None:
+    def typeLabel(self, why: str, barcode: str = "", product: Product | None = None,
+                  weighedG: float | None = None) -> None:
         def text(value: float | None) -> str:
             return "" if value is None else f"{value:g}"
 
-        draft = LabelDraft(why, barcode, meal=self.model.addMeal, date=self.model.addDate)
+        draft = LabelDraft(why, barcode, meal=self.model.addMeal, date=self.model.addDate, weighedG=weighedG)
         if product is not None:
             draft = LabelDraft(why, product.barcode, product.name, product.brand, product.unit, text(product.kcal),
                                text(product.proteinG), text(product.fatG), text(product.carbsG),
@@ -318,7 +330,7 @@ class AmbrosiaBase:
             self.model.notice = str(refused)
             return
         self.model.label = None
-        self.pick(saved)
+        self.pick(saved, draft.weighedG)
 
     # --- Water, and changing what's logged ---------------------------------------------------
 

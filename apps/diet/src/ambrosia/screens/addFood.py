@@ -149,7 +149,8 @@ def BarcodePart(app):
 
 @ft.component
 def AmountScreen(app, model):
-    """How much (AM2.4): grams, servings or part of the pack, what it adds, and the meal."""
+    """How much (AM2.4): grams, servings or part of the pack, what it adds, and the meal. A scanned weighed pack
+    adds Whole pack with its weight from the barcode (AM11.1)."""
     picked = model.picked
     portion, setPortion = ft.use_state(picked.portion if picked else "grams")  # hooks first, always (Flet's rule)
     typed, setTyped = ft.use_state(f"{picked.count:g}" if picked else "100")
@@ -181,6 +182,16 @@ def AmountScreen(app, model):
              "servings": [(f"{value}", str(value)) for value in (1, 2, 3)],
              "pack": [(packText(value).replace(" of the pack", "").replace(" the pack", ""), f"{value:g}")
                       for value in (0.25, 0.5, 1)]}[portion]
+    quickPills = [pill(text, typed == value, on_click=lambda e, value=value: setTyped(value)) for text, value in quick]
+    if picked.weighedG:  # a weighed pack's weight from its barcode, only when you tap it (AM11.1)
+        weighed = f"{picked.weighedG:g}"
+
+        def wholePack(e) -> None:
+            setPortion("grams")
+            setTyped(weighed)
+
+        quickPills.append(pill(f"Whole pack · {weighed} {unit}", portion == "grams" and typed == weighed,
+                               on_click=wholePack))
 
     async def save(e):
         if count is not None:
@@ -195,8 +206,7 @@ def AmountScreen(app, model):
         field({"grams": "Grams" if unit == "g" else "Millilitres", "servings": "Servings",
                "pack": "Packs (0.5 = half)"}[portion], typed,
               lambda e: setTyped(e.control.value)),
-        ft.Row([pill(text, typed == value, on_click=lambda e, value=value: setTyped(value)) for text, value in quick],
-               spacing=6, wrap=True),
+        ft.Row(quickPills, spacing=6, wrap=True),
         addsText,
         label("Meal"),
         ft.Row([pill(mealNames[option], option == meal, on_click=lambda e, option=option: setMeal(option))

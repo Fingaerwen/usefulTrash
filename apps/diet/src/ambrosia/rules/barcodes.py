@@ -19,11 +19,27 @@ def cleanBarcode(text: str) -> str:
 
 
 def checkDigitFits(digits: str) -> bool:
-    """GS1's check: from the right, the digits before the last are weighted 3, 1, 3, …. The last digit makes the
-    sum a multiple of 10."""
-    body, last = digits[:-1], int(digits[-1])
+    """GS1's check: the last digit is the check digit of the ones before it."""
+    return checkDigit(digits[:-1]) == digits[-1]
+
+
+def checkDigit(body: str) -> str:
+    """GS1's check digit for the digits before it: from the right they're weighted 3, 1, 3, …, and the check digit
+    makes the sum a multiple of 10."""
     weighted = sum(int(digit) * (3 if index % 2 == 0 else 1) for index, digit in enumerate(reversed(body)))
-    return (10 - weighted % 10) % 10 == last
+    return str((10 - weighted % 10) % 10)
+
+
+def weighedPack(barcode: str) -> tuple[str, float] | None:
+    """A Finnish weighed pack (GS1 Finland, AM11.1): EAN-13 as 23 YYYY AA PPPP and the check digit, where the item
+    is 23 YYYY AA and PPPP its weight, in grams after 23 (under 10 kg), tens of grams after 24 and hundreds after 25.
+    Returns the item's code with the weight as 0000, the way GS1 Finland registers it, so every pack of it finds the
+    same food, and the pack's grams. None for any other barcode."""
+    if len(barcode) != 13 or barcode[:2] not in ("23", "24", "25"):
+        return None
+    item = barcode[:8] + "0000"
+    grams = int(barcode[8:12]) * {"23": 1, "24": 10, "25": 100}[barcode[:2]]
+    return item + checkDigit(item), float(grams)
 
 
 def isShopCode(barcode: str) -> bool:

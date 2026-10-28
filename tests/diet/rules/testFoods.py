@@ -4,7 +4,7 @@ import datetime as dt
 
 import pytest
 
-from ambrosia.rules.barcodes import checkDigitFits, cleanBarcode, isShopCode
+from ambrosia.rules.barcodes import checkDigitFits, cleanBarcode, isShopCode, weighedPack
 from ambrosia.rules.foods import (
     Food,
     FoodProblem,
@@ -123,3 +123,16 @@ def testShopsOwnCodesAreRecognised():
     assert isShopCode("212345678901") and isShopCode("412345678901")  # UPC-A
     assert isShopCode("20123451") and isShopCode("01234565")  # EAN-8
     assert not isShopCode("3017620422003") and not isShopCode("5449000000996") and not isShopCode("96385074")
+
+
+def testFinnishWeighedPacksAreFoundByTheirItem():
+    """AM11.1: 23 YYYY AA PPPP and the check digit, the weight in grams after 23, tens after 24, hundreds after 25.
+    Every pack of an item gives the same code, its weight as 0000 with its own check digit."""
+    assert weighedPack("2300004201006") == ("2300004200009", 100)  # e-kassa.fi's example: 0.100 kg
+    assert weighedPack("2301234504004") == ("2301234500006", 400)
+    assert weighedPack("2301234505230") == ("2301234500006", 523)  # the same item, another pack
+    assert weighedPack("2412345611557") == ("2412345600001", 11550)  # 11.55 kg
+    assert weighedPack("2512345611554") == ("2512345600008", 115500)  # 115.5 kg
+    assert checkDigitFits(weighedPack("2301234505230")[0])
+    for other in ("2000000000008", "2212345678904", "3017620422003", "20123451", "212345678901"):
+        assert weighedPack(other) is None

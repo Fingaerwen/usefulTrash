@@ -8,8 +8,22 @@ import json
 
 import pytest
 from ambrosiaStandIn import StandInApp
-from screenTestKit import draw, find, layoutProblems, press, type_, undrawable, useLoop, visibleTexts
+from flet import BaseControl
+from screenTestKit import (
+    draw,
+    find,
+    label,
+    layoutProblems,
+    press,
+    redraw,
+    type_,
+    undrawable,
+    useLoop,
+    visibleTexts,
+    walk,
+)
 
+from ambrosia.screens.addFood import AmountScreen
 from ambrosia.screens.root import AmbrosiaApp
 from usefulTestKit import FakeClock, userA
 
@@ -61,6 +75,8 @@ def everyScreen(app, loop):
     drawn(app)
     loop.run_until_complete(app.useBarcode("3017620422003"))
     drawn(app)  # How much
+    app.pick(app.model.picked.food, 523)
+    drawn(app)  # How much with Whole pack
     app.typeLabel("Type it from the label.", barcode="2000000000008")
     drawn(app)
     app.checkTargets(json.dumps(targetsFile).encode())
@@ -96,6 +112,25 @@ def testAddingAFoodThroughTheScreens(loop):
     root = drawn(app)
     assert app.model.screen == "main" and "Nutella · Ferrero" in visibleTexts(root)
     assert "EATEN" in visibleTexts(root) and "81 kcal" in visibleTexts(root)  # 15 g of Nutella, no targets yet
+
+
+def testWholePackFillsInAWeighedPacksWeight(loop):
+    """AM11.1: the amount starts as usual, and Whole pack fills in the weight from the pack's barcode."""
+    app = makeApp()
+    app.openAdd("dinner")
+    loop.run_until_complete(app.useBarcode("2301234505230"))
+    loop.run_until_complete(app.saveLabel({"name": "Minced beef", "kcal": "180", "proteinG": "20", "fatG": "11",
+                                           "carbsG": "0"}))
+    amount = draw(AmountScreen, app, app.model)
+    assert "180 kcal" in visibleTexts(amount)  # 100 g to start with
+    [wholePack] = [control for control in walk(amount) if type(control).__name__ == "Container"
+                   and isinstance(control.content, BaseControl) and label(control.content) == "Whole pack · 523 g"]
+    press(wholePack)  # the pill around the words
+    redraw(amount)  # the amount is the screen's own state, kept by a redraw
+    assert "941 kcal" in visibleTexts(amount)
+    press(find(amount, "Add to Dinner", "Button"))
+    [log] = [row for row in app.rows["foodLogs"].values() if not row["deleted"]]
+    assert log["grams"] == 523
 
 
 def testWaterAndTheSummaryWithoutTargets(loop):
