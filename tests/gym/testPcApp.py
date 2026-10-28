@@ -275,13 +275,13 @@ def testExportCsvSavesTheBackupAndReadableSets(browser, cloud):
     press(find(browser.screen(), "Bench Press: done as targeted", "IconButton"))
     browser.run(browser.app.exportCsv())
     name, content = browser.services.filePicker.saved
-    assert name == "GymTracker-export-2026-10-12.zip"
+    assert name == "Talon-export-2026-10-12.zip"
     archive = zipfile.ZipFile(io.BytesIO(content))
     assert {"manifest.json", "plans.csv", "exerciseLogs.csv", "sets.csv"} <= set(archive.namelist())
     sets = archive.read("sets.csv").decode().splitlines()
     assert sets[0] == "date,exercise,exerciseId,set,reps,kg,unit,minutes"
     assert sets[1:] == [f"2026-10-12,Bench Press,benchPress,{n},8,80,kg," for n in range(1, 5)]
-    assert "Exported GymTracker-export-2026-10-12.zip" in browser.app.model.backupStatus
+    assert "Exported Talon-export-2026-10-12.zip" in browser.app.model.backupStatus
 
 
 def testBackUpNowWithGooglesPermissionFromTheSecondWindow(browser, cloud):
@@ -301,7 +301,7 @@ def testBackUpNowWithGooglesPermissionFromTheSecondWindow(browser, cloud):
     assert row["madeBy"] == "pcView" and len(browser.drive.zips()) == 1
     assert browser.services.prefs.values == {}  # the handed-over token is gone from the site's storage
     texts = browser.texts()
-    assert any(text.startswith("Backed up to your Google Drive: GymTracker-backup-") for text in texts)
+    assert any(text.startswith("Backed up to your Google Drive: Talon-backup-") for text in texts)
     assert any(text.startswith("12 Oct 2026 (PC view)") for text in texts)
     assert "driveToken1" not in "\n".join(browser.app.problemsLines())
 

@@ -28,10 +28,19 @@ class BackupNames:
     prefix: str  # the dated backups' names start with it. They're rotated
     history: str  # the history file, kept (BK1.2)
     app: str  # named in manifest.json, so a restore knows whose tables they are
+    former: "BackupNames | None" = None  # the names before the app was renamed: found and carried on (4i)
 
 
-talonBackups = BackupNames("Gym Tracker backups", "GymTracker-backup-", "GymTracker-history.zip", "Gym Tracker")
+# Talon was Gym Tracker until the joint release (AM1.4, AM9.6): its folder is renamed in place, so the history file
+# and the dated backups carry on (apps/diet/docs/plan.md 4i).
+talonBackups = BackupNames("Talon backups", "Talon-backup-", "Talon-history.zip", "Talon",
+                           BackupNames("Gym Tracker backups", "GymTracker-backup-", "GymTracker-history.zip",
+                                       "Gym Tracker"))
 ambrosiaBackups = BackupNames("Ambrosia backups", "Ambrosia-backup-", "Ambrosia-history.zip", "Ambrosia")
+
+
+def _withFormer(names: BackupNames) -> list[BackupNames]:
+    return [names] + ([names.former] if names.former is not None else [])
 
 
 def lastBackup(backupRows: Sequence[Mapping[str, Any]]) -> Mapping[str, Any] | None:
@@ -84,11 +93,14 @@ async def makeBackup(drive: DriveApi, token: str, rowsByTable: Mapping[str, Sequ
     history file with the readable history (BK1.2). Returns the backups row to save (the caller saves it,
     so it syncs like any edit, in its app's backups table)."""
     content = makeBackupZip(rowsByTable, tables, schemaVersion, now, madeBy, appName=names.app)
-    folderId = await drive.findOrCreateFolder(names.folder, token)
+    folderId = await appFolder(drive, token, names)
     fileName = backupFileName(now, names)
     uploaded = await drive.uploadFile(fileName, content, zipMimeType, folderId, token)
-    older = await drive.listFiles(f"'{folderId}' in parents and name contains '{names.prefix}' and trashed = false",
-                                  token)
+    older = []
+    for each in _withFormer(names):  # the dated backups under the former name rotate out with the new ones
+        older += await drive.listFiles(f"'{folderId}' in parents and name contains '{each.prefix}' and trashed = false",
+                                       token)
+    older.sort(key=lambda file: file.get("createdTime", ""), reverse=True)
     for file in older[keepBackups:]:  # newest first. The history file isn't among them
         await drive.deleteFile(file["id"], token)
     await updateHistory(drive, token, folderId, rowsByTable, tables, schemaVersion, now, madeBy, readableFiles, names)
@@ -97,13 +109,32 @@ async def makeBackup(drive: DriveApi, token: str, rowsByTable: Mapping[str, Sequ
             "madeBy": madeBy}
 
 
+async def appFolder(drive: DriveApi, token: str, names: BackupNames) -> str:
+    """The app's Drive folder. If there's none under its name but there is one under its former name (Gym Tracker
+    backups), that one is renamed in place, so everything in it carries on (4i). Otherwise it's made."""
+    found = await drive.findFolder(names.folder, token)
+    if found is not None:
+        return found
+    if names.former is not None:
+        former = await drive.findFolder(names.former.folder, token)
+        if former is not None:
+            await drive.renameFile(former, names.folder, token)
+            return former
+    return await drive.findOrCreateFolder(names.folder, token)
+
+
 async def updateHistory(drive: DriveApi, token: str, folderId: str,
                         rowsByTable: Mapping[str, Sequence[Mapping[str, Any]]], tables: Sequence[Table],
                         schemaVersion: int, now: dt.datetime, madeBy: str,
                         readableFiles: Mapping[str, str] | None, names: BackupNames = talonBackups) -> None:
     """The history file (BK1.2): the earlier one merged with this backup, uploaded, then the earlier one
-    deleted, so there's always exactly one, and never none."""
-    found = await drive.listFiles(f"'{folderId}' in parents and name = '{names.history}' and trashed = false", token)
+    deleted, so there's always exactly one, and never none. One under the app's former name is the earlier one the
+    first time, so the history carries on under the new name (4i)."""
+    found = []
+    for each in _withFormer(names):
+        found += await drive.listFiles(f"'{folderId}' in parents and name = '{each.history}' and trashed = false",
+                                       token)
+    found.sort(key=lambda file: file.get("createdTime", ""), reverse=True)  # the newest holds all the others hold
     previous = await drive.downloadFile(found[0]["id"], token) if found else None
     content = mergeHistory(previous, rowsByTable, tables, schemaVersion, now, madeBy, readableFiles, appName=names.app)
     await drive.uploadFile(names.history, content, zipMimeType, folderId, token)

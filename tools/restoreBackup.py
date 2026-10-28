@@ -1,7 +1,8 @@
 """Restores a backup into the cloud (F13.1): turns a backup zip (from Google Drive or Export CSV) into one
 SQL script for Supabase's SQL editor, run the same way as a cloud upgrade. It needs no secret and sends
 nothing anywhere: it only reads the zip and prints SQL. The guide is docs/restore.md. A backup says whose
-it is in its manifest (Gym Tracker's, or Ambrosia's own tables, AM5.6). One from before that is Gym Tracker's.
+it is in its manifest (Talon's, called Gym Tracker until 0.4-alpha, or Ambrosia's own tables, AM5.6). One from
+before that is Gym Tracker's.
 
 Usage (from the repo root): python3 tools/restoreBackup.py <backup.zip> [--backupWins] > restore.sql
   Without --backupWins it fills in what's missing: the cloud keeps the newest edit of every row (F11.1),
@@ -24,7 +25,8 @@ from gym import tables as gymTables  # noqa: E402
 from usefulShared.backup.backupFile import readBackupZip  # noqa: E402
 
 # Each app's tables and the data structure this code knows, by the name in a backup's manifest
-apps = {"Gym Tracker": (gymTables.appTables, gymTables.appSchema),
+apps = {"Talon": (gymTables.appTables, gymTables.appSchema),
+        "Gym Tracker": (gymTables.appTables, gymTables.appSchema),  # Talon's name until 0.4-alpha (4i)
         "Ambrosia": (dietTables.dietTables, dietTables.appSchema)}
 
 rowsPerInsert = 200  # rows in one INSERT, so a big table makes a handful of statements

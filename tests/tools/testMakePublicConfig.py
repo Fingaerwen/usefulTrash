@@ -39,5 +39,6 @@ def testTheOutputFileIsIgnoredByGit():
     from pathlib import Path
     import subprocess
     repoRoot = Path(__file__).resolve().parents[2]
-    result = subprocess.run(["git", "check-ignore", "-q", "apps/gym/src/publicConfig.json"], cwd=repoRoot)
-    assert result.returncode == 0
+    for app in ("gym", "diet"):  # Talon's and Ambrosia's
+        result = subprocess.run(["git", "check-ignore", "-q", f"apps/{app}/src/publicConfig.json"], cwd=repoRoot)
+        assert result.returncode == 0, app

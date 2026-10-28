@@ -17,8 +17,8 @@ from gym.state import PlanEntry
 from usefulShared.platform import problems
 from usefulShared.platform.problems import LogFacts, SyncFacts
 
-appName = "Gym Tracker"
-appVersion = "0.3-alpha"  # the release script checks it matches pyproject.toml (V3a)
+appName = "Talon"  # Gym Tracker until 0.4-alpha (AM1.4, AM9.6): only the visible name changed
+appVersion = "0.4-alpha"  # the release script checks it matches pyproject.toml (V3a)
 
 
 @ft.observable

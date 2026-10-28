@@ -29,7 +29,7 @@ from usefulShared.signIn.sessionKeeper import MemoryStore, SessionKeeper
 from usefulShared.store.cloudStore import CloudStore, VersionMismatch, describeCloudError
 
 refreshEverySec = 60
-pcViewAddress = "https://fingaerwen.github.io/usefulTrash/"  # where the release script publishes the PC view
+siteAddress = "https://fingaerwen.github.io/usefulTrash/"  # driveToken.html stays here for both PC views (4c)
 driveHandoverKey = "driveToken"  # what site/driveToken.html leaves for Flet's SharedPreferences (BK1.1)
 handoverWaitSec = 180  # how long Back up now waits for Google's answer
 backupWarning = "Your last backup is over 60 days old: see the Backup tab."  # 3.4
@@ -229,7 +229,7 @@ class PcApp(AppBase):
         weigh-ins, steps, the diary), in one zip saved to this PC."""
         content = makeBackupZip(self._allRows(), appTables, appSchema, self.clock(), "pcView",
                                 self.state.historyFiles(self.localToday()), appName=talonBackups.app)
-        name = f"GymTracker-export-{self.localToday().isoformat()}.zip"
+        name = f"Talon-export-{self.localToday().isoformat()}.zip"
         try:
             await self.services.filePicker.save_file(file_name=name, src_bytes=content)
         except Exception as problem:
@@ -241,7 +241,7 @@ class PcApp(AppBase):
     def driveConsentUrl(self, state: str) -> str:
         """Google's Drive permission page (files this app created only). It answers to site/driveToken.html."""
         account = str((self.session.session.get("user") or {}).get("email", "")) if self.session else ""
-        query = {"client_id": self.config["googleWebClientId"], "redirect_uri": f"{pcViewAddress}driveToken.html",
+        query = {"client_id": self.config["googleWebClientId"], "redirect_uri": f"{siteAddress}driveToken.html",
                  "response_type": "token", "scope": "https://www.googleapis.com/auth/drive.file", "state": state,
                  "include_granted_scopes": "true", "prompt": "select_account"}
         if account:
@@ -257,7 +257,7 @@ class PcApp(AppBase):
         try:
             await self.services.prefs.remove(driveHandoverKey)  # nothing old can be taken for the answer
             self.model.backupStatus = "Waiting for Google's permission in the other window…"
-            await self.services.urlLauncher.launch_url(self.driveConsentUrl(state), web_only_window_name="gymTrackerDrive")
+            await self.services.urlLauncher.launch_url(self.driveConsentUrl(state), web_only_window_name="talonDrive")
             token = await self._awaitDriveToken(state)
             if token is None:
                 self.model.backupStatus = ("No permission came back from Google (the window was closed, or it took "

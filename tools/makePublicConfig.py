@@ -1,12 +1,13 @@
-"""Copies the public identifiers the gym app needs from the repo's .env into apps/gym/src/publicConfig.json.
-Run before `flet build` (tools/buildRelease.py does it). Moved from the Phase 0 spike (CS1.1).
+"""Copies the public identifiers the apps need from the repo's .env into apps/gym/src/publicConfig.json (Talon) or
+apps/diet/src/publicConfig.json (Ambrosia). Run before `flet build` (tools/buildRelease.py does it, for each app it
+builds). Moved from the Phase 0 spike (CS1.1).
 
 Only three names are copied, the ones the plan allows inside the app (K2a: public by design):
 SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY and GOOGLE_WEB_CLIENT_ID. Each value must have the expected
 format, and anything that looks like a secret is refused. The output file is git-ignored, and values are
 never printed.
 
-Usage (from the repo root): python3 tools/makePublicConfig.py
+Usage (from the repo root): python3 tools/makePublicConfig.py [apps/diet]
 """
 
 import json
@@ -70,25 +71,27 @@ def buildConfig(envText: str) -> tuple[dict[str, str], list[str]]:
     return config, problems
 
 
-def writePublicConfig() -> list[str]:
-    """Writes publicConfig.json. Returns the problems instead if there are any (nothing is written then)."""
+def writePublicConfig(output: Path = outputPath) -> list[str]:
+    """Writes publicConfig.json (Talon's unless another path is given). Returns the problems instead if there are
+    any (nothing is written then)."""
     if not envPath.exists():
         return [f"No .env found at {envPath}. Copy .env.example to .env and fill it in."]
     config, problems = buildConfig(envPath.read_text(encoding="utf-8"))
     if problems:
         return problems
-    outputPath.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    output.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return []
 
 
 def main() -> int:
-    problems = writePublicConfig()
+    output = repoRoot / sys.argv[1] / "src" / "publicConfig.json" if len(sys.argv) > 1 else outputPath
+    problems = writePublicConfig(output)
     if problems:
         print("❌ publicConfig.json NOT written:")
         for problem in problems:
             print(f"   - {problem}")
         return 1
-    print(f"✅ Wrote {outputPath.relative_to(repoRoot)} with: {', '.join(sorted(n for n, _, _ in allowedValues.values()))} "
+    print(f"✅ Wrote {output.relative_to(repoRoot)} with: {', '.join(sorted(n for n, _, _ in allowedValues.values()))} "
           "(values not shown)")
     return 0
 

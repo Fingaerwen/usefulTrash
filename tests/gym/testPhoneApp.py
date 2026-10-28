@@ -191,7 +191,7 @@ def signedIn(phone: Phone) -> Phone:
 
 def testFirstStartAsksToSignIn(phone):
     assert phone.app.model.screen == "signIn"
-    assert "Gym Tracker" in phone.texts()
+    assert "Talon" in phone.texts()
 
 
 def testSignInDownloadsEverythingThenShowsToday(phone, cloud):
@@ -461,7 +461,7 @@ def testProblemsPageCopiesAReportWithoutSecrets(phone, cloud):
     press(menuItem)
     texts = phone.texts()
     assert "Problems" in texts
-    assert any(text.startswith(f"Gym Tracker {appVersion} · schema {appSchema}") for text in texts)
+    assert any(text.startswith(f"Talon {appVersion} · schema {appSchema}") for text in texts)
     press(find(phone.screen(), "Copy", "Button"))
     copied = phone.services.clipboard.text
     session = phone.app.session.session
@@ -881,7 +881,7 @@ def testTheAutomaticBackupAfterTheFirstSync(phone, cloud):
     names = zipfile.ZipFile(io.BytesIO(file["content"])).namelist()
     assert "manifest.json" in names and "plans.csv" in names and "exerciseLogs.csv" in names
     folder = phone.drive.files[file["parents"][0]]
-    assert folder["name"] == "Gym Tracker backups"
+    assert folder["name"] == "Talon backups"
     phone.app.openProblems()
     assert "Last backup: 12 Oct 2026 (phone) · today" in phone.texts()
 
@@ -902,6 +902,35 @@ def testTheAutomaticBackupAfterTheFirstSync(phone, cloud):
     archive = zipfile.ZipFile(io.BytesIO(history["content"]))
     assert json.loads(archive.read("manifest.json"))["kind"] == "history"
     assert {"sets.csv", "weighIns.csv", "steps.csv", "diary.csv", "plans.csv"} <= set(archive.namelist())
+
+
+def testGymTrackersDriveFolderCarriesOnAsTalons(phone, cloud):
+    """4i: at Talon 0.4's first backup the folder Gym Tracker backups is renamed in place, its history file carries
+    on as Talon-history.zip with every row it held, and its dated backups rotate out with the new ones."""
+    from usefulTestKit import exampleRow
+
+    from usefulShared.backup.backupFile import mergeHistory, readBackupZip
+    from gym.tables import appTables
+    drive = phone.drive
+    folderId = drive._new(name="Gym Tracker backups", mimeType="application/vnd.google-apps.folder")["id"]
+    for month in (7, 8, 9):
+        drive._new(name=f"GymTracker-backup-2026-0{month}-01-0900.zip", parents=[folderId], mimeType="application/zip",
+                   content=b"an old backup")
+    gone = exampleRow("dailySteps", date=dt.date(2026, 9, 1), steps=8000)  # only in the old history file
+    oldHistory = mergeHistory(None, {"dailySteps": [gone]}, appTables, 2, dt.datetime(2026, 9, 1, tzinfo=dt.UTC),
+                              "phone", appName="Gym Tracker")
+    drive._new(name="GymTracker-history.zip", parents=[folderId], mimeType="application/zip", content=oldHistory)
+    planInCloud(cloud)
+    signedIn(phone)
+    phone.run(phone.app.syncNow())
+    phone.run(phone.app.backupTask)
+    assert drive.folders() == ["Talon backups"] and drive.files[folderId]["name"] == "Talon backups"
+    assert len(drive.zips()) == 1 and len(drive.zips("GymTracker-backup-")) == 2  # the last 3 in all
+    assert drive.history("GymTracker-history.zip") == []
+    (history,) = drive.history()
+    assert history["parents"] == [folderId]
+    manifest, tables = readBackupZip(history["content"])
+    assert manifest["appName"] == "Talon" and gone["id"] in {row["id"] for row in tables["dailySteps"]}
 
 
 def testABackupRetriesOnceWithAFreshDriveToken(phone, cloud):

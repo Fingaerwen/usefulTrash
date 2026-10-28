@@ -113,6 +113,7 @@ The same app built as a website, online-only like Talon's: the tabs down the lef
 - `about.html`, `privacy.html` and `driveToken.html` stay where they are, at the addresses Google has registered, so nothing changes in Google Cloud (the web sign-in is allowed for the whole `https://fingaerwen.github.io` origin).
 - The release script's publish step (P6.1) puts both builds into its single `gh-pages` commit.
 - Talon's PC view moves from `/usefulTrash/` to `/usefulTrash/talon/` at the changeover. The start page links it.
+- **As built (2026-10-28, gate 3's code, AM10.3):** `tools/buildRelease.py talon|ambrosia [talon|ambrosia]` builds one app or both. Its publish step makes one `gh-pages` commit with `site/start.html` as `index.html`, its images, `about.html`, `privacy.html` and `driveToken.html` at the top, and the PC views in `talon/` and `ambrosia/`. An app that isn't in the release keeps the PC view the site has for it. Talon 0.3's files at the top of the site are left out, so the old address shows the start page.
 
 ### 4d. Food sources
 - **Packaged foods:** Open Food Facts (a free, open food database), by barcode or by name. A request sends only the barcode or the search words, with a User-Agent naming the app and the repo, never your email. The phone calls it from Python (`urllib`, like `shared/src/usefulShared/cloud/supabaseApi.py`). The PC view from the browser. Its rate limits are respected.
@@ -168,13 +169,15 @@ Settled 2026-10-25 at max effort and reworked for Friday weigh-ins on 2026-10-28
 ### 4h. Releases (the joint changeover)
 - Ambrosia gets its own version, starting at 0.1-alpha, tagged `ambrosia-v0.1-alpha` and titled "Ambrosia 0.1-alpha". Talon's next release is titled "Talon 0.4-alpha".
 - `tools/buildRelease.py` gets an app choice (today it hard-codes `apps/gym` and `gym-v`).
-- Your steps: two Android sign-in clients for `io.github.fingaerwen.ambrosia` (release and debug key, like `docs/setup.md` step 2), and Obtainium's release filters: `^Talon` on the existing entry and `^Ambrosia` on a new one, because without them each app would take the other's release as its own latest.
+- Your steps: two Android sign-in clients for `io.github.fingaerwen.ambrosia` (release and debug key, `docs/setup.md` 2b), and Obtainium's release filters: `^(Talon|Gym Tracker)` on the existing entry and `^Ambrosia` on a new one (6b), because without them each app would take the other's release as its own latest. Both names on the existing entry, since with `^Talon` alone it would find no release of its own until Talon's is out. The release in order and its phone check are in `docs/setup.md` 8.
+- **As built (2026-10-28):** the script takes `talon`, `ambrosia` or both. Release titles and APKs are `Talon <version>`, `Talon-<version>.apk`, `Ambrosia <version>` and `Ambrosia-<version>.apk`. One release key signs both, so Ambrosia's Android clients have the same fingerprints as Talon's.
 
 ### 4i. Talon at the changeover (AM1.4, AM6.3)
 - **The weigh-in time (AM6.3):** the Weight tab stamps `bodyWeight.weighedAt` when you save today's weigh-in, and shows it beside each weigh-in. Talon's schema number goes to 3, so it syncs only once upgrade 003 is in.
 - The name in `apps/gym/pyproject.toml` (product), `apps/gym/src/gym/model.py`, `apps/gym/src/main.py`, `apps/gym/src/gym/pcApp.py`, the tests, `docs/*` and `plans/planFormat.md` (the repo copy).
 - `site/*.html`. The privacy page then covers both apps, food logs included.
 - Drive backups: the folder **Gym Tracker backups** and its file names (`shared/src/usefulShared/backup/backupJob.py`) get the new name. The existing folder is renamed in place, so the history file carries on, and `tools/restoreBackup.py` accepts the old and new names.
+- **As built (2026-10-28, AM10.3):** Talon is 0.4-alpha (versionCode 4) with the name Talon on the phone, in the PC view's title, the release titles, APK names, the site pages, the docs and `plans/planFormat.md`. What isn't shown kept its name: the package ID, `apps/gym`, the `gym-v` tags, the project's name inside the build, the phone's database file and the signing key's file and certificate. At its first backup Talon looks for **Talon backups**, and if there's only **Gym Tracker backups** it renames that folder in place (one Drive call). The history file carries on as `Talon-history.zip` with everything the old one held, and the old dated backups rotate out with the new ones. Tested with the Drive stand-in. The privacy page covers both apps, Ambrosia's food logs, its camera and Open Food Facts included.
 
 ### 4j. Still open
 - **From Phase 0, still open:** duplicate generic foods and the four searches the new ranking still gets wrong (oatmeal, spaghetti, skim milk, bacon), if they bother you in use. Anything Ambrosia keeps in the browser gets its own key names (both PC views share one browser storage).

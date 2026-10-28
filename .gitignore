@@ -19,6 +19,7 @@ key.properties
 # Public by design (plan K2a), but generated from .env, so it stays out of git like .env itself.
 spikes/phase0/src/publicConfig.json
 apps/gym/src/publicConfig.json
+apps/diet/src/publicConfig.json
 
 # Local data and build output
 *.db

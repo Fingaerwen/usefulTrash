@@ -1,7 +1,8 @@
-# Gym Tracker: one-time setup (plan 12b)
+# Talon and Ambrosia: one-time setup (plan 12b, apps/diet/docs/plan.md 4h)
 
-Done once, before the first release (0.1-alpha, published 2026-10-14). Nothing secret appears here: the fingerprints and
-names below are public by design (anyone can read them from the APK).
+Done once per app, before its first release: Gym Tracker's (now Talon, AM1.4) before 0.1-alpha (published 2026-10-14),
+Ambrosia's before 0.1-alpha at the joint release with Talon 0.4-alpha (sections 1d, 2b, 6b and 8). Nothing secret
+appears here: the fingerprints and names below are public by design (anyone can read them from the APK).
 
 ## 1. Cloud upgrade 001 (you, in Supabase)
 1. Open [your Supabase projects](https://supabase.com/dashboard/projects) → the project → **SQL Editor**
@@ -53,6 +54,16 @@ Gym Tracker is a new package, so it needs its own clients, in the same project a
 
 No client secret is involved (Android clients have none). The ownership check is optional. Skip it.
 
+### 2b. Ambrosia's two Android sign-in clients (you, in Google Cloud, before the joint release)
+The same way, twice, for Ambrosia's package. One release key signs both apps, so the fingerprints are the same:
+
+| Client | Package name | SHA-1 certificate fingerprint |
+|---|---|---|
+| Ambrosia (release key) | `io.github.fingaerwen.ambrosia` | `A8:08:97:5C:B8:29:C7:2F:A7:0A:7C:EB:C9:5E:99:04:05:3D:82:BF` |
+| Ambrosia (debug key, test builds) | `io.github.fingaerwen.ambrosia` | `57:92:1B:25:A7:0A:93:21:E8:2A:EA:45:A8:97:B3:3F:10:CC:29:D2` |
+
+Without them, sign-in and the Drive backups fail on the phone. The PC view doesn't need them.
+
 ## 3. The daily ping's two variables (you, on GitHub)
 1. [Settings → Secrets and variables → Actions → Variables](https://github.com/Fingaerwen/usefulTrash/settings/variables/actions)
    → **New repository variable**, twice, with the same values as in your `.env`:
@@ -72,12 +83,15 @@ to uninstall, reinstall and sign in again (only changes not yet synced would be 
 
 ## 5. A release
 0.1-alpha was published on 2026-10-14, before the weekly schedule and everything after it. 0.2-alpha on
-2026-10-24 (RL4.1). 0.3-alpha needs no cloud upgrade.
-1. Once the release's cloud upgrade is done (if it has one), I run `python3 tools/buildRelease.py --cloudReady`:
-   every check, the signed APK, the tag, and the PC view published to GitHub Pages.
-2. You create the release on GitHub from the link it prints: title `Gym Tracker <version>`, like
-   `Gym Tracker 0.3-alpha`, **not** a pre-release (Obtainium skips those), and drag in the APK it names.
-3. On the phone, Obtainium offers it as an update.
+2026-10-24 (RL4.1). 0.3-alpha needs no cloud upgrade. Talon 0.4-alpha and Ambrosia 0.1-alpha come out together
+and need cloud upgrade 003 (section 1d).
+1. Once the release's cloud upgrade is done (if it has one), I run `python3 tools/buildRelease.py talon` (or
+   `ambrosia`, or `talon ambrosia` for both at once) with `--cloudReady`: every check, the signed APKs, the tags,
+   and the site published to GitHub Pages: the start page at `https://fingaerwen.github.io/usefulTrash/` with both
+   PC views, `talon/` and `ambrosia/`. An app that isn't in the release keeps the PC view it has there.
+2. You create each release on GitHub from the link it prints: title `Talon <version>` or `Ambrosia <version>`,
+   like `Talon 0.4-alpha`, **not** a pre-release (Obtainium skips those), and drag in the APK it names.
+3. On the phone, Obtainium offers it as an update (Talon) or a new install (Ambrosia's first).
 
 ## 6. On the phone
 1. **Obtainium** → **+** (Add App) → source URL `https://github.com/Fingaerwen/usefulTrash` → **Add**,
@@ -88,6 +102,14 @@ to uninstall, reinstall and sign in again (only changes not yet synced would be 
 3. No battery setting up front (BT1.1). Only if a reminder arrives late (the 08:00 creatine reminder, or the
    Friday 07:00 weigh-in from 0.3-alpha): Settings → Apps → Gym Tracker → Battery → **Unrestricted**.
 4. The Phase 0 app was uninstalled on 2026-10-14 (PH1.1).
+
+### 6b. Two apps from one repo in Obtainium (before the joint release)
+Both apps' releases come from the same repo, so each Obtainium entry needs a filter, or it would take the other app's
+release as its own newest one:
+1. The existing entry (Gym Tracker, Talon from 0.4-alpha) → **Edit** → **Filter release titles by regular
+   expression**: `^(Talon|Gym Tracker)`. Both names, so it still knows its current release before Talon's is out.
+2. **+** (Add App) → the same source URL `https://github.com/Fingaerwen/usefulTrash` → the same filter field:
+   `^Ambrosia` → **Add**, then install Ambrosia once its release is out.
 
 ## 7. The check on your phone (0.2-alpha and 0.3-alpha)
 What only the phone can show (Staging: each release is checked on your phone before the next one starts, 0.3-alpha
@@ -142,3 +164,34 @@ Anything that looks wrong: ⋮ → Problems → **Copy**, and paste it to me.
     adds, × stops it. Tapping an exercise's rest time (the stopwatch) starts it between sets. Lock the phone
     during one: at 0 a "Rest over" notification pops up, on time (an alarm icon in the status bar meanwhile is
     expected). It can be muted on its own: Android settings → Apps → Gym Tracker → Notifications → Rest timer.
+
+## 8. The joint release, in order, and its check on your phone (Talon 0.4-alpha, Ambrosia 0.1-alpha)
+**Before it (you):** sections 2b and 6b. On release day: Talon on the phone has synced (nothing waiting), a fresh
+backup exists (the PC view's Back up now), then cloud upgrade 003 (section 1d). Then I run
+`python3 tools/buildRelease.py talon ambrosia --cloudReady` and you make the two GitHub releases (section 5).
+
+**Then on the phone and the PC.** Anything that looks wrong: ⋮ → Problems → **Copy**, and paste it to me.
+1. **The update:** Obtainium updates Gym Tracker to **Talon** over the old one: same data, signed in, the new red
+   look. ⋮ → Problems: `Talon 0.4-alpha · schema 3 · started in … s`, under 5 s.
+2. **The weigh-in time:** save today's weigh-in on the Weight tab: `weighed at 07:12` under the day, at your
+   phone's clock, and the time under it in LAST 4. A past day's has none.
+3. **Talon's backup** (at its next one, within 30 days): Google Drive's folder **Gym Tracker backups** is now
+   **Talon backups**, with `Talon-history.zip` in it and the old dated backups still there until they rotate out.
+4. **Ambrosia:** install it from its Obtainium entry → Sign in with Google (the same account) → it downloads your
+   data → Today. ⋮ → Problems: `Ambrosia 0.1-alpha · schema 3 · started in … s`, under 5 s.
+5. **Scanning:** + on a meal → Scan: Android asks once for the camera. Scan about 10 of your usual groceries. A
+   shop's own code goes straight to typing the label, a missing one too. Search a few generic foods. Note how many of
+   your groceries Open Food Facts had (Phase 0's open item, `apps/diet/docs/phase0.md`).
+6. **Targets:** import your targets file (from your Claude project, written with the new brief) on the PC view's
+   Targets tab: it shows the targets for training and rest days, and the bulk check's first block.
+7. **The dead zone:** airplane mode → log a food and water → `2 waiting` beside today's date → airplane mode off → gone
+   within a minute, and the PC view shows them a minute later.
+8. **Ambrosia's backup:** after the first sync Google asks once about Drive (allow it). ⋮ → Problems shows
+   `Last backup: … (phone) · today`, and Google Drive has the folder **Ambrosia backups**.
+9. **The look:** scroll Today and Week with the blurred see-through cards. If scrolling stutters, say so: the blur
+   goes and the see-through stays (AM9.1).
+10. **The site:** `https://fingaerwen.github.io/usefulTrash/` is the start page with both apps, and each opens its
+    PC view (sign in again in each tab).
+11. **The bulk check** (from Sunday 6 Dec, the first big-miss check): on a check Sunday with a suggestion, its card
+    sits on Today with Apply and Not now. Apply right after a sync adds the change to both kinds of day, and Targets
+    shows it with Undo.

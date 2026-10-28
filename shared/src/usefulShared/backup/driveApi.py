@@ -127,12 +127,17 @@ class DriveApi:
         answer = await self._send("GET", f"{driveApiUrl}/files?{params}", accessToken)
         return list((answer or {}).get("files", []))
 
-    async def findOrCreateFolder(self, name: str, accessToken: str) -> str:
-        """The ID of this app's folder with that name, made if there's none."""
+    async def findFolder(self, name: str, accessToken: str) -> str | None:
+        """The ID of this app's folder with that name, or None."""
         found = await self.listFiles(f"name = {quoteDriveText(name)} and mimeType = '{folderMimeType}' "
                                      "and trashed = false", accessToken)
+        return found[0]["id"] if found else None
+
+    async def findOrCreateFolder(self, name: str, accessToken: str) -> str:
+        """The ID of this app's folder with that name, made if there's none."""
+        found = await self.findFolder(name, accessToken)
         if found:
-            return found[0]["id"]
+            return found
         body = json.dumps({"name": name, "mimeType": folderMimeType}).encode("utf-8")
         made = await self._send("POST", f"{driveApiUrl}/files?fields=id", accessToken, body,
                                 "application/json; charset=UTF-8")
@@ -150,6 +155,12 @@ class DriveApi:
         """One of this app's files, as it is."""
         return await self._sendRaw("GET", f"{driveApiUrl}/files/{urllib.parse.quote(fileId, safe='')}?alt=media",
                                    accessToken)
+
+    async def renameFile(self, fileId: str, name: str, accessToken: str) -> None:
+        """Gives one of this app's files (or folders) a new name. It stays where it is, with what's in it."""
+        body = json.dumps({"name": name}).encode("utf-8")
+        await self._send("PATCH", f"{driveApiUrl}/files/{urllib.parse.quote(fileId, safe='')}?fields=id,name",
+                         accessToken, body, "application/json; charset=UTF-8")
 
     async def deleteFile(self, fileId: str, accessToken: str) -> None:
         """Deletes one of this app's files for good."""

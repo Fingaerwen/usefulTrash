@@ -20,11 +20,12 @@ class DriveStandIn:
         self.files[file["id"]] = file
         return file
 
-    def zips(self, prefix: str = "GymTracker-backup-") -> list[dict]:
-        """The dated backups (the history file is apart, history()). Ambrosia's start "Ambrosia-backup-"."""
+    def zips(self, prefix: str = "Talon-backup-") -> list[dict]:
+        """The dated backups (the history file is apart, history()). Ambrosia's start "Ambrosia-backup-", Gym
+        Tracker's (before the rename to Talon) "GymTracker-backup-"."""
         return [file for file in self.files.values() if file["name"].startswith(prefix)]
 
-    def history(self, name: str = "GymTracker-history.zip") -> list[dict]:
+    def history(self, name: str = "Talon-history.zip") -> list[dict]:
         return [file for file in self.files.values() if file["name"] == name]
 
     def folders(self) -> list[str]:
@@ -54,6 +55,10 @@ class DriveStandIn:
             return 200, json.dumps({"id": file["id"], "name": file["name"], "size": str(len(content))}).encode()
         if method == "GET" and address.path.startswith("/drive/v3/files/") and query.get("alt") == ["media"]:
             return 200, self.files[urllib.parse.unquote(address.path.rsplit("/", 1)[1])]["content"]
+        if method == "PATCH" and address.path.startswith("/drive/v3/files/"):
+            file = self.files[urllib.parse.unquote(address.path.rsplit("/", 1)[1])]
+            file["name"] = json.loads(body)["name"]
+            return 200, json.dumps({"id": file["id"], "name": file["name"]}).encode()
         if method == "DELETE" and address.path.startswith("/drive/v3/files/"):
             self.files.pop(urllib.parse.unquote(address.path.rsplit("/", 1)[1]))
             return 204, b""

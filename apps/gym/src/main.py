@@ -1,4 +1,4 @@
-"""Gym Tracker: starts the app and picks phone or PC mode once (plan 3b, CS1.1).
+"""Talon (called Gym Tracker until 0.4-alpha): starts the app and picks phone or PC mode once (plan 3b, CS1.1).
 
 Phone (the APK): the phone's database, sync, phone sign-in. PC view (the website): the cloud store and
 the browser's Google sign-in. Nothing else in the app asks "am I a website?".

@@ -23,11 +23,12 @@ def testVersionCodeIsTheMiddleNumber():
     assert settings["tool"]["flet"]["build_number"] == int(appVersion.split(".")[1].split("-")[0])
 
 
-def testTheAppIsCalledGymTracker():
-    assert settings["tool"]["flet"]["product"] == "Gym Tracker"
+def testTheAppIsCalledTalonWithGymTrackersPackage():
+    """AM1.4, AM9.6: only the visible name changed, so the update installs over Gym Tracker with your data."""
+    assert settings["tool"]["flet"]["product"] == "Talon"
     assert settings["tool"]["flet"]["android"]["bundle_id"] == "io.github.fingaerwen.gymtracker"
     assert settings["tool"]["flet"]["android"]["target_arch"] == ["arm64-v8a"]
 
 
 def testThePcViewIsBuiltForItsAddressWithoutCdns():
-    assert settings["tool"]["flet"]["web"] == {"base_url": "/usefulTrash/", "cdn": False}
+    assert settings["tool"]["flet"]["web"] == {"base_url": "/usefulTrash/talon/", "cdn": False}  # 4c

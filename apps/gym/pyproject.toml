@@ -1,9 +1,10 @@
-# Gym Tracker: one codebase, built into the phone APK and the PC view website (plan 1, 3b, 12b).
+# Talon (called Gym Tracker until 0.4-alpha, AM1.4, AM9.6): one codebase, built into the phone APK and the PC view
+# website (plan 1, 3b, 12b).
 # Build with tools/buildRelease.py, which checks the package guard before and after (CS1.1).
 [project]
-name = "gymTracker"
-version = "0.3-alpha"  # the visible version (V3a). gym/model.py's appVersion must match (a test checks)
-description = "Gym Tracker"
+name = "gymTracker"  # the project's name inside the build, never shown. It stays, like the package ID
+version = "0.4-alpha"  # the visible version (V3a). gym/model.py's appVersion must match (a test checks)
+description = "Talon"
 requires-python = "==3.14.*"  # the Python Flet bundles for Android (R3)
 dependencies = [
     "flet==1.0.3",
@@ -24,16 +25,16 @@ usefulTrashSecureStore = "../../extensions/secureStore"
 usefulTrashWeighInNotify = "../../extensions/weighInNotify"
 
 [tool.flet]
-product = "Gym Tracker"  # the name on the phone and the PC view's title (RL1.3)
+product = "Talon"  # the name on the phone and the PC view's title (RL1.3, AM1.4, AM9.6)
 org = "io.github.fingaerwen"
-build_number = 3  # Android's versionCode: the middle version number, one up each release (12b)
+build_number = 4  # Android's versionCode: the middle version number, one up each release (12b)
 
 [tool.flet.android]
-bundle_id = "io.github.fingaerwen.gymtracker"  # set explicitly, separate from the Phase 0 spike (RL1.3)
+bundle_id = "io.github.fingaerwen.gymtracker"  # set explicitly (RL1.3). It stays at the rename, so updates install over (AM1.4)
 target_arch = ["arm64-v8a"]  # your phone's CPU type only: one small APK (RL3)
 
 [tool.flet.web]
-base_url = "/usefulTrash/"  # the PC view lives at https://fingaerwen.github.io/usefulTrash/ (P6.1)
+base_url = "/usefulTrash/talon/"  # the PC view lives at https://fingaerwen.github.io/usefulTrash/talon/ (P6.1, 4c)
 cdn = false  # Python and Flutter come from our own site, never from other sites' servers (plan 1)
 
 [tool.flet.app]

@@ -1,9 +1,9 @@
-# Gym Tracker: what the app does, and how to write a plan for it
+# Talon: what the app does, and how to write a plan for it
 
 *For the user: add this whole file to your Claude project's files, replacing the older copy (in your
 project it's `claude/planFormat.md`). It's written to Claude.*
 
-You write training plans for **Gym Tracker**, the user's own Android gym app. A plan is **one JSON file**
+You write training plans for **Talon** (called Gym Tracker until version 0.4), the user's own Android gym app. A plan is **one JSON file**
 in the exact format below. The user imports it in the app's PC view, and the app then shows each
 day's workout on the phone, logs what was done and suggests the next weights and reps by itself. The app checks every file strictly: anything outside this format is refused, with
 a list of problems the user pastes back to you.
