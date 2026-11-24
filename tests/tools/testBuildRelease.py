@@ -1,5 +1,7 @@
 """Tests for the release script's own rules (tools/buildRelease.py). The full run needs the signing key."""
 
+import re
+
 import pytest
 
 import buildRelease
@@ -18,7 +20,9 @@ def testTheTagSaysWhichApp():
     """Talon keeps Gym Tracker's gym-v tags (AM1.4). Ambrosia's are its own (4h)."""
     assert (talon.tagPrefix, talon.title, talon.folder.name) == ("gym-v", "Talon", "gym")
     assert (ambrosia.tagPrefix, ambrosia.title, ambrosia.folder.name) == ("ambrosia-v", "Ambrosia", "diet")
-    assert buildRelease.versionInfo(talon) == ("0.4-alpha", 4) and buildRelease.versionInfo(ambrosia) == ("0.1-alpha", 1)
+    for app in (talon, ambrosia):  # each version as written, and its versionCode is the middle number (12b)
+        version, versionCode = buildRelease.versionInfo(app)
+        assert re.fullmatch(r"0\.\d+-alpha", version) and versionCode == int(version.split(".")[1].removesuffix("-alpha"))
 
 
 def testTheCommandLineNamesTheApps():
