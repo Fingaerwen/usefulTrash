@@ -24,6 +24,10 @@ standInSql = (Path(__file__).parent / "supabaseStandIn.sql").read_text(encoding=
 
 # Official Postgres 17 image, pinned by digest so every run uses exactly the same build (17.11).
 # Supabase runs Postgres 17 for new projects. The plan's release checklist compares the major version.
+# The test database lives in memory (a tmpfs over the image's data folder): an image volume there would be a
+# new 2 GB folder on the PC's disk every run, left behind whenever a run is killed. 115 of them once filled it.
+inMemoryData = ("--mount", "type=tmpfs,destination=/var/lib/postgresql/data,tmpfs-size=8g")
+
 postgresImage = (
     "docker.io/library/postgres@sha256:aa90e97ee862e558111d34cfb8b2c4bec768c2b039fb791341686928560263b3"
 )
@@ -45,7 +49,7 @@ def container():
     """Starts one Postgres container for the whole test run and removes it afterwards."""
     name = f"usefulTrashCloudTest{uuid.uuid4().hex[:8]}"
     subprocess.run(
-        ["podman", "run", "--detach", "--rm", "--name", name, "--network", "none",
+        ["podman", "run", "--detach", "--rm", "--name", name, "--network", "none", *inMemoryData,
          "--env", "POSTGRES_HOST_AUTH_METHOD=trust", postgresImage],
         check=True, capture_output=True, timeout=120,
     )
@@ -53,7 +57,7 @@ def container():
         _waitUntilReady(name)
         yield name
     finally:
-        subprocess.run(["podman", "rm", "--force", name], capture_output=True, timeout=60)
+        subprocess.run(["podman", "rm", "--force", "--volumes", name], capture_output=True, timeout=60)
 
 
 def _waitUntilReady(name: str) -> None:

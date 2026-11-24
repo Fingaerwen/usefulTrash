@@ -386,6 +386,7 @@ Decided 2026-10-14, after Phase 0 and the design round. Each release gets its te
 ## Verification
 - Phase 0: each of the 12 checks recorded as pass/fail with notes. **If Google sign-in on Android fails (check 2), the fallback is an emailed code (F1.1).** Any other fail → we revisit that decision before building.
 - Later phases: automated tests for plan import/validation, the weekly schedule, progression rules, PR/volume/streak math and sync against a fake cloud (offline → online, conflicts both ways, the 5-minute fetch overlap, refused changes, first download, the version check, 14b). End to end: airplane mode → log → reconnect → shows in the PC view.
+- **The cloud tests keep their database in memory (TS2.1):** the test Postgres used to write its data to a podman volume, a new 2 GB folder on your home disk every run, and a run that got killed left it behind. By 2026-11-24 there were 115 of them, 133 GB, and the disk was full, which crashed a session and stopped podman. They were deleted with your OK, and the test Postgres now runs on a tmpfs, with its containers removed along with any volume.
 - **Sync against the real server (built 2026-10-14):** besides the fake cloud, the cloud calls and whole sync rounds between two devices run against PostgREST (the Data API server Supabase runs) on a local copy of the cloud built from `cloud/`, in a podman pod reachable only from this PC (`tests/cloud/testDataApi.py`). Every rule is also checked by breaking it on purpose and seeing a test fail.
 
 ---
@@ -506,3 +507,4 @@ Newest at the bottom. Every decision made after the plan was approved gets a lin
 - **2026-11-24 · TK1.1:** the big circle on Today ticks one set at a time, with a ring and what's left (`1 of 3 done · 2×12 @ 20 kg left`), as you chose (rejected: a tick per row in Sets, or both). All sets done and Take back are in ⋯.
 - **2026-11-24 · TK1.2:** a step up needs all the planned sets done. With sets ticked one at a time, a session stopped early would otherwise step up after one set at the top of the range.
 - **2026-11-24 · DY1.1:** Today gets a strip of this week's workout days, by tap or by a flick sideways, and every one of them can be edited, days ahead too, saved under their own date (rejected: days ahead to look at only).
+- **2026-11-24 · TS2.1:** the cloud tests' Postgres runs in memory. Its leftover volumes had filled your home disk (133 GB in 115 test databases), and you OK'd deleting them.

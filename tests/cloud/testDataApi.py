@@ -45,6 +45,9 @@ repoRoot = Path(__file__).resolve().parents[2]
 cloudScripts = sorted((repoRoot / "cloud").glob("[0-9][0-9][0-9]_*.sql"))
 standInSql = (Path(__file__).parent / "supabaseStandIn.sql").read_text(encoding="utf-8")
 
+# The test database lives in memory, as in testCloudScripts.py, so a run leaves no 2 GB folder on the PC's disk.
+inMemoryData = ("--mount", "type=tmpfs,destination=/var/lib/postgresql/data,tmpfs-size=8g")
+
 # Pinned by digest, like the Postgres image: PostgREST 16.4, the official image.
 postgresImage = (
     "docker.io/library/postgres@sha256:aa90e97ee862e558111d34cfb8b2c4bec768c2b039fb791341686928560263b3"
@@ -117,7 +120,7 @@ def localCloud():
     subprocess.run(["podman", "pod", "create", "--name", podName, "--publish", f"127.0.0.1:{port}:3000"],
                    check=True, capture_output=True, timeout=60)
     try:
-        subprocess.run(["podman", "run", "--detach", "--pod", podName, "--name", f"{podName}Db",
+        subprocess.run(["podman", "run", "--detach", "--pod", podName, "--name", f"{podName}Db", *inMemoryData,
                         "--env", "POSTGRES_HOST_AUTH_METHOD=trust", postgresImage],
                        check=True, capture_output=True, timeout=120)
         cloud = LocalCloud(podName, port, signingKey)
@@ -158,6 +161,8 @@ def localCloud():
         _waitFor(dataApiReady, "PostgREST")
         yield cloud
     finally:
+        subprocess.run(["podman", "rm", "--force", "--volumes", f"{podName}Db", f"{podName}Rest"], capture_output=True,
+                       timeout=120)
         subprocess.run(["podman", "pod", "rm", "--force", podName], capture_output=True, timeout=120)
 
 
