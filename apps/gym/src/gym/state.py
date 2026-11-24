@@ -238,12 +238,21 @@ def _shortDate(date: dt.date) -> str:
 
 
 def _readSets(sets: Any) -> tuple[SetDone, ...]:
-    """The sets of a log row ([{"reps": 9, "weightKg": 82.5}, ...]). Anything malformed is left out."""
+    """The sets of a log row ([{"reps": 9, "weightKg": 82.5}, ...], a drop set's with "dropReps" and "dropKg" too,
+    DS1.1). Anything malformed is left out."""
     done = []
     for entry in sets if isinstance(sets, list) else ():
-        reps = entry.get("reps") if isinstance(entry, dict) else None
-        weightKg = entry.get("weightKg") if isinstance(entry, dict) else None
-        if isinstance(reps, int) and not isinstance(reps, bool):
-            weightOk = isinstance(weightKg, (int, float)) and not isinstance(weightKg, bool)
-            done.append(SetDone(reps, float(weightKg) if weightOk else None))
+        if not isinstance(entry, dict) or not _isWhole(entry.get("reps")):
+            continue
+        weightKg, dropReps, dropKg = entry.get("weightKg"), entry.get("dropReps"), entry.get("dropKg")
+        drop = (dropReps, float(dropKg)) if _isWhole(dropReps) and _isNumber(dropKg) else (None, None)
+        done.append(SetDone(entry["reps"], float(weightKg) if _isNumber(weightKg) else None, *drop))
     return tuple(done)
+
+
+def _isWhole(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _isNumber(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)

@@ -10,6 +10,7 @@ import flet as ft
 from gym.actions import ActionRefused, GymActions
 from gym.model import AppModel, LogFacts, SyncFacts, problemsReport
 from gym.planImporter import answerQuestions, askSwitch, finishImport, startImport, switchBack
+from gym.rules.planFile import dropSuffix
 from gym.rules.stats import summaryBanner, weighInBanner
 from gym.rules.today import ExerciseLine, SetDone, TodayView
 from gym.state import GymState, PlanEntry
@@ -331,7 +332,8 @@ class AppBase:
         from tomorrow (WD3.7)."""
         today = self.model.today
         doneToday = today is not None and any(
-            line.exercise.exerciseId == exerciseId and line.trackDay == weekday and line.setsDone
+            line.exercise.exerciseId == exerciseId.removesuffix(dropSuffix) and line.trackDay == weekday
+            and line.setsDone
             for line in today.exercises)  # a set ticked is logged today too (TK1.1)
         await self._act(self.actions.setWeight(exerciseId, weekday, weightKg, self.localToday(), doneToday))
 

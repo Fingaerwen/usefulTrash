@@ -23,10 +23,18 @@ class ImportedPlan:
 @dataclass(frozen=True, slots=True)
 class SetDone:
     """One set as logged: reps, and the weight for weighted exercises (one dumbbell for dumbbells, the
-    plates on one side for a plates-per-side lift)."""
+    plates on one side for a plates-per-side lift), in the exercise's unit (kg, or lb for a machine marked in
+    pounds, LB1.1). A drop set (DS1.1) adds the reps and weight of its lighter part."""
 
     reps: int
     weightKg: float | None = None
+    dropReps: int | None = None
+    dropKg: float | None = None
+
+    @property
+    def dropped(self) -> "SetDone | None":
+        """The drop part as a set of its own, None without one."""
+        return SetDone(self.dropReps, self.dropKg) if self.dropReps is not None else None
 
 
 @dataclass(frozen=True, slots=True)

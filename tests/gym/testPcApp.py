@@ -279,7 +279,7 @@ def testExportCsvSavesTheBackupAndReadableSets(browser, cloud):
     archive = zipfile.ZipFile(io.BytesIO(content))
     assert {"manifest.json", "plans.csv", "exerciseLogs.csv", "sets.csv"} <= set(archive.namelist())
     sets = archive.read("sets.csv").decode().splitlines()
-    assert sets[0] == "date,exercise,exerciseId,set,reps,kg,unit,minutes"
+    assert sets[0] == "date,exercise,exerciseId,set,reps,weight,unit,minutes"
     assert sets[1:] == [f"2026-10-12,Bench Press,benchPress,{n},8,80,kg," for n in range(1, 5)]
     assert "Exported Talon-export-2026-10-12.zip" in browser.app.model.backupStatus
 

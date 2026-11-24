@@ -722,6 +722,89 @@ def testAnExerciseStillAtThePlansOneKiloAsksForItsWeight(phone, cloud):
     assert not phone.app.state.training(monday).needsWeight(bench.exercise, 0, now=True)  # next time: 60 kg
 
 
+def armsPlan() -> dict:
+    """The example plan with two more on Monday: a hammer curl drop set (DS1.1) and a machine marked in pounds
+    (LB1.1)."""
+    planJson = json.loads((repoRoot / "plans" / "examplePlan.json").read_text())
+    planJson["week"][0]["exercises"] += [
+        {"exerciseId": "hammerCurl", "name": "Hammer Curl", "equipment": "dumbbell", "dumbbells": 2, "incrementKg": 1,
+         "sets": 3, "repsMin": 4, "repsMax": 6, "weightKg": 1, "drop": {"repsMin": 12, "repsMax": 15}},
+        {"exerciseId": "latPullover", "name": "Lat Pullover", "equipment": "machine", "incrementLb": 10, "sets": 3,
+         "repsMin": 10, "repsMax": 12, "weightLb": 1}]
+    return planJson
+
+
+def lineNamed(phone, name: str):
+    return next(line for line in phone.app.model.today.exercises if line.exercise.name == name)
+
+
+def testADropSetAsksForBothWeightsThenEachTickKeepsItsDrop(phone, cloud):
+    """DS1.1: "? kg" for both parts at first, so ✓ opens Sets with a drop row under each set. The weights typed
+    once count for the rows below (PF4). After that the circle ticks a set with its drop."""
+    from screenTestKit import redraw, walk
+    from gym.rules.today import SetDone
+    from gym.screens.today import ExerciseRow, SetsEditor
+
+    def weightFields(root):
+        return [control for control in walk(root) if type(control).__name__ == "TextField" and control.label == "kg"]
+
+    planInCloud(cloud, planJson=armsPlan())
+    signedIn(phone)
+    curl = lineNamed(phone, "Hammer Curl")
+    row = draw(ExerciseRow, phone.app, curl)
+    assert "3×4 @ ? kg, drop 12 @ ? kg" in visibleTexts(row)
+    press(find(row, "Hammer Curl: enter the weight", "IconButton"))
+    redraw(row)
+    assert visibleTexts(row).count("DROP") == 3 and len(weightFields(row)) == 6
+    editor = draw(SetsEditor, phone.app, curl, lambda: None)
+    for _ in range(2):
+        press(find(editor, "− set", "TextButton"))
+        redraw(editor)
+    type_(weightFields(editor)[0], "8")
+    redraw(editor)
+    type_(weightFields(editor)[1], "5")
+    redraw(editor)
+    press(find(editor, "Save", "Button"))
+    assert lineNamed(phone, "Hammer Curl").logged.sets == (SetDone(4, 8, 12, 5),)
+    assert "1 of 3 done · 2×4 @ 8 kg, drop 12 @ 5 kg left" in phone.texts()
+    press(find(phone.screen(), "Hammer Curl: set 2 of 3 done", "Container"))
+    assert lineNamed(phone, "Hammer Curl").logged.sets == (SetDone(4, 8, 12, 5),) * 2
+
+
+def testADropWeightCanBeSetLikeTheWeight(phone, cloud):
+    from screenTestKit import redraw
+    from gym.screens.today import WeightEditor
+    planInCloud(cloud, planJson=armsPlan())
+    signedIn(phone)
+    curl = lineNamed(phone, "Hammer Curl")
+    editor = draw(WeightEditor, phone.app, curl.exercise, curl.trackDay, curl.targetWeightKg, curl.stepKg,
+                  lambda: None, curl.dropWeightKg)
+    type_(fieldLabelled(editor, "Mondays, kg"), "8")
+    type_(fieldLabelled(editor, "Drop, kg"), "5")
+    redraw(editor)
+    press(find(editor, "Save", "Button"))
+    curl = lineNamed(phone, "Hammer Curl")
+    assert (curl.targetWeightKg, curl.dropWeightKg, curl.asksWeight) == (8, 5, False)
+    assert "3×4 @ 8 kg, drop 12 @ 5 kg" in phone.texts()
+
+
+def testAPoundMachineIsTypedInPoundsAndCountsInKilograms(phone, cloud):
+    """LB1.1: the lat pullover's weights are lb on Today and in Sets. Only the workout's volume is kg."""
+    from screenTestKit import redraw, walk
+    from gym.screens.today import SetsEditor
+    planInCloud(cloud, planJson=armsPlan())
+    signedIn(phone)
+    pullover = lineNamed(phone, "Lat Pullover")
+    assert "3×10 @ ? lb" in phone.texts()
+    editor = draw(SetsEditor, phone.app, pullover, lambda: None)
+    (first, *_) = [control for control in walk(editor) if type(control).__name__ == "TextField" and control.label == "lb"]
+    type_(first, "100")
+    redraw(editor)
+    press(find(editor, "Save", "Button"))
+    assert "3×10 @ 100 lb" in phone.texts()
+    assert round(phone.app.model.today.volumeKg, 1) == round(3 * 10 * 100 * 0.45359237, 1)
+
+
 def testAMistypedStepSaysWhichField(phone, cloud):
     from screenTestKit import redraw, visibleTexts
     from gym.screens.today import WeightEditor

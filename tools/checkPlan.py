@@ -25,7 +25,8 @@ def dayName(index: int) -> str:
 
 
 def exerciseText(exercise: PlanExercise) -> str:
-    """"Bench Press  3×6–10 @ 25 kg/side, step 1.25, compound" or "Incline Walk  15 min"."""
+    """"Bench Press  3×6–10 @ 25 kg/side, step 1.25, compound", "Hammer Curl  3×4–6 @ 1 kg, step 1, then a drop of
+    12–15 (step 1), 2 dumbbells" or "Incline Walk  15 min"."""
     if exercise.isCardio:
         return f"{exercise.name}  {exercise.minutes} min"
     text = f"{exercise.name}  {exercise.sets}×{exercise.repsMin}–{exercise.repsMax}"
@@ -35,8 +36,10 @@ def exerciseText(exercise: PlanExercise) -> str:
         dumbbells = f", {exercise.dumbbells} dumbbell{'s' if exercise.dumbbells == 2 else ''}" if exercise.dumbbells else ""
         barKg = barWeightKg(exercise)
         bar = f", bar {kgText(barKg)} kg{'' if exercise.barKg is not None else ' (estimated)'}" if barKg else ""
+        drop = (f", then a drop of {exercise.dropRepsMin}–{exercise.dropRepsMax} (step {kgText(exercise.dropIncrementKg)})"
+                if exercise.hasDrop else "")  # DS1.1
         text += (f" @ {kgText(exercise.weightKg)} {unit(exercise)}, step {kgText(exercise.incrementKg)}"
-                 f"{dumbbells}{bar}")
+                 f"{drop}{dumbbells}{bar}")
     return text + (", compound" if exercise.compound else "")
 
 

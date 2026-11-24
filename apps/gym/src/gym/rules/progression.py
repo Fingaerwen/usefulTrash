@@ -18,6 +18,9 @@ day. sessions.py says which day a logged exercise belongs to):
   target stays (8.10).
 - A session at another weight than the target starts afresh at that weight: judged against repsMin.
 - Bodyweight exercises: reps only, past repsMax too (10.9a). Cardio: the plan's minutes, no progression.
+- A drop set's lighter part (DS1.1) is a track of its own (the exercise's ID with "#drop"), with the drop's rep
+  range and step and the same rules. Its weight starts as a placeholder until the first drop is logged.
+- Weights are in the exercise's unit (kg, or lb for a machine marked in pounds, LB1.1), so a step is too.
 - Where a track starts (WD3.9): a weight set in the app (WD3.7, reps back to repsMin), else the
   exercise's latest weight on any day, else the latest weight set in the app on any other day (PF6), else
   the plan's weight. A plan's 1 kg is only a placeholder (PF2): until one of the others exists, the
@@ -46,7 +49,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 from gym.rules.facts import ImportedPlan, LoggedExercise, SetDone, StepEdit, WeightEdit
-from gym.rules.planFile import PlanExercise, placeholderKg, planExercises
+from gym.rules.planFile import PlanExercise, dropPart, placeholderKg, planExercises
 from gym.rules.schedule import LoggedWorkout, daySchedules, planInEffect
 from gym.rules.sessions import sessionExercises
 
@@ -369,9 +372,17 @@ class _Replay:
             track.restart(edit.weightKg)
 
     def session(self, trackDay: int, exercise: PlanExercise, logged: LoggedExercise) -> None:
-        """One logged exercise. In a deload it doesn't count (WD3.5)."""
+        """One logged exercise, and a drop set's lighter part on its own track (DS1.1). In a deload it doesn't
+        count (WD3.5)."""
         if exercise.isCardio or not logged.sets:
             return
+        self._part(trackDay, exercise, logged.sets, logged.declinedSuggestion)
+        drops = tuple(done.dropped for done in logged.sets if done.dropped is not None)
+        if exercise.hasDrop and drops:
+            self._part(trackDay, dropPart(exercise), drops, declined=False)
+
+    def _part(self, trackDay: int, exercise: PlanExercise, sets: Sequence[SetDone], declined: bool) -> None:
+        """One track's session: an exercise, or a drop set's lighter part."""
         key = (exercise.exerciseId, trackDay)
         track = self.tracks.get(key)
         if track is None:
@@ -385,13 +396,13 @@ class _Replay:
         if self.active is not None:
             return
         if exercise.equipment == "bodyweight":
-            _bodyweightSession(track, [done.reps for done in logged.sets])
+            _bodyweightSession(track, [done.reps for done in sets])
             return
-        if logged.declinedSuggestion and track.steppedUpFrom is not None:  # Undo on ↑new: not today (UN1.1)
+        if declined and track.steppedUpFrom is not None:  # Undo on ↑new: not today (UN1.1)
             track.weightKg, track.reps = track.steppedUpFrom, exercise.repsMax or 0
         track.steppedUpFrom = None
-        lifted = workingWeight(logged.sets)
-        self._weightedSession(track, logged.sets, lifted if lifted is not None else track.weightKg)
+        lifted = workingWeight(sets)
+        self._weightedSession(track, sets, lifted if lifted is not None else track.weightKg)
         if lifted is not None:
             self.latest[exercise.exerciseId] = lifted
 

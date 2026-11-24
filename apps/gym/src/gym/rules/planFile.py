@@ -29,6 +29,7 @@ plateLoaded = ("barbell", "machine")  # what platesPerSide and barKg are for (WD
 bodyParts = ("upper", "lower")
 exerciseKinds = ("strength", "cardio")
 defaultIncrementKg = {"upper": 2.5, "lower": 5.0}  # used when the plan gives no incrementKg (9.1)
+defaultIncrementLb = {"upper": 5.0, "lower": 10.0}  # the same for a machine marked in pounds (LB1.1)
 placeholderKg = 1.0  # the weight your plans give every weighted exercise: a placeholder, set in the app (PF2)
 
 # The how-to shown when you tap an exercise on Today (SC7.1): what you need, the steps, form cues.
@@ -39,20 +40,31 @@ maxHowToLines, maxHowToLineLength = 12, 200  # for each of howTo and form
 # How volume and estimated 1RM count the weight (WD1.3), and the lifts the deload trigger watches (WD3.1).
 loadFields = ("dumbbells", "platesPerSide", "barKg", "compound")
 
+# A machine marked in pounds (LB1.1) gives weightLb and incrementLb instead of weightKg and incrementKg. The app
+# then takes and shows its weights in lb, and only the totals (volume, 1RM) turn them into kg.
+poundFields = ("weightLb", "incrementLb")
+
+# A drop set (DS1.1): each set's reps at the weight, then more at a lighter one. The drop part has its own rep
+# range and step, and progresses on its own track, under the exercise's ID with this ending.
+dropFields = ("repsMin", "repsMax", "incrementKg", "incrementLb")
+dropSuffix = "#drop"
+
 # The fields each block may have.
 planFields = ("planId", "name", "version", "weeklyTarget", "week")
 dayFields = ("day", "title", "restDay", "makeUp", "moves", "exercises")
 moveFields = ("exerciseId", "from", "to", "when")
 strengthFields = ("exerciseId", "name", "type", "equipment", "body", "sets", "repsMin", "repsMax", "weightKg",
-                  "incrementKg", *loadFields, "restSec", "notes", *howToFields)
+                  "incrementKg", *poundFields, "drop", *loadFields, "restSec", "notes", *howToFields)
 cardioFields = ("exerciseId", "name", "type", "minutes", "notes", *howToFields)
 exerciseFields = tuple(dict.fromkeys(strengthFields + cardioFields))  # every field any exercise may have
 
 # What must match when one exercise is on several days. Notes and rest time are display only, and the
 # number of sets may differ (WD1.4): progress is about reps and weight.
 sameEverywhere = ("name", "kind", "equipment", "body", "repsMin", "repsMax", "weightKg", "incrementKg", "dumbbells",
-                  "platesPerSide", "barKg", "compound", "minutes")
-fieldNames = {"kind": "type"}  # PlanExercise names that differ from the file's
+                  "platesPerSide", "barKg", "compound", "minutes", "unit", "dropRepsMin", "dropRepsMax",
+                  "dropIncrementKg")
+fieldNames = {"kind": "type", "unit": "weight unit", "dropRepsMin": "drop repsMin", "dropRepsMax": "drop repsMax",
+              "dropIncrementKg": "drop step"}  # PlanExercise names that differ from the file's
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,8 +79,8 @@ class PlanExercise:
     sets: int | None = None
     repsMin: int | None = None
     repsMax: int | None = None
-    weightKg: float | None = None  # for dumbbells, one dumbbell (plan 4). None for bodyweight and cardio
-    incrementKg: float | None = None  # added when you top the rep range: from the plan, else from body (9.1)
+    weightKg: float | None = None  # for dumbbells, one dumbbell (plan 4). None for bodyweight and cardio. In `unit`
+    incrementKg: float | None = None  # added when you top the rep range: from the plan, else from body (9.1). In `unit`
     dumbbells: int | None = None  # dumbbell exercises: 1 or 2 dumbbells, for volume (WD1.3)
     platesPerSide: bool = False  # weights are the plates on one side: doubled for volume and 1RM (WD1.3)
     barKg: float | None = None  # the bar's or sled's own weight, added for volume and 1RM (WD1.3)
@@ -79,10 +91,29 @@ class PlanExercise:
     setup: str | None = None  # how-to (SC7.1): the machine or equipment needed and how to set it up
     howTo: tuple[str, ...] = ()  # how-to: the steps, in order
     form: tuple[str, ...] = ()  # how-to: form cues
+    unit: str = "kg"  # "lb" for a machine marked in pounds (LB1.1): its weights and step are in lb
+    dropRepsMin: int | None = None  # a drop set (DS1.1): the drop part's rep range and step. None without one
+    dropRepsMax: int | None = None
+    dropIncrementKg: float | None = None  # in `unit`
 
     @property
     def isCardio(self) -> bool:
         return self.kind == "cardio"
+
+    @property
+    def hasDrop(self) -> bool:
+        """A drop set (DS1.1): each set has a lighter part after it."""
+        return self.dropRepsMin is not None
+
+
+def dropPart(exercise: PlanExercise) -> PlanExercise:
+    """The drop part of a drop set (DS1.1) as an exercise of its own, for progression: its own rep range, step
+    and track (the exercise's ID with "#drop"). The plan gives it no weight, so it starts as a placeholder that
+    the first drop you log replaces (PF2)."""
+    return dataclasses.replace(exercise, exerciseId=exercise.exerciseId + dropSuffix, name=f"{exercise.name} (drop)",
+                               repsMin=exercise.dropRepsMin, repsMax=exercise.dropRepsMax,
+                               incrementKg=exercise.dropIncrementKg, weightKg=placeholderKg, compound=False,
+                               dropRepsMin=None, dropRepsMax=None, dropIncrementKg=None)
 
 
 @dataclass(frozen=True, slots=True)
@@ -332,24 +363,63 @@ def _strengthDetails(raw: dict[str, Any], place: str, problems: "_Problems") -> 
     restSec = problems.wholeNumber(raw, "restSec", place, 0, 3600, required=False)
 
     weightKg = incrementKg = None
+    unit = "lb" if "weightLb" in raw else "kg"  # a machine marked in pounds (LB1.1)
+    weightKey, stepKey = ("weightLb", "incrementLb") if unit == "lb" else ("weightKg", "incrementKg")
     if equipment == "bodyweight":
         # Bodyweight exercises progress in reps only, with no weight suggestions (10.9a).
-        if "weightKg" in raw:
-            problems.error(f'{place}: a bodyweight exercise has no "weightKg". Its progress is counted in reps.')
-        if "incrementKg" in raw:
-            problems.warn(f'{place}: "incrementKg" is ignored, because a bodyweight exercise progresses in reps.')
+        for key in ("weightKg", "weightLb"):
+            if key in raw:
+                problems.error(f'{place}: a bodyweight exercise has no "{key}". Its progress is counted in reps.')
+        for key in ("incrementKg", "incrementLb"):
+            if key in raw:
+                problems.warn(f'{place}: "{key}" is ignored, because a bodyweight exercise progresses in reps.')
+        unit = "kg"
     elif equipment is not None:
-        weightKg = problems.kilograms(raw, "weightKg", place, 0, 1000)
-        if "incrementKg" in raw:
-            incrementKg = problems.kilograms(raw, "incrementKg", place, 0.01, 100)
+        if "weightKg" in raw and "weightLb" in raw:
+            problems.error(f'{place}: has both "weightKg" and "weightLb". Give one: "weightLb" is for a machine '
+                           "marked in pounds.")
+        otherStep = "incrementKg" if unit == "lb" else "incrementLb"
+        if otherStep in raw:
+            problems.error(f'{place}: "{otherStep}" doesn\'t go with "{weightKey}". Give "{stepKey}", in the same unit '
+                           "as the weight.")
+        weightKg = problems.kilograms(raw, weightKey, place, 0, 1000)
+        if stepKey in raw:
+            incrementKg = problems.kilograms(raw, stepKey, place, 0.01, 100)
         elif body is not None:
-            incrementKg = defaultIncrementKg[body]
+            incrementKg = (defaultIncrementLb if unit == "lb" else defaultIncrementKg)[body]
         elif "body" not in raw:
-            problems.error(f'{place}: needs "body" ("upper" or "lower") or "incrementKg", to know how much weight '
+            problems.error(f'{place}: needs "body" ("upper" or "lower") or "{stepKey}", to know how much weight '
                            "to add.")
     return {"equipment": equipment, "body": body, "sets": sets, "repsMin": repsMin, "repsMax": repsMax,
-            "weightKg": weightKg, "incrementKg": incrementKg, "restSec": restSec,
+            "weightKg": weightKg, "incrementKg": incrementKg, "restSec": restSec, "unit": unit,
+            **_dropDetails(raw, equipment, unit, incrementKg, place, problems),
             **_loadDetails(raw, equipment, place, problems)}
+
+
+def _dropDetails(raw: dict[str, Any], equipment: str | None, unit: str, stepKg: float | None, place: str,
+                 problems: "_Problems") -> dict[str, Any]:
+    """A drop set (DS1.1): the drop part's rep range, and its step (the exercise's when it gives none)."""
+    if "drop" not in raw or equipment is None:
+        return {}  # a missing equipment's error is listed already
+    block = raw["drop"]
+    if equipment == "bodyweight":
+        problems.error(f'{place}: "drop" is only for exercises with a weight: a drop set goes on at a lighter one.')
+        return {}
+    if not isinstance(block, dict):
+        problems.error(f'{place}: "drop" must be a {{…}} block with "repsMin" and "repsMax", like '
+                       f'{{"repsMin": 10, "repsMax": 15}}, not {_shown(block)}.')
+        return {}
+    dropPlace = f"{place}, drop"
+    problems.unknownFields(block, dropFields, dropPlace)
+    repsMin = problems.wholeNumber(block, "repsMin", dropPlace, 1, 100)
+    repsMax = problems.wholeNumber(block, "repsMax", dropPlace, 1, 100)
+    if repsMin is not None and repsMax is not None and repsMin > repsMax:
+        problems.error(f'{dropPlace}: "repsMin" ({repsMin}) is more than "repsMax" ({repsMax}).')
+    stepKey, otherStep = ("incrementLb", "incrementKg") if unit == "lb" else ("incrementKg", "incrementLb")
+    if otherStep in block:
+        problems.error(f'{dropPlace}: "{otherStep}" doesn\'t go with the exercise\'s weight unit. Give "{stepKey}".')
+    step = problems.kilograms(block, stepKey, dropPlace, 0.01, 100) if stepKey in block else stepKg
+    return {"dropRepsMin": repsMin, "dropRepsMax": repsMax, "dropIncrementKg": step}
 
 
 def _loadDetails(raw: dict[str, Any], equipment: str | None, place: str, problems: "_Problems") -> dict[str, Any]:

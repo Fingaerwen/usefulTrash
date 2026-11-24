@@ -7,6 +7,9 @@ The real load (WD1.3): a plates-per-side lift counts double the logged plates pl
 plan's barKg or else a guess from its name (PF7). A lift with "dumbbells": 2 counts double. A barKg without
 platesPerSide is added to the logged weight. Anything else counts as logged. Volume and estimated 1RM use
 the real load. Weights are shown as logged (one dumbbell, or kg/side), as on Today (10.4).
+
+A machine marked in pounds (LB1.1) is logged and shown in lb, and its weight turns into kg only for the real
+load, so volume and 1RM are always kg. A drop set's lighter part (DS1.1) counts in volume and 1RM like a set.
 """
 
 import datetime as dt
@@ -16,7 +19,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from gym.rules.facts import ImportedPlan, LoggedExercise, SetDone
-from gym.rules.planFile import PlanExercise
+from gym.rules.planFile import PlanExercise, dropPart
 from gym.rules.progression import Target, Training, workingWeight
 from gym.rules.schedule import LoggedWorkout, daySchedule, isFinished, replay, weekdayNames
 from gym.rules.sessions import sessionExercises
@@ -34,6 +37,7 @@ minus = "\u2212"  # the minus sign: the built-in font has it, and it's as wide a
 barGuesses = {"barbell": (("ez", 10), ("trap bar", 25), ("hex bar", 25)),
               "machine": (("smith", 15), ("hack", 30), ("leg press", 50))}
 usualBarKg = {"barbell": 20, "machine": 0}
+lbToKg = 0.45359237  # a pound in kg (LB1.1)
 
 
 # --- The real load (WD1.3, PF7) -----------------------------------------------------------------
@@ -55,21 +59,27 @@ def barWeightKg(exercise: PlanExercise) -> float:
 
 
 def loadKg(exercise: PlanExercise, loggedKg: float) -> float:
-    """The real load of one set's logged weight."""
-    load = loggedKg * (2 if exercise.platesPerSide else 1) + barWeightKg(exercise)
+    """The real load of one set's logged weight, in kg. A machine marked in pounds turns into kg first (LB1.1)."""
+    logged = loggedKg * lbToKg if exercise.unit == "lb" else loggedKg
+    load = logged * (2 if exercise.platesPerSide else 1) + barWeightKg(exercise)
     return load * 2 if exercise.dumbbells == 2 else load
 
 
+def withDrops(sets: Sequence[SetDone]) -> list[SetDone]:
+    """The sets with each drop set's lighter part (DS1.1) as a set of its own after it."""
+    return [part for done in sets for part in (done, done.dropped) if part is not None]
+
+
 def volumeKg(exercise: PlanExercise, sets: Sequence[SetDone]) -> float:
-    """Sets × reps × real load. 0 for bodyweight (its reps are kept separate, 10.2)."""
-    return sum(loadKg(exercise, done.weightKg) * done.reps for done in sets if done.weightKg is not None)
+    """Sets × reps × real load, drops included. 0 for bodyweight (its reps are kept separate, 10.2)."""
+    return sum(loadKg(exercise, done.weightKg) * done.reps for done in withDrops(sets) if done.weightKg is not None)
 
 
 def oneRepMaxKg(exercise: PlanExercise, sets: Sequence[SetDone]) -> float | None:
-    """The best estimated 1RM (Epley) of the sets, from the real load, using sets of 1 to 10 reps."""
+    """The best estimated 1RM (Epley) of the sets and drops, from the real load, using sets of 1 to 10 reps."""
     estimates = [loadKg(exercise, done.weightKg) * (1 + done.reps / 30) if done.reps > 1
                  else loadKg(exercise, done.weightKg)
-                 for done in sets if done.weightKg is not None and 1 <= done.reps <= maxOneRepMaxReps]
+                 for done in withDrops(sets) if done.weightKg is not None and 1 <= done.reps <= maxOneRepMaxReps]
     return max(estimates, default=None)
 
 
@@ -122,8 +132,10 @@ def kgText(weightKg: float) -> str:
 
 
 def unit(exercise: PlanExercise) -> str:
-    """"kg/side" for a lift logged as the plates on one side (WD1.3), else "kg"."""
-    return "kg/side" if exercise.platesPerSide else "kg"
+    """"kg/side" for a lift logged as the plates on one side (WD1.3), else "kg". "lb" or "lb/side" for a machine
+    marked in pounds (LB1.1)."""
+    base = "lb" if exercise.unit == "lb" else "kg"
+    return f"{base}/side" if exercise.platesPerSide else base
 
 
 def targetText(exercise: PlanExercise, target: Target, needsWeight: bool = False) -> str:
@@ -140,11 +152,17 @@ def targetText(exercise: PlanExercise, target: Target, needsWeight: bool = False
 
 def setsText(exercise: PlanExercise, sets: Sequence[SetDone], minutes: int | None = None) -> str:
     """What was done, written like a target: "4×9 @ 82.5 kg". Reps that differ as "10 · 9 · 8 @ 82.5 kg", the
-    weight once, so it fits next to the name on a phone. Each set's weight only when those differ."""
+    weight once, so it fits next to the name on a phone. Each set's weight only when those differ. A drop set's
+    lighter parts after it (DS1.1): "3×5 @ 8 kg, drop 3×15 @ 5 kg"."""
     if minutes is not None and not sets:
         return f"{minutes} min"
     if not sets:
         return ""
+    drops = [done.dropped for done in sets if done.dropped is not None]
+    return _partsText(exercise, sets) + (f", drop {_partsText(exercise, drops)}" if drops else "")
+
+
+def _partsText(exercise: PlanExercise, sets: Sequence[SetDone]) -> str:
     weights = {done.weightKg for done in sets}
     if len(weights) == 1:
         (weightKg,) = weights
@@ -238,8 +256,7 @@ def progressLines(current: ImportedPlan | None, known: Mapping[str, PlanExercise
     for exerciseId, exercise in inPlan.items():
         sessions = history(logs, exerciseId)
         nextDay = _nextDay(planDays(current, exerciseId), today, loggedToday=bool(sessions) and sessions[-1].date == today)
-        now = (targetText(exercise, training.target(exercise, nextDay, now=True),
-                          training.needsWeight(exercise, nextDay, now=True)) if nextDay is not None else "")
+        now = nextTargetText(exercise, training, nextDay) if nextDay is not None else ""
         lines.append(ProgressLine(exercise, f"now {now}" if now else "", recordText(exercise, records(exercise, sessions))))
     past = []
     for exerciseId, exercise in sorted(known.items(), key=lambda item: item[1].name.casefold()):
@@ -250,6 +267,18 @@ def progressLines(current: ImportedPlan | None, known: Mapping[str, PlanExercise
         past.append(ProgressLine(exercise, f"last {setsText(exercise, last.sets, last.minutes)}",
                                  recordText(exercise, records(exercise, sessions))))
     return tuple(lines), tuple(past)
+
+
+def nextTargetText(exercise: PlanExercise, training: Training, weekday: int) -> str:
+    """What comes next on one of the exercise's days: "82.5 kg × 9", a drop set with its drop (DS1.1):
+    "8 kg × 6, drop 5 kg × 13"."""
+    text = targetText(exercise, training.target(exercise, weekday, now=True),
+                      training.needsWeight(exercise, weekday, now=True))
+    if exercise.hasDrop and not exercise.isCardio and exercise.equipment != "bodyweight":
+        drop = dropPart(exercise)
+        dropTarget = training.target(drop, weekday, now=True)
+        text += f", drop {targetText(drop, dropTarget, training.needsWeight(drop, weekday, now=True))}"
+    return text
 
 
 def _nextDay(days: Sequence[int], today: dt.date, loggedToday: bool) -> int | None:
@@ -291,7 +320,7 @@ def exerciseDetail(exercise: PlanExercise, current: ImportedPlan | None,
             needsWeight = training.needsWeight(exercise, weekday, now=True)
             dayTargets.append(DayTarget(weekday, Target(None, target.reps) if needsWeight else target,
                                         f"{weekdayNames[weekday][:3].capitalize()} "
-                                        f"{targetText(exercise, target, needsWeight)}"))
+                                        f"{nextTargetText(exercise, training, weekday)}"))
     weighted = not exercise.isCardio and exercise.equipment != "bodyweight"
     lines = []
     for session in reversed(sessions):
@@ -489,13 +518,14 @@ def monthlyPoints(exercise: PlanExercise | None, logs: Mapping[dt.date, Mapping[
 # --- Export CSV's readable sets, and the last backup (EX1.1, F14.1) ------------------------------
 
 def readableSets(logs: Mapping[dt.date, Mapping[str, LoggedExercise]], known: Mapping[str, PlanExercise]) -> str:
-    """sets.csv in Export CSV (EX1.1): one row per set, for a spreadsheet: date, exercise, set, reps, kg (as
-    logged: one dumbbell, or the plates on one side) and its unit. Cardio as minutes. Skipped ones are left out."""
+    """sets.csv in Export CSV (EX1.1): one row per set, for a spreadsheet: date, exercise, set, reps, weight (as
+    logged: one dumbbell, or the plates on one side) and its unit (kg, or lb for a machine marked in pounds). A
+    drop set's lighter part is a row of its own ("1 drop"). Cardio as minutes. Skipped ones are left out."""
     import csv
     import io
     text = io.StringIO()
     writer = csv.writer(text, lineterminator="\n")
-    writer.writerow(["date", "exercise", "exerciseId", "set", "reps", "kg", "unit", "minutes"])
+    writer.writerow(["date", "exercise", "exerciseId", "set", "reps", "weight", "unit", "minutes"])
     for date in sorted(logs):
         for exerciseId, logged in sorted(logs[date].items()):
             if not logged.done:
@@ -505,9 +535,11 @@ def readableSets(logs: Mapping[dt.date, Mapping[str, LoggedExercise]], known: Ma
             if not logged.sets:
                 writer.writerow([date.isoformat(), name, exerciseId, "", "", "", "", logged.minutes])
             for number, done in enumerate(logged.sets, start=1):
-                writer.writerow([date.isoformat(), name, exerciseId, number, done.reps,
-                                 "" if done.weightKg is None else kgText(done.weightKg),
-                                 "" if done.weightKg is None else kgUnit, ""])
+                for label, part in ((number, done), (f"{number} drop", done.dropped)):
+                    if part is not None:
+                        writer.writerow([date.isoformat(), name, exerciseId, label, part.reps,
+                                         "" if part.weightKg is None else kgText(part.weightKg),
+                                         "" if part.weightKg is None else kgUnit, ""])
     return text.getvalue()
 
 

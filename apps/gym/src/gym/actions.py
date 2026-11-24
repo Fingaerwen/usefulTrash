@@ -48,7 +48,7 @@ class GymActions:
             await self._takeBack(view, line)
         elif line.exercise.isCardio and line.targetMinutes is not None:
             await self._log(view, line, (), line.targetMinutes, skipped=False)
-        elif line.needsWeight and not logged:  # Today opens ▾ sets instead (PF3)
+        elif line.asksWeight and not logged:  # Today opens ▾ sets instead (PF3)
             raise ActionRefused("Enter the weight you lifted under Sets: your plan's weight is only a placeholder.")
         elif line.targetReps is not None and line.targetSets:
             more = max(0, line.targetSets - len(logged))
@@ -68,7 +68,7 @@ class GymActions:
                 await self._log(view, line, logged[:-1], None, skipped=False)
             else:
                 await self._takeBack(view, line)
-        elif line.needsWeight and not logged:  # Today opens ▾ sets instead (PF3)
+        elif line.asksWeight and not logged:  # Today opens ▾ sets instead (PF3)
             raise ActionRefused("Enter the weight you lifted under Sets: your plan's weight is only a placeholder.")
         else:
             await self._log(view, line, (*logged, _nextSet(line, logged)), None, skipped=False)
@@ -97,7 +97,9 @@ class GymActions:
                 if done.weightKg is not None:
                     raise ActionRefused("A bodyweight exercise has no weight.")
             elif done.weightKg is None or not _isKilograms(done.weightKg):
-                raise ActionRefused("Weight must be a number from 0 to 1000 kg, with at most 2 decimals.")
+                raise ActionRefused(f"Weight must be a number from 0 to 1000 {line.exercise.unit}, with at most 2 "
+                                    "decimals.")
+            _checkDrop(line, done)
         await self._log(view, line, tuple(sets), None, skipped=False)
 
     async def skipExercise(self, view: TodayView, line: ExerciseLine) -> None:
@@ -240,8 +242,7 @@ class GymActions:
             "id": logId, "userId": self.userId, "deleted": False, "date": view.date,
             "exerciseId": line.exercise.exerciseId, "targetReps": line.targetReps,
             "targetWeightKg": line.targetWeightKg,
-            "sets": [{"reps": done.reps} | ({"weightKg": done.weightKg} if done.weightKg is not None else {})
-                     for done in sets],
+            "sets": [_setRow(done) for done in sets],
             "minutes": minutes, "skipped": skipped,
             "declinedSuggestion": existing["declinedSuggestion"] if existing else False,
         }))
@@ -270,14 +271,44 @@ class GymActions:
         return row if row is not None and not row["deleted"] else None
 
 
+def _setRow(done: SetDone) -> dict[str, Any]:
+    """One set as stored: {"reps": 9, "weightKg": 82.5}, a drop set's with "dropReps" and "dropKg" (DS1.1)."""
+    row: dict[str, Any] = {"reps": done.reps}
+    if done.weightKg is not None:
+        row["weightKg"] = done.weightKg
+    if done.dropReps is not None and done.dropKg is not None:
+        row |= {"dropReps": done.dropReps, "dropKg": done.dropKg}
+    return row
+
+
 def _loggedSets(line: ExerciseLine) -> tuple[SetDone, ...]:
     """The sets logged for the exercise so far. None when it's skipped."""
     return line.logged.sets if line.logged is not None and not line.logged.skipped else ()
 
 
 def _nextSet(line: ExerciseLine, logged: Sequence[SetDone]) -> SetDone:
-    """The next set as targeted (TK1.1): the target reps, at the last logged set's weight, else the target's."""
-    return SetDone(line.targetReps or 0, logged[-1].weightKg if logged else line.targetWeightKg)
+    """The next set as targeted (TK1.1): the target reps, at the last logged set's weight, else the target's. A
+    drop set's drop the same way (DS1.1), left out while it has no weight to go by."""
+    last = logged[-1] if logged else None
+    weightKg = last.weightKg if last is not None else line.targetWeightKg
+    dropKg = last.dropKg if last is not None and last.dropKg is not None else line.dropWeightKg
+    if line.dropReps is None or dropKg is None:
+        return SetDone(line.targetReps or 0, weightKg)
+    return SetDone(line.targetReps or 0, weightKg, line.dropReps, dropKg)
+
+
+def _checkDrop(line: ExerciseLine, done: SetDone) -> None:
+    """A set's drop (DS1.1): only on a drop set, with both its reps and its weight."""
+    if done.dropReps is None and done.dropKg is None:
+        return
+    if not line.exercise.hasDrop:
+        raise ActionRefused("This exercise has no drop set in your plan.")
+    if done.dropReps is None or done.dropKg is None:
+        raise ActionRefused("A drop needs its reps and its weight.")
+    _checkWhole(done.dropReps, 0, 1000, "Drop reps")
+    if not _isKilograms(done.dropKg):
+        raise ActionRefused(f"Drop weight must be a number from 0 to 1000 {line.exercise.unit}, with at most 2 "
+                            "decimals.")
 
 
 def _checkWhole(value: Any, low: int, high: int, what: str) -> None:

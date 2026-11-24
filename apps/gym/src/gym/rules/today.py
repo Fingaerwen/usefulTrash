@@ -11,7 +11,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from gym.rules.facts import ImportedPlan, LoggedExercise, SetDone
-from gym.rules.planFile import PlanExercise
+from gym.rules.planFile import PlanExercise, dropPart
 from gym.rules.progression import Deload, Training, deloadReps, deloadSets
 from gym.rules.schedule import LoggedWorkout, daySchedule, weekdayNames
 from gym.rules.sessions import SessionExercise, sessionExercises
@@ -41,6 +41,14 @@ class ExerciseLine:
     needsWeight: bool = False  # only the plan's 1 kg placeholder (PF3): "@ ? kg", no target weight, ✓ opens ▾ sets
     isNew: bool = False  # the target is a step up from the last weight: marked "new", with Undo (UN1.1)
     declined: bool = False  # Undo pressed: today's target is the last weight at repsMax, with redo (UN1.1)
+    dropReps: int | None = None  # a drop set (DS1.1): the lighter part's rep target and weight. None without one
+    dropWeightKg: float | None = None
+    dropNeedsWeight: bool = False  # no drop logged anywhere yet: "drop 15 @ ? kg", and ✓ opens ▾ sets (PF3)
+
+    @property
+    def asksWeight(self) -> bool:
+        """A weight to type before the first tick (PF3): the exercise's or its drop's is only a placeholder."""
+        return self.needsWeight or self.dropNeedsWeight
 
     @property
     def setsDone(self) -> int:
@@ -164,8 +172,23 @@ def _line(entry: SessionExercise, logged: LoggedExercise | None, finished: bool,
         sets, reps = deloadSets(sets), deloadReps(reps)
     if exercise.equipment == "bodyweight":
         weightKg, stepKg = None, None
+    dropReps, dropKg, dropNeedsWeight = _dropTarget(exercise, entry.trackDay, training, inDeload)
     return ExerciseLine(exercise, sets, reps, weightKg, None, _status(logged, finished, sets), logged, entry.trackDay,
-                        stepKg, needsWeight, isNew, declined)
+                        stepKg, needsWeight, isNew, declined, dropReps, dropKg, dropNeedsWeight)
+
+
+def _dropTarget(exercise: PlanExercise, trackDay: int, training: Training | None,
+                inDeload: bool) -> tuple[int | None, float | None, bool]:
+    """A drop set's lighter part (DS1.1): its rep target, its weight (None while it's only a placeholder), and
+    whether it still needs one. In a deload, 3 reps short like the rest."""
+    if not exercise.hasDrop or exercise.equipment == "bodyweight":
+        return None, None, False
+    drop = dropPart(exercise)
+    if training is None:
+        return drop.repsMin, None, True
+    target, needsWeight = training.target(drop, trackDay), training.needsWeight(drop, trackDay)
+    reps = deloadReps(target.reps) if inDeload else target.reps
+    return reps, None if needsWeight else target.weightKg, needsWeight
 
 
 def _status(logged: LoggedExercise | None, finished: bool, targetSets: int | None) -> str:
@@ -189,21 +212,29 @@ def targetText(line: ExerciseLine) -> str:
         return ""
     text = f"{line.targetSets}×{line.targetReps}"
     if line.needsWeight:
-        return text + f" @ ? {unit(line.exercise)}"
-    if line.targetWeightKg is None:
-        return text
-    return text + f" @ {kgText(line.targetWeightKg)} {unit(line.exercise)}"
+        text += f" @ ? {unit(line.exercise)}"
+    elif line.targetWeightKg is not None:
+        text += f" @ {kgText(line.targetWeightKg)} {unit(line.exercise)}"
+    return text + _dropText(line, line.dropWeightKg)
+
+
+def _dropText(line: ExerciseLine, weightKg: float | None) -> str:
+    """A drop set's lighter part after the target (DS1.1): ", drop 15 @ 5 kg", or "@ ? kg" with no weight yet."""
+    if line.dropReps is None:
+        return ""
+    return f", drop {line.dropReps} @ {'?' if weightKg is None else kgText(weightKg)} {unit(line.exercise)}"
 
 
 def setsLeftText(line: ExerciseLine) -> str:
-    """A part-done exercise (TK1.1): "1 of 3 done · 2×12 @ 20 kg left". The weight is the last set's, which the
-    next tick uses too. "" when none or all of its sets are logged."""
+    """A part-done exercise (TK1.1): "1 of 3 done · 2×12 @ 20 kg left", a drop set with its drop (DS1.1). The
+    weights are the last set's, which the next tick uses too. "" when none or all of its sets are logged."""
     left = line.setsLeft
     if not left or not line.setsDone or line.targetReps is None:
         return ""
-    weightKg = line.logged.sets[-1].weightKg if line.logged is not None else None
-    weight = f" @ {kgText(weightKg)} {unit(line.exercise)}" if weightKg is not None else ""
-    return f"{line.setsDone} of {line.targetSets} done · {left}×{line.targetReps}{weight} left"
+    last = line.logged.sets[-1] if line.logged is not None else SetDone(0)
+    weight = f" @ {kgText(last.weightKg)} {unit(line.exercise)}" if last.weightKg is not None else ""
+    drop = _dropText(line, last.dropKg if last.dropKg is not None else line.dropWeightKg)
+    return f"{line.setsDone} of {line.targetSets} done · {left}×{line.targetReps}{weight}{drop} left"
 
 
 def kilogramsUnit(exercise: PlanExercise) -> str:

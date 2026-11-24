@@ -72,6 +72,15 @@ a list of problems the user pastes back to you.
   - Bodyweight exercises progress in reps only, past `repsMax` too. Cardio has a minutes target.
   - **The user can change weights in the app:** an exercise's weight on each day (that day's target then
     starts again at `repsMin`) and its weight step.
+- **Drop sets (optional):** an exercise can be a drop set, where every set is its reps at the weight and then more
+  reps at a lighter weight straight after, like 8 kg for 5 then 5 kg for 15. Give it a `drop` block with the drop's
+  own rep range (see "A drop set" below). Both parts progress by the rules above, each on its own: the heavy part
+  by `repsMin`/`repsMax` and its step, the drop by the drop's range and step. The plan gives the drop no weight:
+  the user logs or sets it in the app, like every weight.
+- **Machines marked in pounds:** for a machine whose weight stack is marked in lb, write `"weightLb": 1` and
+  `"incrementLb"` (the stack's step in lb, like 10) instead of `weightKg` and `incrementKg`. The user then types and
+  sees that machine's weights in lb, and the app turns them into kg only for volume and estimated 1RM. Don't
+  convert anything: give the step in lb as the machine shows it.
 - **Weights come from the user, never from the plan.** Every weighted exercise in a plan has
   `"weightKg": 1`: a placeholder, not a weight. The user sets each real weight in the app, or logs the
   real weight the first time, which restarts the target at that weight. So never ask the user for
@@ -107,7 +116,7 @@ a list of problems the user pastes back to you.
 
 | Wanted | Do this instead |
 |---|---|
-| Different reps or weights per set (pyramids, top set + back-off sets, drop sets) | All sets of an exercise share one rep range and one weight. For a top set plus back-offs, use two exercises with their own IDs, like `"squatTopSet"` (1 set) and `"squatBackOff"` (3 sets) |
+| Different reps or weights per set (pyramids, top set + back-off sets) | All sets of an exercise share one rep range and one weight. For a top set plus back-offs, use two exercises with their own IDs, like `"squatTopSet"` (1 set) and `"squatBackOff"` (3 sets). A drop set (a lighter part right after each set) is supported: see `drop` |
 | A heavy and a light day of the same lift (different rep ranges or weights) | Two IDs, like `"squatHeavy"` and `"squatLight"`. Each is tracked on its own. Only the number of sets may differ between days under one ID |
 | Doing a missed session on another day than the flex day, or training on a rest day | Not possible: the weekday decides. Use the flex day's `makeUp` for missed sessions |
 | Two flex days, or a flex day that is a rest day when nothing was missed | One flex day, and it has its own (bonus) exercises |
@@ -118,7 +127,7 @@ a list of problems the user pastes back to you.
 | Assisted machines (more weight = easier) | Not supported: the app would add weight to progress. Use another exercise |
 | Kettlebells / cables, Smith machine, any stack / bands | `"dumbbell"` (weight of one bell) / `"machine"` / `"bodyweight"` |
 | One arm or leg at a time | Reps per side. Say "per side" in `notes`. Dumbbell weight is one dumbbell, with `"dumbbells": 1` |
-| Pounds | Kilograms only: convert, at most 2 decimals |
+| Pounds | A machine marked in lb: `weightLb` and `incrementLb` (see above). Anything else is in kg: convert, at most 2 decimals |
 | Deload weeks | The app runs them itself (see above). Mark the compound lifts with `"compound": true` |
 | Blocks, week-by-week changes | Not inside one plan. When it's time, write a new version of the plan for the user to import |
 | Pictures, videos or links showing an exercise | Describe it in words in `setup`, `howTo` and `form` |
@@ -167,9 +176,11 @@ has it, and an exercise moves at most once for each made-up day.
 | `equipment` | yes | `"barbell"`, `"dumbbell"`, `"bodyweight"` or `"machine"` |
 | `sets` | yes | 1 to 20. May differ between days for the same exercise |
 | `repsMin`, `repsMax` | yes | the rep range, 1 to 100 each, `repsMin` not above `repsMax` |
-| `weightKg` | yes, except bodyweight | **always `1`**: a placeholder, never a real weight. The user sets the real weight in the app or logs it the first time, so don't ask for it, don't pick another number and don't treat 1 as a mistake. (In the app, the weight is **one** dumbbell for dumbbells, and the plates on **one** side with `platesPerSide`.) |
+| `weightKg` | yes, except bodyweight (or `weightLb`) | **always `1`**: a placeholder, never a real weight. The user sets the real weight in the app or logs it the first time, so don't ask for it, don't pick another number and don't treat 1 as a mistake. (In the app, the weight is **one** dumbbell for dumbbells, and the plates on **one** side with `platesPerSide`.) |
 | `body` | see below | `"upper"` or `"lower"`: the default weight step, upper 2.5 kg, lower 5 kg |
 | `incrementKg` | see below | the weight step, 0.01 to 100 kg, at most 2 decimals. Overrides `body`. Set it for dumbbells (e.g. 1 or 2) and machines (the stack's step). With `platesPerSide`, it's per side too |
+| `weightLb`, `incrementLb` | no, instead of `weightKg` and `incrementKg` | for a machine marked in pounds: `"weightLb": 1` (a placeholder, like `weightKg`) and the stack's step in lb. Never both `weightKg` and `weightLb` |
+| `drop` | no, weighted only | a drop set: `{"repsMin": 12, "repsMax": 15}`, see "A drop set" below |
 | `dumbbells` | dumbbell only, yes | `2` for one in each hand, `1` for a single dumbbell (held in both hands, or one arm at a time) |
 | `platesPerSide` | no, barbell or machine | `true` when the user logs the plates on one side of a bar or plate-loaded machine. Volume and 1RM double it |
 | `barKg` | no, barbell or machine | **leave it out**: the app estimates the bar or sled from the `name` (see above), and the user doesn't weigh bars, so never ask for one |
@@ -180,8 +191,17 @@ has it, and an exercise moves at most once for each made-up day.
 | `howTo` | no | how-to: the steps to do it, in order, as a **list of lines**, like `["Lie back…", "Grip…"]`. 1 to 12 lines, each one line of up to 200 characters, without numbers (the app numbers them) |
 | `form` | no | how-to: form cues and common mistakes, a **list of lines** like `howTo`. 1 to 12 lines of up to 200 characters |
 
-A weighted exercise (not bodyweight) needs `body` or `incrementKg`. A bodyweight exercise has no
-`weightKg` (and an `incrementKg` there is ignored, with a warning).
+A weighted exercise (not bodyweight) needs `body` or `incrementKg` (`incrementLb` in pounds, where `body` means
+upper 5 lb, lower 10 lb). A bodyweight exercise has no `weightKg` or `weightLb` (and an `incrementKg` there is
+ignored, with a warning).
+
+### A drop set
+
+`"drop": {"repsMin": 12, "repsMax": 15}` on a weighted exercise. Every set is then its reps at the weight,
+followed by the drop's reps at a lighter weight. The drop has its own rep range (1 to 100 each, `repsMin` not
+above `repsMax`) and optionally its own step, `incrementKg` (or `incrementLb` for a machine in pounds). Without
+one it uses the exercise's step. No weight for the drop: the user sets it in the app. Nothing else goes in the
+block. An exercise on several days needs the same `drop` on each.
 
 ### A cardio exercise
 
@@ -211,9 +231,9 @@ machine: short, plain lines, one idea each.
 Five core days, a flex day and a rest day. `overheadExtension` is on Monday and Wednesday with the same
 settings (only the notes differ), `seatedLegCurl` has 4 sets on Tuesday and 3 on Friday, `plank` uses
 reps as seconds, the bench press and leg press are logged as plates per side, and the T-bar row as all
-its plates on one pin. Saturday makes up a missed session (Upper first), and two of Friday's exercises
-move in some weeks. The bench press and the pull-up have a how-to. Every weighted exercise has
-`"weightKg": 1`.
+its plates on one pin. The hammer curl is a drop set and the lat pullover machine is marked in pounds.
+Saturday makes up a missed session (Upper first), and two of Friday's exercises move in some weeks. The bench
+press and the pull-up have a how-to. Every weighted exercise has `"weightKg": 1` (`"weightLb": 1` in pounds).
 
 ```json
 {
@@ -262,7 +282,12 @@ move in some weeks. The bench press and the pull-up have a how-to. Every weighte
                  "Pull until your chin is over the bar", "Lower all the way down"],
        "form": ["No swinging or kicking", "Shoulders down, away from your ears"]},
       {"exerciseId": "preacherCurl", "name": "Preacher Curl", "equipment": "machine", "incrementKg": 2.5,
-       "sets": 3, "repsMin": 10, "repsMax": 15, "weightKg": 1, "restSec": 75}
+       "sets": 3, "repsMin": 10, "repsMax": 15, "weightKg": 1, "restSec": 75},
+      {"exerciseId": "hammerCurl", "name": "Hammer Curl", "equipment": "dumbbell", "dumbbells": 2, "incrementKg": 1,
+       "sets": 3, "repsMin": 4, "repsMax": 6, "weightKg": 1, "restSec": 90, "notes": "drop straight to the lighter pair",
+       "drop": {"repsMin": 12, "repsMax": 15}},
+      {"exerciseId": "latPullover", "name": "Lat Pullover Machine", "equipment": "machine", "incrementLb": 10,
+       "sets": 3, "repsMin": 10, "repsMax": 12, "weightLb": 1, "restSec": 90}
     ]},
     {"day": "friday", "title": "Lower B", "exercises": [
       {"exerciseId": "romanianDeadlift", "name": "Romanian Deadlift", "equipment": "barbell", "body": "lower",

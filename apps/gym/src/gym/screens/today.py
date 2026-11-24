@@ -34,6 +34,7 @@ import asyncio
 
 import flet as ft
 
+from gym.rules.planFile import dropSuffix
 from gym.rules.schedule import weekdayNames
 from gym.rules.stats import kgText, setsText, thousands
 from gym.rules.today import (
@@ -181,7 +182,7 @@ def ExerciseRow(app, line: ExerciseLine, view=None):
     canUndo = (line.isNew or line.declined) and line.status == "todo" and view is None
 
     async def tick(e):
-        if line.needsWeight and not line.setsDone:
+        if line.asksWeight and not line.setsDone:
             setEditing(True)  # the plan's weight is only a placeholder: type the real one (PF3)
             return
         await app.checkSet(line, view)
@@ -219,7 +220,7 @@ def ExerciseRow(app, line: ExerciseLine, view=None):
                              on_click=lambda e: setEditing(not editing)),
             ft.PopupMenuItem(content="Hide how to" if showingHowTo else "How to", icon=ft.Icons.MENU_BOOK_OUTLINED,
                              on_click=lambda e: setShowingHowTo(not showingHowTo))]
-    if line.status == "todo" and line.setsLeft and not (line.needsWeight and not line.setsDone):
+    if line.status == "todo" and line.setsLeft and not (line.asksWeight and not line.setsDone):
         menu.append(ft.PopupMenuItem(content="All sets done", icon=ft.Icons.DONE_ALL, on_click=allDone))
     if not done:
         menu.append(ft.PopupMenuItem(content="Unskip" if line.status == "skipped" else "Skip", icon=ft.Icons.SKIP_NEXT,
@@ -257,7 +258,7 @@ def ExerciseRow(app, line: ExerciseLine, view=None):
         parts.append(SetsEditor(app, line, lambda: setEditing(False), view))
     if settingWeight:
         parts.append(WeightEditor(app, exercise, line.trackDay, line.targetWeightKg, line.stepKg,
-                                  lambda: setSettingWeight(False)))
+                                  lambda: setSettingWeight(False), line.dropWeightKg))
     return card(ft.Column(parts, spacing=10), padding=ft.Padding.only(left=16, top=10, right=6, bottom=14),
                 hollow=done or skipped)
 
@@ -279,7 +280,7 @@ def SetTick(line: ExerciseLine, tick) -> ft.Control:
                             tooltip=f"{name}: set {line.setsDone + 1} of {line.targetSets} done")
     if done:
         tooltip = f"{name}: take back the last set" if line.setsDone > 1 else f"{name}: take back"
-    elif line.needsWeight and not line.setsDone:
+    elif line.asksWeight and not line.setsDone:
         tooltip = f"{name}: enter the weight"
     elif line.setsLeft:
         tooltip = f"{name}: set 1 of {line.targetSets} done"
@@ -343,24 +344,29 @@ def RestTimer(app, model):
 
 
 @ft.component
-def WeightEditor(app, exercise, weekday: int, weightKg, stepKg, close):
+def WeightEditor(app, exercise, weekday: int, weightKg, stepKg, close, dropKg=None):
     """✎ weight (WD2.1): the exercise's weight on this day (its target restarts there at repsMin, WD3.7)
-    and its weight step on every day. Shared with the Progress tab's exercise page."""
+    and its weight step on every day. A drop set's drop weight on this day too (DS1.1). Shared with the Progress
+    tab's exercise page."""
     unit = kilogramsUnit(exercise)
     typedWeight, setTypedWeight = ft.use_state("" if weightKg is None else kgText(weightKg))
     typedStep, setTypedStep = ft.use_state("" if stepKg is None else kgText(stepKg))
+    typedDrop, setTypedDrop = ft.use_state("" if dropKg is None else kgText(dropKg))
     problem, setProblem = ft.use_state("")
     dayName = weekdayNames[weekday].capitalize()
 
     async def save(e):
         try:
             weight, step = _kilograms(typedWeight), _kilograms(typedStep, "Step")
+            drop = _kilograms(typedDrop, "Drop") if exercise.hasDrop and typedDrop.strip() else None
         except ValueError as refused:
             setProblem(str(refused))
             return
         app.model.notice = ""
         if weightKg is None or abs(weight - weightKg) > 0.001:
             await app.setWeight(exercise.exerciseId, weekday, weight)
+        if not app.model.notice and drop is not None and (dropKg is None or abs(drop - dropKg) > 0.001):
+            await app.setWeight(exercise.exerciseId + dropSuffix, weekday, drop)
         if not app.model.notice and (stepKg is None or abs(step - stepKg) > 0.001):
             await app.setStep(exercise.exerciseId, step)
         if not app.model.notice:  # a refused value shows why and keeps the editor open
@@ -368,7 +374,9 @@ def WeightEditor(app, exercise, weekday: int, weightKg, stepKg, close):
 
     return ft.Column([
         ft.Row([field(f"{dayName}s, {unit}", typedWeight, lambda e: setTypedWeight(e.control.value), width=150),
-                field(f"Step, {unit}", typedStep, lambda e: setTypedStep(e.control.value), width=130)],
+                field(f"Step, {unit}", typedStep, lambda e: setTypedStep(e.control.value), width=130),
+                *([field(f"Drop, {unit}", typedDrop, lambda e: setTypedDrop(e.control.value), width=130)]
+                  if exercise.hasDrop else [])],
                spacing=gap, wrap=True),
         quiet(f"A new weight starts {dayName}'s target again at {exercise.repsMin} reps. The step counts on every "
               "day."),
@@ -403,12 +411,16 @@ def HowTo(exercise):
 @ft.component
 def SetsEditor(app, line: ExerciseLine, close, view=None):
     """Sets: one row per set, pre-filled with what's logged or the target (19.1a-1). With no weight of yours
-    yet, the kg fields start empty, and one left empty takes the set above's (PF4). Cardio: minutes."""
+    yet, the kg fields start empty, and one left empty takes the set above's (PF4). A drop set (DS1.1) has a
+    drop row under each set, its reps and weight, empty for no drop. Cardio: minutes."""
     exercise = line.exercise
     weighted = not exercise.isCardio and exercise.equipment != "bodyweight"
+    hasDrop = weighted and exercise.hasDrop
     startSets = line.logged.sets if line.logged and line.logged.sets else (
-        (SetDone(line.targetReps or 0, line.targetWeightKg),) * (line.targetSets or 1))
-    rows, setRows = ft.use_state([[str(done.reps), _kgText(done.weightKg)] for done in startSets])
+        (SetDone(line.targetReps or 0, line.targetWeightKg, line.dropReps, line.dropWeightKg),) * (line.targetSets or 1))
+    rows, setRows = ft.use_state([[str(done.reps), _kgText(done.weightKg),
+                                   "" if done.dropReps is None else str(done.dropReps), _kgText(done.dropKg)]
+                                  for done in startSets])
     minutes, setMinutes = ft.use_state(str((line.logged.minutes if line.logged else None) or line.targetMinutes or ""))
     problem, setProblem = ft.use_state("")
 
@@ -422,8 +434,10 @@ def SetsEditor(app, line: ExerciseLine, close, view=None):
             if exercise.isCardio:
                 await app.saveSets(line, [], _whole(minutes, "Minutes"), view=view)
             else:
-                weights = _setWeights([kg for _, kg in rows]) if weighted else [None] * len(rows)
-                sets = [SetDone(_whole(reps, "Reps"), weightKg) for (reps, _), weightKg in zip(rows, weights)]
+                weights = _setWeights([row[1] for row in rows]) if weighted else [None] * len(rows)
+                drops = _drops(rows) if hasDrop else [(None, None)] * len(rows)
+                sets = [SetDone(_whole(row[0], "Reps"), weightKg, *drop)
+                        for row, weightKg, drop in zip(rows, weights, drops)]
                 await app.saveSets(line, sets, view=view)
         except ValueError as refused:
             setProblem(str(refused))
@@ -434,16 +448,22 @@ def SetsEditor(app, line: ExerciseLine, close, view=None):
         fields = [field("Minutes", minutes, lambda e: setMinutes(e.control.value), width=130)]
     else:
         fields = []
-        for index, (reps, kg) in enumerate(rows):
+        for index, (reps, kg, dropReps, dropKg) in enumerate(rows):
             cells = [ft.Container(faint(f"SET {index + 1}", size=11), width=44),
                      field("Reps", reps, lambda e, i=index: changeCell(i, 0, e.control.value), width=96)]
             if weighted:
                 cells.append(field(kilogramsUnit(exercise), kg, lambda e, i=index: changeCell(i, 1, e.control.value),
                                    width=110))
             fields.append(ft.Row(cells, spacing=10))
+            if hasDrop:
+                fields.append(ft.Row([
+                    ft.Container(faint("DROP", size=11), width=44),
+                    field("Reps", dropReps, lambda e, i=index: changeCell(i, 2, e.control.value), width=96),
+                    field(kilogramsUnit(exercise), dropKg, lambda e, i=index: changeCell(i, 3, e.control.value),
+                          width=110)], spacing=10))
         fields.append(ft.Row([
             ft.TextButton("+ set", icon=ft.Icons.ADD,
-                          on_click=lambda e: setRows([*rows, list(rows[-1]) if rows else ["0", ""]])),
+                          on_click=lambda e: setRows([*rows, list(rows[-1]) if rows else ["0", "", "", ""]])),
             ft.TextButton("− set", icon=ft.Icons.REMOVE, on_click=lambda e: setRows(rows[:-1]),
                           disabled=len(rows) <= 1),
         ], spacing=0))
@@ -539,6 +559,23 @@ def _setWeights(typed: list[str]) -> list[float]:
     for text in typed:
         weights.append(weights[-1] if weights and not text.strip() else _kilograms(text))
     return weights
+
+
+def _drops(rows: list[list[str]]) -> list[tuple[int | None, float | None]]:
+    """Each set's drop (DS1.1) as typed: reps and weight, or none when its reps are empty. A weight left empty
+    takes the drop above's, like the sets' (PF4)."""
+    drops: list[tuple[int | None, float | None]] = []
+    lastKg: float | None = None
+    for _, _, reps, kg in rows:
+        if not reps.strip():
+            drops.append((None, None))
+            continue
+        if kg.strip():
+            lastKg = _kilograms(kg, "Drop")
+        elif lastKg is None:
+            raise ValueError("Drop: type its weight too.")
+        drops.append((_whole(reps, "Drop reps"), lastKg))
+    return drops
 
 
 def _kilograms(text: str, what: str = "Weight") -> float:

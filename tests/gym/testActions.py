@@ -42,7 +42,7 @@ planFile = {
 class App:
     """The pieces the phone app wires together: database, facts, actions."""
 
-    def __init__(self, folder):
+    def __init__(self, folder, plan=None):
         path = str(folder / "gym.sqlite3")
         runPhoneSteps(path, phoneSteps)
         self.clock = FakeClock(dt.datetime(2026, 10, 12, 17, 0, tzinfo=dt.UTC))
@@ -52,7 +52,7 @@ class App:
         self.actions = GymActions(self, self.state, userA, self.clock)
         self.database.save("plans", {
             "id": newRowId(), "userId": userA, "deleted": False, "importedAt": self.clock(),
-            "effectiveDate": monday, "startStep": 0, "planJson": planFile, "archived": False})
+            "effectiveDate": monday, "startStep": 0, "planJson": plan or planFile, "archived": False})
         self.reload()
 
     async def saveRows(self, edits):
@@ -389,3 +389,24 @@ def testDeletingADaysWorkoutKeepsItsStepsAndWeighIn(app):
     view = app.today()
     assert not view.workoutExists and all(entry.status == "todo" for entry in view.exercises)
     assert app.state.steps == {monday: 9500} and app.state.weights == {monday: 81.0}
+
+
+def testADropSetIsStoredAndTickedWithItsDrop(tmp_path):
+    """DS1.1: a set's drop goes into the stored set, the next tick repeats it, and only a drop set takes one."""
+    import copy
+    plan = copy.deepcopy(planFile)
+    plan["week"][0]["exercises"].append(
+        {"exerciseId": "hammerCurl", "name": "Hammer Curl", "equipment": "dumbbell", "dumbbells": 2, "incrementKg": 1,
+         "sets": 3, "repsMin": 4, "repsMax": 6, "weightKg": 1, "drop": {"repsMin": 12, "repsMax": 15}})
+    app = App(tmp_path, plan)
+    with pytest.raises(ActionRefused, match="only a placeholder"):
+        app.do(app.actions.checkSet, app.today(), line(app.today(), "hammerCurl"))
+    app.do(app.actions.saveSets, app.today(), line(app.today(), "hammerCurl"), [SetDone(5, 8, 12, 5)])
+    (stored,) = [row for row in app.database.rows("exerciseLogs") if row["exerciseId"] == "hammerCurl"]
+    assert stored["sets"] == [{"reps": 5, "weightKg": 8, "dropReps": 12, "dropKg": 5}]
+    app.do(app.actions.checkSet, app.today(), line(app.today(), "hammerCurl"))
+    assert app.state.logs[monday]["hammerCurl"].sets == (SetDone(5, 8, 12, 5), SetDone(4, 8, 12, 5))
+    with pytest.raises(ActionRefused, match="A drop needs its reps and its weight."):
+        app.do(app.actions.saveSets, app.today(), line(app.today(), "hammerCurl"), [SetDone(5, 8, 12, None)])
+    with pytest.raises(ActionRefused, match="This exercise has no drop set in your plan."):
+        app.do(app.actions.saveSets, app.today(), line(app.today(), "benchPress"), [SetDone(8, 82.5, 10, 60)])
