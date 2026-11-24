@@ -3,7 +3,7 @@
 # Build with tools/buildRelease.py, which checks the package guard before and after (CS1.1).
 [project]
 name = "gymTracker"  # the project's name inside the build, never shown. It stays, like the package ID
-version = "0.4-alpha"  # the visible version (V3a). gym/model.py's appVersion must match (a test checks)
+version = "0.5-alpha"  # the visible version (V3a). gym/model.py's appVersion must match (a test checks)
 description = "Talon"
 requires-python = "==3.14.*"  # the Python Flet bundles for Android (R3)
 dependencies = [
@@ -27,7 +27,7 @@ usefulTrashWeighInNotify = "../../extensions/weighInNotify"
 [tool.flet]
 product = "Talon"  # the name on the phone and the PC view's title (RL1.3, AM1.4, AM9.6)
 org = "io.github.fingaerwen"
-build_number = 4  # Android's versionCode: the middle version number, one up each release (12b)
+build_number = 5  # Android's versionCode: the middle version number, one up each release (12b)
 
 [tool.flet.android]
 bundle_id = "io.github.fingaerwen.gymtracker"  # set explicitly (RL1.3). It stays at the rename, so updates install over (AM1.4)
