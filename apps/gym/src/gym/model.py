@@ -31,6 +31,9 @@ class AppModel:
     notice: str = ""  # a message shown once, like a refused entry or a sign-in problem
     failure: str = ""  # why the app can't start (screen "failed")
     today: TodayView | None = None
+    weekDays: tuple[dt.date, ...] = ()  # Today's day strip (DY1.1): this week's workout days, and today
+    dayShown: dt.date | None = None  # the day Today shows when it isn't today, None for today
+    dayView: TodayView | None = None  # that day, laid out like Today
     deloadAction: str = ""  # the ⋮ menu's deload entry (WD2.4): "start", "stop" or "" (one is running)
     progress: tuple[ProgressLine, ...] = ()  # the Progress tab (SC3.1): the plan's exercises…
     pastProgress: tuple[ProgressLine, ...] = ()  # …and past ones (G10a)

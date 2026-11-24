@@ -78,9 +78,12 @@ def isFinished(workout: LoggedWorkout, today: dt.date) -> bool:
     return workout.finished or workout.date < today
 
 
-def daySchedule(plans: Iterable[PlanStart], workouts: Iterable[LoggedWorkout], today: dt.date) -> DaySchedule:
-    """What the schedule says about today: its session (or the workout done), and what comes next."""
-    return _day(list(plans), _oneWorkoutPerDay(workouts), today, today)
+def daySchedule(plans: Iterable[PlanStart], workouts: Iterable[LoggedWorkout], today: dt.date,
+                asOf: dt.date | None = None) -> DaySchedule:
+    """What the schedule says about today: its session (or the workout done), and what comes next. With asOf, a
+    later day seen from asOf (Today's day strip, DY1.1): the days from asOf on aren't over yet, so they count as
+    trained for what the flex day makes up."""
+    return _day(list(plans), _oneWorkoutPerDay(workouts), today, today, asOf)
 
 
 def daySchedules(plans: Iterable[PlanStart], workouts: Iterable[LoggedWorkout],
@@ -118,8 +121,8 @@ def flexDayIndex(days: tuple[ScheduleDay, ...]) -> int | None:
 
 
 def _day(plans: list[PlanStart], workoutsByDate: Mapping[dt.date, LoggedWorkout], date: dt.date,
-         today: dt.date) -> DaySchedule:
-    """What the schedule says about one day, today or earlier."""
+         today: dt.date, asOf: dt.date | None = None) -> DaySchedule:
+    """What the schedule says about one day, today or earlier (or later, seen from asOf)."""
     workout = workoutsByDate.get(date)
     plan = planInEffect(plans, date)
     if plan is None:  # no plan applies yet (none imported, or the first takes effect later)
@@ -129,7 +132,7 @@ def _day(plans: list[PlanStart], workoutsByDate: Mapping[dt.date, LoggedWorkout]
                            status="trained" if workout else "open")
 
     weekday, flexIndex = date.weekday(), flexDayIndex(plan.days)
-    flexMakesUp = _flexMakesUp(plans, plan, workoutsByDate, date)
+    flexMakesUp = _flexMakesUp(plans, plan, workoutsByDate, date, asOf)
     isFlexDay = weekday == flexIndex
     if workout is not None:
         stepIndex = workout.stepIndex
@@ -159,11 +162,11 @@ def _day(plans: list[PlanStart], workoutsByDate: Mapping[dt.date, LoggedWorkout]
 
 
 def _flexMakesUp(plans: list[PlanStart], plan: PlanStart, workoutsByDate: Mapping[dt.date, LoggedWorkout],
-                 date: dt.date) -> int | None:
+                 date: dt.date, asOf: dt.date | None = None) -> int | None:
     """What the flex day of the date's week makes up, as far as the date knows. None for the bonus.
 
-    Days before the date (and before the flex day) are over. The others are assumed trained. On or after
-    the flex day, a workout logged on it says what it was.
+    Days before the date (and before the flex day, and before asOf for a later day seen from it) are over. The
+    others are assumed trained. On or after the flex day, a workout logged on it says what it was.
     """
     flexIndex = flexDayIndex(plan.days)
     if flexIndex is None:
@@ -173,7 +176,7 @@ def _flexMakesUp(plans: list[PlanStart], plan: PlanStart, workoutsByDate: Mappin
     logged = workoutsByDate.get(flexDate)
     if date >= flexDate and logged is not None:
         return logged.stepIndex if logged.stepIndex != flexIndex else None
-    knownOn = min(date, flexDate)
+    knownOn = min(date, flexDate) if asOf is None else min(date, flexDate, asOf)
     for index in plan.days[flexIndex].makeUp:
         missedDate = monday + dt.timedelta(days=index)
         if missedDate < knownOn and _missed(plans, workoutsByDate, missedDate):

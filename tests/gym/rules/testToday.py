@@ -11,6 +11,7 @@ from gym.rules.today import (
     LoggedExercise,
     SetDone,
     clockText,
+    dayWords,
     headerParts,
     headerText,
     restLeft,
@@ -263,3 +264,21 @@ def testTheRestTimersTimeLeft():
     assert restLeft(start + dt.timedelta(seconds=90), start + dt.timedelta(seconds=0.4)) == 90
     assert restLeft(start, start + dt.timedelta(seconds=5)) == 0
     assert (clockText(90), clockText(5), clockText(0)) == ("1:30", "0:05", "0:00")
+
+
+def testADayAheadCountsTheDaysFromTodayOnAsTrained():
+    """DY1.1: Saturday seen from Monday makes up nothing yet, Monday to Friday aren't over. Seen from Wednesday,
+    Monday and Tuesday are over and missed, so it makes up Monday, first in its order. On the day itself it's the
+    same as before."""
+    def saturday(asOf):
+        return todayView([imported], [], {}, known, None, day(5), asOf=asOf)
+
+    assert saturday(day(0)).makesUp is None and saturday(day(0)).title == "Flex"
+    assert saturday(day(2)).makesUp == "Monday" and saturday(None).makesUp == "Monday"
+
+
+def testTheHeaderOfAnotherDaySaysHowFarItIs():
+    assert headerParts(view(day(1)), day(0)) == ("Lower A", "Tuesday · tomorrow · 0 of 5 this week")
+    assert headerParts(view(day(0)), day(0)) == ("Upper", "Monday · 0 of 5 this week")
+    assert [dayWords(day(n), day(2)) for n in (0, 1, 2, 3, 5)] == [
+        "2 days ago", "yesterday", "today", "tomorrow", "in 3 days"]

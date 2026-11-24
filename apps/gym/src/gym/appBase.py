@@ -77,6 +77,7 @@ class AppBase:
         self.state.load(rows)
         today = self.localToday()
         self.model.today = self.state.today(today)
+        self._refreshDays()
         running = self.state.training(today).deloadOn(today) is not None
         self.model.deloadAction = ("stop" if self.state.manualDeloadAt(today) else "" if running else "start")
         self.model.progress, self.model.pastProgress = self.state.progress(today)
@@ -87,6 +88,30 @@ class AppBase:
         self._refreshHistory()
         self.afterRefresh()
         self.model.banners = (*self.model.banners, *self.state.banners(today, self.summarySeenFor()))
+
+    def _refreshDays(self) -> None:
+        """The day strip (DY1.1): this week's workout days, and the day shown if it isn't today. A day that's left
+        the strip (a new week) goes back to today."""
+        today = self.localToday()
+        self.model.weekDays = self.state.weekDays(today)
+        shown = self.model.dayShown
+        if shown is not None and (shown == today or shown not in self.model.weekDays):
+            shown = self.model.dayShown = None
+        self.model.dayView = self.state.today(shown, today) if shown is not None else None
+
+    def showDay(self, date: dt.date) -> None:
+        """A day in the strip tapped: Today shows it, to look at or edit."""
+        self.model.dayShown = date
+        self._refreshDays()
+
+    def shiftDay(self, step: int) -> None:
+        """A swipe on Today: the next (1) or the one before (-1) in the strip, stopping at its ends."""
+        days = self.model.weekDays
+        current = self.model.dayShown or self.localToday()
+        if current not in days:
+            return
+        index = min(max(days.index(current) + step, 0), len(days) - 1)
+        self.showDay(days[index])
 
     def _refreshDetail(self) -> None:
         self.model.detail = (self.state.exerciseDetail(self.model.progressOpen, self.localToday(),
@@ -159,8 +184,8 @@ class AppBase:
     async def declineSuggestion(self, line: ExerciseLine, declined: bool) -> None:
         await self._act(self.actions.declineSuggestion(self.model.today, line, declined))
 
-    async def finish(self) -> None:
-        await self._act(self.actions.finishWorkout(self.model.today))
+    async def finish(self, view: TodayView | None = None) -> None:
+        await self._act(self.actions.finishWorkout(view or self.model.today))
 
     async def setSteps(self, steps: int | None) -> None:
         await self._act(self.actions.setSteps(self.localToday(), steps))

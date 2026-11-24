@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 from cloudStandIn import CloudStandIn
 from driveStandIn import DriveStandIn
-from screenTestKit import draw, find, press, tickAll, type_, useLoop, visibleTexts
+from screenTestKit import draw, find, press, tickAll, type_, useLoop, visibleTexts, walk
 from usefulTestKit import FakeClock, userA, userB
 
 from gym.model import appVersion
@@ -430,6 +430,56 @@ def testRestDayAndTheFlexDay(phone, cloud):
     app.localToday = lambda: monday + dt.timedelta(days=5)  # Saturday: Wednesday's Pull was missed
     app.refresh()
     assert "Saturday, for Wednesday · 1 of 3 this week" in phone.texts() and "Deadlift" in phone.texts()
+
+
+def finishButtons(phone) -> int:
+    return sum(1 for control in walk(phone.screen()) if type(control).__name__ == "Button"
+               and getattr(control, "content", None) == "Finish workout")
+
+
+def testTheDayStripShowsAndEditsTheWeeksOtherDays(phone, cloud):
+    """DY1.1: this week's workout days under the header. A day ahead can be looked at and logged, under its own
+    date, with no rest timer or steps. A swipe moves along the strip, and today's chip goes back."""
+    from types import SimpleNamespace
+    planInCloud(cloud)
+    signedIn(phone)
+    app = phone.app
+    days = [tip for tip in tooltips(phone.screen()) if tip.startswith("Show ") and tip.endswith(("day", "(today)"))]
+    assert days == ["Show Monday (today)", "Show Wednesday", "Show Friday", "Show Saturday"]
+    press(byTooltip(phone.screen(), "Show Wednesday"))
+    texts = phone.texts()
+    assert "Pull" in texts and "Wednesday · in 2 days · 0 of 3 this week" in texts and "Deadlift" in texts
+    assert finishButtons(phone) == 1 and "STEPS TODAY" not in texts and "STEPS" not in texts
+    press(find(phone.screen(), "Deadlift: set 1 of 3 done", "IconButton"))
+    assert app.state.logs[monday + dt.timedelta(days=2)]["deadlift"].sets[0].reps == 5
+    assert app.model.restUntil is None and app.model.today.exercises[0].setsDone == 0  # Monday's untouched
+
+    gesture = next(control for control in walk(phone.screen()) if type(control).__name__ == "GestureDetector")
+    gesture.on_horizontal_drag_end(SimpleNamespace(primary_velocity=-800))  # a flick to the left: the next day
+    assert app.model.dayShown == monday + dt.timedelta(days=4)
+    gesture.on_horizontal_drag_end(SimpleNamespace(primary_velocity=-100))  # too slow: nothing
+    assert app.model.dayShown == monday + dt.timedelta(days=4)
+    app.shiftDay(1)
+    assert "Flex" in phone.texts() and "Saturday · in 5 days · 1 of 3 this week" in phone.texts()  # nothing made up
+    app.shiftDay(1)  # the end of the strip
+    assert app.model.dayShown == monday + dt.timedelta(days=5)
+    press(byTooltip(phone.screen(), "Show Monday (today)"))
+    assert app.model.dayView is None and "Monday · 1 of 3 this week" in phone.texts()
+
+
+def testTheDayStripEditsADayEarlierInTheWeek(phone, cloud):
+    """DY1.1: on Wednesday, Monday is in the strip, edited like today. It has no Finish, its steps are its own."""
+    planInCloud(cloud)
+    signedIn(phone)
+    app = phone.app
+    app.localToday = lambda: monday + dt.timedelta(days=2)
+    app.refresh()
+    press(byTooltip(phone.screen(), "Show Monday"))
+    texts = phone.texts()
+    assert "Monday · 2 days ago · 0 of 3 this week" in texts and finishButtons(phone) == 0 and "STEPS" in texts
+    tickAll(phone.screen, "Bench Press")
+    assert len(app.state.logs[monday]["benchPress"].sets) == 4 and app.model.dayView.exercises[0].status == "done"
+    assert app.model.restUntil is None  # the rest timer is today's only
 
 
 def testADayWithOver30PercentSkippedIsMissed(phone, cloud):

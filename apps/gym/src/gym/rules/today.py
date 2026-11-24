@@ -18,9 +18,9 @@ from gym.rules.sessions import SessionExercise, sessionExercises
 from gym.rules.stats import kgText, unit, workoutVolumeKg
 from gym.rules.week import weeklyTarget, workoutsInWeek
 
-__all__ = ["ExerciseLine", "ImportedPlan", "LoggedExercise", "SetDone", "TodayView", "clockText", "deloadText",
-           "headerParts", "headerText", "kilogramsUnit", "restLeft", "setsLeftText", "targetText", "todayView",
-           "workoutProgress"]
+__all__ = ["ExerciseLine", "ImportedPlan", "LoggedExercise", "SetDone", "TodayView", "clockText", "dayWords",
+           "deloadText", "headerParts", "headerText", "kilogramsUnit", "restLeft", "setsLeftText", "targetText",
+           "todayView", "workoutProgress"]
 
 upcomingDays = 7  # a deload starting within this many days shows on Today
 
@@ -87,11 +87,13 @@ def todayView(
     stepsToday: int | None,
     today: dt.date,
     training: Training | None = None,
+    asOf: dt.date | None = None,
 ) -> TodayView:
-    """Works out Today from the facts. Without `training`, targets are the plan's starting ones."""
+    """Works out Today from the facts. Without `training`, targets are the plan's starting ones. With asOf, the
+    day is another day of the week seen from asOf, the real today (the day strip, DY1.1)."""
     starts = [imported.start for imported in plans]
     plansById = {imported.start.planImportId: imported.plan for imported in plans}
-    day = daySchedule(starts, workouts, today)
+    day = daySchedule(starts, workouts, today, asOf if asOf is not None and asOf < today else None)
     weekDone, weekTarget = workoutsInWeek(workouts, today), weeklyTarget(starts, today)
     deload = training.deloadOn(today) if training else None
     upcoming = training.upcomingDeload(today) if training and deload is None else None
@@ -220,16 +222,29 @@ def headerText(view: TodayView) -> str:
     return " · ".join(parts)
 
 
-def headerParts(view: TodayView) -> tuple[str, str]:
+def headerParts(view: TodayView, today: dt.date | None = None) -> tuple[str, str]:
     """The top as two lines (SC2.3): the session's title big, and under it the weekday with the week's count:
     ("Upper", "Monday · 2 of 5 this week"), or on the flex day ("Upper", "Saturday, for Monday · 4 of 5 this
-    week")."""
+    week"). Another day of the week than today says how far it is (DY1.1): "Tuesday · tomorrow · 2 of 5 this
+    week"."""
     if not view.hasPlan:
-        return "Today", ""
+        return ("Today", "") if today is None or today == view.date else (view.weekday, dayWords(view.date, today))
     parts = [view.weekday + (f", for {view.makesUp}" if view.makesUp else "")]
+    if today is not None and today != view.date:
+        parts.append(dayWords(view.date, today))
     if view.weekTarget is not None:
         parts.append(f"{view.weekDone} of {view.weekTarget} this week")
     return view.title, " · ".join(parts)
+
+
+def dayWords(date: dt.date, today: dt.date) -> str:
+    """How far a day is from today: "today", "tomorrow", "yesterday", "in 3 days", "3 days ago"."""
+    days = (date - today).days
+    if days == 0:
+        return "today"
+    if abs(days) == 1:
+        return "tomorrow" if days > 0 else "yesterday"
+    return f"in {days} days" if days > 0 else f"{-days} days ago"
 
 
 def workoutProgress(view: TodayView) -> tuple[int, int, int]:

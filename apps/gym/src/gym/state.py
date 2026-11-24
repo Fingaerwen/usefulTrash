@@ -108,9 +108,23 @@ class GymState:
                                             list(self.manualDeloads.values()), date)
         return self._training[date]
 
-    def today(self, date: dt.date) -> TodayView:
+    def today(self, date: dt.date, asOf: dt.date | None = None) -> TodayView:
+        """Today, or with asOf another day of the week seen from today (the day strip, DY1.1)."""
         return todayView(self.plans, self.workouts, self.logs.get(date, {}), self.known, self.steps.get(date), date,
-                         self.training(date))
+                         self.training(date), asOf)
+
+    def weekDays(self, today: dt.date) -> tuple[dt.date, ...]:
+        """Today's day strip (DY1.1): the days of today's week (Monday to Sunday) that are workout days under the
+        plan in effect then, or have a workout logged, and today itself whatever it is."""
+        starts = [imported.start for imported in self.plans]
+        logged = {workout.date for workout in self.workouts}
+        days = []
+        for offset in range(7):
+            date = weekStart(today) + dt.timedelta(days=offset)
+            plan = planInEffect(starts, date)
+            if date == today or date in logged or (plan is not None and not plan.days[date.weekday()].isRest):
+                days.append(date)
+        return tuple(days)
 
     def currentPlan(self, date: dt.date) -> ImportedPlan | None:
         """The plan in effect on a day."""

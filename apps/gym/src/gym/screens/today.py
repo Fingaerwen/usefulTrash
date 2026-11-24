@@ -2,6 +2,7 @@
 
     Upper                                            ⋮
     Monday · 2 of 5 this week
+    [Mon ·] [Tue] [Wed] [Thu] [Fri] [Sat]              this week's workout days (DY1.1), today with a dot
     ┌ 3 of 10 done                              30% ┐
     └ ━━━━━━━━━━━━──────────────────────────────    ┘
     ┌ Lat pulldown                           ⋯  ( ) ┐   a card per exercise. The big circle ticks a set
@@ -22,6 +23,11 @@ takes the last set back. A rest day shows "Rest day" and what's next. No plan ye
 "Import a file" as the fallback (G2b-2). A deload week, or one starting within a week, shows a card under
 the header (WD2.4). An exercise with no weight of yours yet shows "@ ? kg", and its tick opens the sets
 (PF3). Ticking one of today's exercises starts its rest, unless nothing's left to do.
+
+The strip under the header (DY1.1) shows another of this week's workout days, and so does a flick sideways (to
+the left for the next day). That day is laid out the same and edited the same, a day ahead too, like History's
+day editor: no rest timer, weight or Not today, which all work from today. A past day has no Finish (it counts as
+finished anyway), and a day ahead no steps.
 """
 
 import asyncio
@@ -63,18 +69,22 @@ from gym.screens.look import (
 )
 
 restOverShownFor = 120  # seconds "Rest over" stays before the bar goes by itself
+swipeSpeed = 300  # a sideways flick at least this fast (pixels a second) changes the day (DY1.1)
 
 
 @ft.component
 def TodayTab(app, model):
-    view = model.today
-    if view is None:
+    today = model.today
+    if today is None:
         return ft.Column([quiet("Loading…")])
-    heading, subtitle = headerParts(view)
+    other = model.dayView  # another day of the week picked in the strip (DY1.1), None for today
+    view = other or today
+    heading, subtitle = headerParts(view, today.date if other is not None else None)
     under = ft.Row([quiet(subtitle, size=14),
                     faint(f"· {model.waiting} waiting", size=14) if model.waiting else ft.Container(visible=False)],
                    spacing=6, wrap=True)  # SC1.1
-    parts = [header(heading, under, trailing=[Menu(app, app.menuItems)]), Banners(app, model), Notice(app, model)]
+    parts = [header(heading, under, trailing=[Menu(app, app.menuItems)]), DayStrip(app, model), Banners(app, model),
+             Notice(app, model)]
     deload = deloadText(view)
     if deload:
         parts.append(card(ft.Row([ft.Icon(ft.Icons.SELF_IMPROVEMENT, size=22), ft.Text(deload, expand=True)],
@@ -85,10 +95,39 @@ def TodayTab(app, model):
         parts.append(RestDay(app, view))
     else:
         parts.append(WorkoutProgress(view))
-        parts += [ExerciseRow(app, line, key=line.exercise.exerciseId) for line in view.exercises]
-        parts.append(FinishLine(app, view))
-    parts.append(StepsLine(app, view.stepsToday, key=f"steps{view.date}"))
-    return ft.Column([screen(parts), RestTimer(app, model)], spacing=0, expand=True)
+        parts += [ExerciseRow(app, line, other, key=f"{view.date}{line.exercise.exerciseId}")
+                  for line in view.exercises]
+        if view.date >= today.date:  # a past day's workout counts as finished anyway (R5a)
+            parts.append(FinishLine(app, view, other))
+    if view.date <= today.date:
+        parts.append(StepsLine(app, view.stepsToday, view.date if other is not None else None,
+                               key=f"steps{view.date}"))
+
+    def swipe(e):
+        """A flick sideways (DY1.1): to the left for the next day, to the right for the one before, like pages."""
+        speed = e.primary_velocity or 0
+        if abs(speed) >= swipeSpeed:
+            app.shiftDay(1 if speed < 0 else -1)
+
+    days = ft.GestureDetector(content=screen(parts), on_horizontal_drag_end=swipe, expand=True)
+    return ft.Column([days, RestTimer(app, model)], spacing=0, expand=True)
+
+
+@ft.component
+def DayStrip(app, model):
+    """This week's workout days (DY1.1), Mon Tue Wed …, the one shown filled. Today has a dot. A tap shows that
+    day, and so does a swipe on the screen."""
+    days, today = model.weekDays, model.today.date
+    if len(days) < 2:
+        return ft.Container(visible=False)
+    shown = model.dayShown or today
+    chips = []
+    for date in days:
+        name = weekdayNames[date.weekday()]
+        words = name[:3].capitalize() + (" ·" if date == today else "")
+        chips.append(pill(words, date == shown, on_click=lambda e, date=date: app.showDay(date),
+                          tooltip=f"Show {name.capitalize()}" + (" (today)" if date == today else "")))
+    return ft.Row(chips, spacing=6, scroll=ft.ScrollMode.AUTO)
 
 
 @ft.component
@@ -416,10 +455,11 @@ def SetsEditor(app, line: ExerciseLine, close, view=None):
 
 
 @ft.component
-def FinishLine(app, view):
-    """Finish workout: anything untouched counts as skipped (19.1b-1). Available once something's logged."""
+def FinishLine(app, view, other=None):
+    """Finish workout: anything untouched counts as skipped (19.1b-1). Available once something's logged. On a day
+    ahead in the strip (DY1.1) it finishes that day's workout."""
     async def finish(e):
-        await app.finish()
+        await app.finish(other)
 
     if view.finished:
         volume = f" · {thousands(view.volumeKg)} kg" if view.volumeKg else ""
@@ -430,8 +470,9 @@ def FinishLine(app, view):
 
 
 @ft.component
-def StepsLine(app, stepsToday: int | None):
-    """Today's steps (SC4.1), on rest days too, with ✎ to enter them. Steps are never a workout (CA1.1)."""
+def StepsLine(app, stepsToday: int | None, date=None):
+    """Today's steps (SC4.1), on rest days too, with ✎ to enter them. Steps are never a workout (CA1.1). An
+    earlier day in the strip (DY1.1) passes its date, and its steps go to that day."""
     editing, setEditing = ft.use_state(False)
     typed, setTyped = ft.use_state("" if stepsToday is None else str(stepsToday))
     problem, setProblem = ft.use_state("")
@@ -447,19 +488,23 @@ def StepsLine(app, stepsToday: int | None):
         except ValueError as refused:
             setProblem(str(refused))
             return
-        await app.setSteps(steps)
+        if date is None:
+            await app.setSteps(steps)
+        else:
+            await app.setStepsOn(date, steps)
         setProblem("")
         setEditing(False)
 
     shown = f"{stepsToday:,}" if stepsToday is not None else "—"
+    words = "Steps today" if date is None else "Steps"
     if not editing:
         return card(ft.Row([
             ft.Icon(ft.Icons.DIRECTIONS_WALK, size=24, color=ft.Colors.ON_SURFACE_VARIANT),
-            ft.Column([label("Steps today"), big(shown, 20)], spacing=2, expand=True),
+            ft.Column([label(words), big(shown, 20)], spacing=2, expand=True),
             ft.IconButton(ft.Icons.EDIT_OUTLINED, tooltip="Enter steps", on_click=open),
         ], spacing=14), padding=ft.Padding.only(left=16, top=12, right=8, bottom=12))
     return card(ft.Column([
-        ft.Row([field("Steps today", typed, lambda e: setTyped(e.control.value), expand=True),
+        ft.Row([field(words, typed, lambda e: setTyped(e.control.value), expand=True),
                 mainButton("Save", save), ft.TextButton("Cancel", on_click=lambda e: setEditing(False))]),
         quiet(problem) if problem else ft.Container(visible=False),
     ], spacing=8), padding=12)
