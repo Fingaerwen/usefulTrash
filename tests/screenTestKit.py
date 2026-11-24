@@ -205,6 +205,18 @@ def press(control: BaseControl, handler: str = "on_click") -> None:
         _run(result)
 
 
+def tickAll(draw, name: str) -> None:
+    """Ticks every set of an exercise on Today (TK1.1): a tap on its circle per set, drawing the screen again
+    after each, until it's done. `draw` draws the screen."""
+    for _ in range(30):
+        circles = [control for control in walk(draw()) if isinstance(getattr(control, "tooltip", None), str)
+                   and (control.tooltip.startswith(f"{name}: set ") or control.tooltip == f"{name}: done as targeted")]
+        if not circles:
+            return
+        press(circles[0])
+    raise AssertionError(f"{name} still has sets to tick after 30 taps")
+
+
 def type_(control: BaseControl, value: str) -> None:
     """Types into a field: sets its value and calls on_change."""
     control.value = value

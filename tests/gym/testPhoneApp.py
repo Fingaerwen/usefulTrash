@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 from cloudStandIn import CloudStandIn
 from driveStandIn import DriveStandIn
-from screenTestKit import draw, find, press, type_, useLoop, visibleTexts
+from screenTestKit import draw, find, press, tickAll, type_, useLoop, visibleTexts
 from usefulTestKit import FakeClock, userA, userB
 
 from gym.model import appVersion
@@ -257,7 +257,7 @@ def testRestartingKeepsYouSignedIn(phone, cloud):
 def testCheckThenFinishFromTheScreen(phone, cloud):
     planInCloud(cloud)
     signedIn(phone)
-    press(find(phone.screen(), "Bench Press: done as targeted", "IconButton"))
+    tickAll(phone.screen, "Bench Press")
     assert phone.app.model.today.exercises[0].status == "done"
     assert "· 2 waiting" in phone.texts()  # the workout day and the exercise, until sync sends them (SC1.1)
     assert "1 of 4 done" in phone.texts()  # the workout's progress (SC2.4)
@@ -272,12 +272,30 @@ def testCheckThenFinishFromTheScreen(phone, cloud):
     assert phone.app.model.waiting == 0
 
 
+def testTheCircleTicksOneSetAtATime(phone, cloud):
+    """TK1.1: a tap is one set. The circle turns into a ring with the count, and the card says what's left. All sets
+    done in ⋯ fills up the rest."""
+    planInCloud(cloud)
+    signedIn(phone)
+    press(find(phone.screen(), "Bench Press: set 1 of 4 done", "IconButton"))
+    texts = phone.texts()
+    assert "1/4" in texts and "1 of 4 done · 3×8 @ 80 kg left" in texts and "0 of 4 done" in texts
+    press(find(phone.screen(), "Bench Press: set 2 of 4 done", "Container"))
+    assert "2 of 4 done · 2×8 @ 80 kg left" in phone.texts()
+    from gym.screens.today import ExerciseRow
+    press(find(draw(ExerciseRow, phone.app, phone.app.model.today.exercises[0]), "All sets done", "PopupMenuItem"))
+    bench = phone.app.model.today.exercises[0]
+    assert bench.status == "done" and bench.setsDone == 4 and "1 of 4 done" in phone.texts()
+
+
 def testTappingCheckAgainTakesItBack(phone, cloud):
     planInCloud(cloud)
     signedIn(phone)
-    press(find(phone.screen(), "Bench Press: done as targeted", "IconButton"))
-    press(find(phone.screen(), "Bench Press: take back", "IconButton"))
-    assert phone.app.model.today.exercises[0].status == "todo" and not phone.app.model.today.workoutExists
+    tickAll(phone.screen, "Bench Press")
+    press(find(phone.screen(), "Bench Press: take back the last set", "IconButton"))
+    assert phone.app.model.today.exercises[0].setsLeft == 1 and phone.app.model.today.workoutExists
+    press(find(phone.screen(), "Take back", "PopupMenuItem"))
+    assert phone.app.model.today.exercises[0].setsDone == 0 and not phone.app.model.today.workoutExists
 
 
 def testTappingAnExercisesNameShowsItsHowTo(phone, cloud):
@@ -360,7 +378,7 @@ def testTheRestTimer(phone, cloud):
     signedIn(phone)
     app, notifier = phone.app, phone.services.notifier
     app.model.notice = "Copied."  # an old message still showing doesn't stop it
-    press(find(phone.screen(), "Bench Press: done as targeted", "IconButton"))
+    press(find(phone.screen(), "Bench Press: set 1 of 4 done", "IconButton"))  # a set ticked: its rest (TK1.1)
     assert (app.model.restUntil, app.model.restSeconds, app.model.restName) == (
         phone.clock() + dt.timedelta(seconds=120), 120, "Bench Press")
     assert notifier.rests == [(120, "Rest over", "Time for your next set.")]
@@ -379,7 +397,7 @@ def testTheRestTimer(phone, cloud):
     press(byTooltip(draw(ExerciseRow, app, lateral), "Lateral Raise: start the rest timer"))  # between sets
     assert (app.model.restSeconds, app.model.restName) == (60, "Lateral Raise")
     phone.run(app.stopRest())
-    press(find(phone.screen(), "Bench Press: take back", "IconButton"))
+    press(find(phone.screen(), "Take back", "PopupMenuItem"))
     assert app.model.restUntil is None  # taking one back is no rest
     checkEverything(phone)  # bench, lateral raise, dips, then the walk: nothing's left after it to rest for
     assert app.model.restName == "Dips" and app.model.today.exercises[-1].status == "done"
@@ -420,8 +438,8 @@ def testADayWithOver30PercentSkippedIsMissed(phone, cloud):
     planInCloud(cloud)
     signedIn(phone)
     app = phone.app
-    press(find(phone.screen(), "Bench Press: done as targeted", "IconButton"))
-    press(find(phone.screen(), "Lateral Raise: done as targeted", "IconButton"))
+    tickAll(phone.screen, "Bench Press")
+    tickAll(phone.screen, "Lateral Raise")
     phone.run(app.skip(app.model.today.exercises[2]))  # Dips skipped
     press(find(phone.screen(), "Finish workout", "Button"))  # and the walk left untouched: 2 of 4 not done
     assert "Monday · 0 of 3 this week" in phone.texts()
@@ -434,7 +452,7 @@ def testADayWithOver30PercentSkippedIsMissed(phone, cloud):
     app.localToday = lambda: monday
     app.model.tab = "today"
     app.refresh()
-    press(find(phone.screen(), "Dips: done as targeted", "IconButton"))  # 3 of 4: it counts now
+    tickAll(phone.screen, "Dips")  # 3 of 4: it counts now
     assert "Monday · 1 of 3 this week" in phone.texts()
     app.localToday = lambda: monday + dt.timedelta(days=5)
     app.refresh()
@@ -476,7 +494,7 @@ def testSigningOutKeepsWhatsNotSentYet(phone, cloud):
     planInCloud(cloud)
     signedIn(phone)
     cloud.offline = True
-    press(find(phone.screen(), "Bench Press: done as targeted", "IconButton"))
+    tickAll(phone.screen, "Bench Press")
     cloud.offline = False
     signOut = next(item for item in find(phone.screen(), "More", "PopupMenuButton").items if item.content == "Sign out")
     press(signOut)
@@ -528,7 +546,7 @@ def testAPhoneClockFarAheadShowsABannerAndTheReason(phone, cloud):
     planInCloud(cloud)
     signedIn(phone)
     phone.clock.advance(hours=1)
-    press(find(phone.screen(), "Bench Press: done as targeted", "IconButton"))
+    tickAll(phone.screen, "Bench Press")
     phone.run(phone.app.syncNow())
     assert "The cloud refused a change. See Problems in the menu." in phone.texts()
     phone.app.openProblems()
@@ -545,11 +563,11 @@ def testSignInRenewalAndSyncLeaveNoTokenInTheLog(phone, cloud):
     token value in the log file. Every token the cloud ever issued is looked for in the raw file."""
     planInCloud(cloud)
     signedIn(phone)
-    press(find(phone.screen(), "Bench Press: done as targeted", "IconButton"))
+    tickAll(phone.screen, "Bench Press")
     phone.run(phone.app.syncNow())
     phone.app.session.session["expires_at"] = 0  # forces a renewal on the next round
     phone.clock.advance(hours=1)
-    press(find(phone.screen(), "Dips: done as targeted", "IconButton"))  # refused: clock an hour ahead
+    press(find(phone.screen(), "Dips: set 1 of 3 done", "IconButton"))  # refused: clock an hour ahead
     phone.run(phone.app.syncNow())
     cloud.offline = True
     phone.run(phone.app.syncNow())
@@ -574,7 +592,7 @@ def testAnotherAccountSigningInStartsFromNothing(phone, cloud):
     cloud.signUpsAllowedFor = {userA, userB}
     planInCloud(cloud)
     signedIn(phone)
-    press(find(phone.screen(), "Bench Press: done as targeted", "IconButton"))
+    tickAll(phone.screen, "Bench Press")
     phone.run(phone.app.signOut())
     phone.services.googleSignIn.account = userB
     press(find(phone.screen(), "Sign in with Google", "Button"))
@@ -673,7 +691,7 @@ def testAMistypedStepSaysWhichField(phone, cloud):
 def testProgressListAndAnExercisesPage(phone, cloud):
     planInCloud(cloud)
     signedIn(phone)
-    press(find(phone.screen(), "Bench Press: done as targeted", "IconButton"))  # 4×8 @ 80 kg
+    tickAll(phone.screen, "Bench Press")  # 4×8 @ 80 kg
     phone.app.model.tab = "progress"
     texts = phone.texts()
     assert "Bench Press" in texts and "now 80 kg × 9" in texts and texts[texts.index("PR") + 1] == "80 kg"
@@ -824,7 +842,7 @@ def testHistoryOnThePhoneEditsTheLastSevenDays(phone, cloud):
     press(byTooltip(phone.screen(), "Edit Mon 19 Oct"))
     nextMonday = monday + dt.timedelta(days=7)
     assert "Mon 19 Oct" in phone.texts() and "Push" in phone.texts()
-    press(find(phone.screen(), "Bench Press: done as targeted", "IconButton"))
+    tickAll(phone.screen, "Bench Press")
     assert nextMonday in app.state.logs and app.state.logs[nextMonday]["benchPress"].done
     assert app.model.today.date == monday + dt.timedelta(days=9) and not app.model.today.workoutExists  # untouched
     from gym.screens.history import DayEditor

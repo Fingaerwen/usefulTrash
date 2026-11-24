@@ -19,7 +19,8 @@ from gym.rules.stats import kgText, unit, workoutVolumeKg
 from gym.rules.week import weeklyTarget, workoutsInWeek
 
 __all__ = ["ExerciseLine", "ImportedPlan", "LoggedExercise", "SetDone", "TodayView", "clockText", "deloadText",
-           "headerParts", "headerText", "kilogramsUnit", "restLeft", "targetText", "todayView", "workoutProgress"]
+           "headerParts", "headerText", "kilogramsUnit", "restLeft", "setsLeftText", "targetText", "todayView",
+           "workoutProgress"]
 
 upcomingDays = 7  # a deload starting within this many days shows on Today
 
@@ -40,6 +41,18 @@ class ExerciseLine:
     needsWeight: bool = False  # only the plan's 1 kg placeholder (PF3): "@ ? kg", no target weight, ✓ opens ▾ sets
     isNew: bool = False  # the target is a step up from the last weight: marked "new", with Undo (UN1.1)
     declined: bool = False  # Undo pressed: today's target is the last weight at repsMax, with redo (UN1.1)
+
+    @property
+    def setsDone(self) -> int:
+        """The sets logged so far (TK1.1). 0 when it's skipped or nothing is logged."""
+        logged = self.logged
+        return len(logged.sets) if logged is not None and not logged.skipped else 0
+
+    @property
+    def setsLeft(self) -> int | None:
+        """The sets still to do against the target (TK1.1). None without a set target (cardio, or an exercise
+        that isn't in the day's session)."""
+        return None if self.targetSets is None else max(0, self.targetSets - self.setsDone)
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,12 +140,9 @@ def _line(entry: SessionExercise, logged: LoggedExercise | None, finished: bool,
           inDeload: bool) -> ExerciseLine:
     """A planned exercise with its target from progression. In a deload, half the sets, 3 reps short."""
     exercise = entry.exercise
-    if logged is not None and (logged.done or logged.skipped):  # an Undo alone isn't an entry (UN1.1)
-        status = "skipped" if logged.skipped else "done"
-    else:
-        status = "autoSkipped" if finished else "todo"
     if exercise.isCardio:
-        return ExerciseLine(exercise, None, None, None, exercise.minutes, status, logged, entry.trackDay)
+        return ExerciseLine(exercise, None, None, None, exercise.minutes, _status(logged, finished, None), logged,
+                            entry.trackDay)
     needsWeight = isNew = declined = False
     if training is not None:
         target = training.target(exercise, entry.trackDay)
@@ -152,8 +162,20 @@ def _line(entry: SessionExercise, logged: LoggedExercise | None, finished: bool,
         sets, reps = deloadSets(sets), deloadReps(reps)
     if exercise.equipment == "bodyweight":
         weightKg, stepKg = None, None
-    return ExerciseLine(exercise, sets, reps, weightKg, None, status, logged, entry.trackDay, stepKg, needsWeight,
-                        isNew, declined)
+    return ExerciseLine(exercise, sets, reps, weightKg, None, _status(logged, finished, sets), logged, entry.trackDay,
+                        stepKg, needsWeight, isNew, declined)
+
+
+def _status(logged: LoggedExercise | None, finished: bool, targetSets: int | None) -> str:
+    """An exercise's status: "done" once every target set is logged (TK1.1), or once the workout is finished with
+    anything logged. Before that it's "todo", with or without some sets ticked. An Undo alone isn't an entry
+    (UN1.1)."""
+    if logged is not None and logged.skipped:
+        return "skipped"
+    if logged is not None and logged.done:
+        partDone = targetSets is not None and len(logged.sets) < targetSets
+        return "todo" if partDone and not finished else "done"
+    return "autoSkipped" if finished else "todo"
 
 
 def targetText(line: ExerciseLine) -> str:
@@ -169,6 +191,17 @@ def targetText(line: ExerciseLine) -> str:
     if line.targetWeightKg is None:
         return text
     return text + f" @ {kgText(line.targetWeightKg)} {unit(line.exercise)}"
+
+
+def setsLeftText(line: ExerciseLine) -> str:
+    """A part-done exercise (TK1.1): "1 of 3 done · 2×12 @ 20 kg left". The weight is the last set's, which the
+    next tick uses too. "" when none or all of its sets are logged."""
+    left = line.setsLeft
+    if not left or not line.setsDone or line.targetReps is None:
+        return ""
+    weightKg = line.logged.sets[-1].weightKg if line.logged is not None else None
+    weight = f" @ {kgText(weightKg)} {unit(line.exercise)}" if weightKg is not None else ""
+    return f"{line.setsDone} of {line.targetSets} done · {left}×{line.targetReps}{weight} left"
 
 
 def kilogramsUnit(exercise: PlanExercise) -> str:

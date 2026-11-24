@@ -104,16 +104,25 @@ class AppBase:
     # Today's actions. History's day editor passes its own day's view (HI1.1).
 
     async def check(self, line: ExerciseLine, view: TodayView | None = None) -> None:
+        """⋯ → All sets done (and a tap on a cardio exercise's circle)."""
         if await self._act(self.actions.checkExercise(view or self.model.today, line)):
             await self._restAfter(line, view)
+
+    async def checkSet(self, line: ExerciseLine, view: TodayView | None = None) -> None:
+        """The big circle: the next set done, or once all are in, the last one taken back (TK1.1)."""
+        if await self._act(self.actions.checkSet(view or self.model.today, line)):
+            await self._restAfter(line, view)
+
+    async def takeBack(self, line: ExerciseLine, view: TodayView | None = None) -> None:
+        await self._act(self.actions.takeBack(view or self.model.today, line))
 
     async def saveSets(self, line: ExerciseLine, sets: list[SetDone], minutes: int | None = None,
                        view: TodayView | None = None) -> None:
         if await self._act(self.actions.saveSets(view or self.model.today, line, sets, minutes)):
             await self._restAfter(line, view)
 
-    # The rest timer (RT1.1): logging one of today's exercises starts its rest, unless nothing is left to do.
-    # its rest time on Today starts it between sets. The phone also sets an alert for when it's over.
+    # The rest timer (RT1.1): logging one of today's exercises or one of its sets starts its rest, unless nothing is
+    # left to do. Its rest time on Today starts it between sets. The phone also sets an alert for when it's over.
 
     async def _restAfter(self, line: ExerciseLine, view: TodayView | None) -> None:
         today = self.model.today
@@ -297,8 +306,8 @@ class AppBase:
         from tomorrow (WD3.7)."""
         today = self.model.today
         doneToday = today is not None and any(
-            line.exercise.exerciseId == exerciseId and line.trackDay == weekday and line.status == "done"
-            for line in today.exercises)
+            line.exercise.exerciseId == exerciseId and line.trackDay == weekday and line.setsDone
+            for line in today.exercises)  # a set ticked is logged today too (TK1.1)
         await self._act(self.actions.setWeight(exerciseId, weekday, weightKg, self.localToday(), doneToday))
 
     async def setStep(self, exerciseId: str, incrementKg: float) -> None:

@@ -41,18 +41,41 @@ class GymActions:
     # --- Exercises (19.1) --------------------------------------------------------------------
 
     async def checkExercise(self, view: TodayView, line: ExerciseLine) -> None:
-        """[✓]: logs the exercise as targeted. Tapping a logged exercise again takes it back."""
+        """All sets done: logs the exercise as targeted, keeping any sets already ticked (TK1.1). On a logged
+        exercise it takes it back."""
+        logged = _loggedSets(line)
         if line.status == "done":
             await self._takeBack(view, line)
         elif line.exercise.isCardio and line.targetMinutes is not None:
             await self._log(view, line, (), line.targetMinutes, skipped=False)
-        elif line.needsWeight:  # Today opens ▾ sets instead (PF3)
+        elif line.needsWeight and not logged:  # Today opens ▾ sets instead (PF3)
             raise ActionRefused("Enter the weight you lifted under Sets: your plan's weight is only a placeholder.")
         elif line.targetReps is not None and line.targetSets:
-            await self._log(view, line, (SetDone(line.targetReps, line.targetWeightKg),) * line.targetSets, None,
-                            skipped=False)
+            more = max(0, line.targetSets - len(logged))
+            await self._log(view, line, (*logged, *(_nextSet(line, logged),) * more), None, skipped=False)
         else:
             raise ActionRefused("This exercise has no target here: enter what you did under Sets.")
+
+    async def checkSet(self, view: TodayView, line: ExerciseLine) -> None:
+        """The big circle (TK1.1): logs the next set as targeted, at the weight of the set before it if one is
+        logged. Once every set is in, a tap takes the last one back. Cardio, and an exercise with no set target,
+        is ticked whole."""
+        logged = _loggedSets(line)
+        if line.exercise.isCardio or line.targetSets is None or line.targetReps is None:
+            await self.checkExercise(view, line)
+        elif line.status == "done":
+            if len(logged) > 1:
+                await self._log(view, line, logged[:-1], None, skipped=False)
+            else:
+                await self._takeBack(view, line)
+        elif line.needsWeight and not logged:  # Today opens ▾ sets instead (PF3)
+            raise ActionRefused("Enter the weight you lifted under Sets: your plan's weight is only a placeholder.")
+        else:
+            await self._log(view, line, (*logged, _nextSet(line, logged)), None, skipped=False)
+
+    async def takeBack(self, view: TodayView, line: ExerciseLine) -> None:
+        """⋯ → Take back: every set of the exercise, or its minutes, or its skip."""
+        await self._takeBack(view, line)
 
     async def saveSets(self, view: TodayView, line: ExerciseLine, sets: Sequence[SetDone],
                        minutes: int | None = None) -> None:
@@ -245,6 +268,16 @@ class GymActions:
     def _liveSession(self, date: dt.date) -> dict[str, Any] | None:
         row = self.state.row("sessions", dayRowId(sessions, self.userId, date=date))
         return row if row is not None and not row["deleted"] else None
+
+
+def _loggedSets(line: ExerciseLine) -> tuple[SetDone, ...]:
+    """The sets logged for the exercise so far. None when it's skipped."""
+    return line.logged.sets if line.logged is not None and not line.logged.skipped else ()
+
+
+def _nextSet(line: ExerciseLine, logged: Sequence[SetDone]) -> SetDone:
+    """The next set as targeted (TK1.1): the target reps, at the last logged set's weight, else the target's."""
+    return SetDone(line.targetReps or 0, logged[-1].weightKg if logged else line.targetWeightKg)
 
 
 def _checkWhole(value: Any, low: int, high: int, what: str) -> None:

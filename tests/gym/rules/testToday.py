@@ -14,6 +14,7 @@ from gym.rules.today import (
     headerParts,
     headerText,
     restLeft,
+    setsLeftText,
     targetText,
     todayView,
     workoutProgress,
@@ -235,8 +236,24 @@ def testWorkoutProgressCountsDoneAndSkipped():
     """SC2.4: done, skipped and all of today's exercises, for the bar on Today."""
     first, second = (line.exercise.exerciseId for line in view(day(0)).exercises[:2])
     assert workoutProgress(view(day(0))) == (0, 0, len(view(day(0)).exercises))
-    logs = {first: LoggedExercise(first, (SetDone(8, 80),)), second: LoggedExercise(second, skipped=True)}
+    logs = {first: LoggedExercise(first, (SetDone(8, 80),) * 3), second: LoggedExercise(second, skipped=True)}
     assert workoutProgress(view(day(0), logs=logs)) == (1, 1, len(view(day(0)).exercises))
+
+
+def testAnExerciseWithSomeSetsTickedIsStillToDo():
+    """TK1.1: one set of three ticked is part done, with what's left written out. All three make it done, and so
+    does Finish with any of them in."""
+    bench = "benchPress"
+    oneSet = {bench: LoggedExercise(bench, (SetDone(6, 25),))}
+    line = view(day(0), logs=oneSet).exercises[0]
+    assert (line.status, line.setsDone, line.setsLeft) == ("todo", 1, 2)
+    assert setsLeftText(line) == "1 of 3 done · 2×6 @ 25 kg/side left"
+    assert workoutProgress(view(day(0), logs=oneSet))[0] == 0
+    allSets = {bench: LoggedExercise(bench, (SetDone(6, 25),) * 3)}
+    line = view(day(0), logs=allSets).exercises[0]
+    assert (line.status, line.setsLeft, setsLeftText(line)) == ("done", 0, "")
+    finished = view(day(0), workouts=[workout(0, finished=True)], logs=oneSet).exercises[0]
+    assert finished.status == "done"
 
 
 def testTheRestTimersTimeLeft():

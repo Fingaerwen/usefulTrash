@@ -92,6 +92,36 @@ def testCheckLogsTheTargetAndStartsTheWorkout(app):
     assert app.database.waiting().count == 3  # the plan, the workout day and the exercise
 
 
+def testTheCircleTicksOneSetAtATime(app):
+    """TK1.1: each tap logs the next set as targeted. Once all four are in, a tap takes the last one back. The
+    first set starts the workout, like any entry."""
+    for count in range(1, 5):
+        app.do(app.actions.checkSet, app.today(), line(app.today(), "benchPress"))
+        bench = line(app.today(), "benchPress")
+        assert bench.logged.sets == (SetDone(8, 82.5),) * count and bench.setsLeft == 4 - count
+        assert bench.status == ("done" if count == 4 else "todo") and app.today().workoutExists
+    app.do(app.actions.checkSet, app.today(), line(app.today(), "benchPress"))
+    assert line(app.today(), "benchPress").setsDone == 3
+
+
+def testTheNextSetKeepsTheWeightOfTheSetBefore(app):
+    """A set logged at another weight under Sets: the next tick uses it. All sets done fills up the rest at it too,
+    keeping what's in."""
+    view = app.today()
+    app.do(app.actions.saveSets, view, line(view, "benchPress"), [SetDone(7, 80)])
+    app.do(app.actions.checkSet, app.today(), line(app.today(), "benchPress"))
+    assert line(app.today(), "benchPress").logged.sets == (SetDone(7, 80), SetDone(8, 80))
+    app.do(app.actions.checkExercise, app.today(), line(app.today(), "benchPress"))
+    assert line(app.today(), "benchPress").logged.sets == (SetDone(7, 80),) + (SetDone(8, 80),) * 3
+
+
+def testTakeBackClearsEverySet(app):
+    for _ in range(2):
+        app.do(app.actions.checkSet, app.today(), line(app.today(), "benchPress"))
+    app.do(app.actions.takeBack, app.today(), line(app.today(), "benchPress"))
+    assert line(app.today(), "benchPress").setsDone == 0 and not app.today().workoutExists
+
+
 def testCheckWontLogThePlansOneKiloPlaceholder(app):
     """Today opens the sets instead (PF3). The action refuses too, so 1 kg never lands in your history."""
     view = app.today()

@@ -109,6 +109,15 @@ def testTheTopOfTheRangeAddsTheStepPerSide():
     assert History().log(0, bench=sets([10, 10, 11])).target(7, "bench", mon) == Target(26.25, 6)
 
 
+def testFewerSetsThanPlannedNeverStepUp():
+    """TK1.2: two of three sets at the top (a session stopped early, sets ticked one at a time) keep the target
+    at the top of the range. The next full session at the top takes the step."""
+    history = History().log(0, bench=sets([10, 10]))
+    assert history.target(7, "bench", mon) == Target(25, 10)
+    history.log(7, bench=sets([10, 10, 10]))
+    assert history.target(14, "bench", mon) == Target(26.25, 6)
+
+
 # --- ↑new and Undo (UN1.1) ----------------------------------------------------------------------
 
 def undone(history: History, n: int, exerciseId: str) -> History:

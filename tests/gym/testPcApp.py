@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 from cloudStandIn import CloudStandIn
 from driveStandIn import DriveStandIn
-from screenTestKit import draw, find, press, useLoop, visibleTexts
+from screenTestKit import draw, find, press, tickAll, useLoop, visibleTexts
 from usefulTestKit import FakeClock, exampleRow, userA
 
 from gym.pcApp import PcApp
@@ -188,7 +188,7 @@ def testAFailedWriteChangesNothingOnScreen(browser, cloud):
     signedIn(browser)
     browser.app.model.tab = "today"
     cloud.offline = True
-    press(find(browser.screen(), "Bench Press: done as targeted", "IconButton"))
+    press(find(browser.screen(), "Bench Press: set 1 of 4 done", "IconButton"))
     assert browser.app.model.today.exercises[0].status == "todo"
     assert ("No connection to the cloud right now. Nothing was changed. Try again in a moment."
             in browser.texts())
@@ -272,7 +272,7 @@ def testThePcViewsHistoryTabEditsAnyDay(browser, cloud):
 def testExportCsvSavesTheBackupAndReadableSets(browser, cloud):
     planInCloud(cloud)
     signedIn(browser)
-    press(find(browser.screen(), "Bench Press: done as targeted", "IconButton"))
+    tickAll(browser.screen, "Bench Press")
     browser.run(browser.app.exportCsv())
     name, content = browser.services.filePicker.saved
     assert name == "Talon-export-2026-10-12.zip"

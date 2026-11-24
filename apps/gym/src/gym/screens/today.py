@@ -4,18 +4,21 @@
     Monday · 2 of 5 this week
     ┌ 3 of 10 done                              30% ┐
     └ ━━━━━━━━━━━━──────────────────────────────    ┘
-    ┌ Lat pulldown                           ⋯  ( ) ┐   a card per exercise. The big circle ticks it
+    ┌ Lat pulldown                           ⋯  ( ) ┐   a card per exercise. The big circle ticks a set
     │ 3×11 @ 25 kg/side  [new]                      │   "new": a step up, tap for not today (UN1.1)
     │ "RIR 1–2. Set the seat …"                     │
     └ [2:30] [Sets]                                 ┘   2:30 starts the rest timer. Sets opens the sets
+    ┌ Seated cable row                       ⋯ (1/3)┐   part done: a ring, and what's left (TK1.1)
+    └ 1 of 3 done · 2×12 @ 45 kg left               ┘
     ┌ Chest-supported T-bar row              ⋯  (✓) ┐   done: hollow, what was logged
     └ 3×11 @ 38.75 kg                               ┘
                   [ Finish workout ]
     ┌ STEPS TODAY  14,000                        ✎  ┐
     ┌ Rest · Lat pulldown           1:47  +30 s  ×  ┐   the rest timer, kept at the bottom (RT1.1)
 
-⋯ holds the rest: skip, the weight (✎, WD2.1), the how-to (also a tap on the name, SC7.1) and not today
-(UN1.1). A rest day shows "Rest day" and what's next. No plan yet: "Import your plan in the PC view", with
+⋯ holds the rest: all sets done at once, skip, take back, the weight (✎, WD2.1), the how-to (also a tap on the
+name, SC7.1) and not today (UN1.1). Each tap on the circle is the next set as targeted (TK1.1), and done, a tap
+takes the last set back. A rest day shows "Rest day" and what's next. No plan yet: "Import your plan in the PC view", with
 "Import a file" as the fallback (G2b-2). A deload week, or one starting within a week, shows a card under
 the header (WD2.4). An exercise with no weight of yours yet shows "@ ? kg", and its tick opens the sets
 (PF3). Ticking one of today's exercises starts its rest, unless nothing's left to do.
@@ -35,6 +38,7 @@ from gym.rules.today import (
     headerParts,
     kilogramsUnit,
     restLeft,
+    setsLeftText,
     targetText,
     workoutProgress,
 )
@@ -137,11 +141,17 @@ def ExerciseRow(app, line: ExerciseLine, view=None):
     done, skipped = line.status == "done", line.status in ("skipped", "autoSkipped")
     canUndo = (line.isNew or line.declined) and line.status == "todo" and view is None
 
-    async def check(e):
-        if line.needsWeight and not done:
+    async def tick(e):
+        if line.needsWeight and not line.setsDone:
             setEditing(True)  # the plan's weight is only a placeholder: type the real one (PF3)
             return
+        await app.checkSet(line, view)
+
+    async def allDone(e):
         await app.check(line, view)
+
+    async def takeBack(e):
+        await app.takeBack(line, view)
 
     async def skip(e):
         await app.skip(line, view)
@@ -161,6 +171,8 @@ def ExerciseRow(app, line: ExerciseLine, view=None):
         shown: ft.Control = quiet(_loggedText(line), size=15)
     elif skipped:
         shown = quiet("skipped (not done when finished)" if line.status == "autoSkipped" else "skipped", size=15)
+    elif line.setsDone:
+        shown = ft.Text(setsLeftText(line), size=15, weight=ft.FontWeight.W_500)  # part done (TK1.1)
     else:
         shown = ft.Row([ft.Text(targetText(line), size=15, weight=ft.FontWeight.W_500),
                         NewMark(line, undo) if canUndo else ft.Container(visible=False)], spacing=8, wrap=True)
@@ -168,9 +180,13 @@ def ExerciseRow(app, line: ExerciseLine, view=None):
                              on_click=lambda e: setEditing(not editing)),
             ft.PopupMenuItem(content="Hide how to" if showingHowTo else "How to", icon=ft.Icons.MENU_BOOK_OUTLINED,
                              on_click=lambda e: setShowingHowTo(not showingHowTo))]
+    if line.status == "todo" and line.setsLeft and not (line.needsWeight and not line.setsDone):
+        menu.append(ft.PopupMenuItem(content="All sets done", icon=ft.Icons.DONE_ALL, on_click=allDone))
     if not done:
         menu.append(ft.PopupMenuItem(content="Unskip" if line.status == "skipped" else "Skip", icon=ft.Icons.SKIP_NEXT,
                                      on_click=skip))
+    if line.setsDone or (done and line.logged is not None):
+        menu.append(ft.PopupMenuItem(content="Take back", icon=ft.Icons.REMOVE_DONE, on_click=takeBack))
     if weighted:
         menu.append(ft.PopupMenuItem(content="Set the weight", icon=ft.Icons.EDIT_OUTLINED,
                                      on_click=lambda e: setSettingWeight(not settingWeight)))
@@ -182,11 +198,7 @@ def ExerciseRow(app, line: ExerciseLine, view=None):
         ft.PopupMenuButton(icon=ft.Icons.MORE_HORIZ, tooltip=f"{exercise.name}: more", items=menu,
                            icon_color=ft.Colors.ON_SURFACE_VARIANT, bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
                            shape=ft.RoundedRectangleBorder(radius=14)),
-        ft.IconButton(ft.Icons.CHECK_CIRCLE if done else ft.Icons.RADIO_BUTTON_UNCHECKED, icon_size=34,
-                      icon_color=ft.Colors.PRIMARY if done else ft.Colors.OUTLINE,
-                      tooltip=f"{exercise.name}: take back" if done else
-                      f"{exercise.name}: enter the weight" if line.needsWeight else f"{exercise.name}: done as targeted",
-                      on_click=check, width=tapSize + 4, height=tapSize + 4),
+        SetTick(line, tick),
     ], spacing=0, vertical_alignment=ft.CrossAxisAlignment.START)
     parts: list[ft.Control] = [top]
     if not done and not skipped:
@@ -209,6 +221,34 @@ def ExerciseRow(app, line: ExerciseLine, view=None):
                                   lambda: setSettingWeight(False)))
     return card(ft.Column(parts, spacing=10), padding=ft.Padding.only(left=16, top=10, right=6, bottom=14),
                 hollow=done or skipped)
+
+
+def SetTick(line: ExerciseLine, tick) -> ft.Control:
+    """The big circle (TK1.1): empty, a ring filling up with "1/3" as sets are ticked, then the tick. Each tap is
+    the next set. Done, a tap takes the last set back."""
+    name, done = line.exercise.name, line.status == "done"
+    size = tapSize + 4
+    if line.setsDone and line.status == "todo" and line.targetSets:
+        ring = ft.Stack([
+            ft.ProgressRing(value=line.setsDone / line.targetSets, width=30, height=30, stroke_width=3,
+                            color=ft.Colors.PRIMARY, bgcolor=track),
+            ft.Container(ft.Text(f"{line.setsDone}/{line.targetSets}", size=11, weight=ft.FontWeight.W_600),
+                         width=30, height=30, alignment=ft.Alignment.CENTER),
+        ], width=30, height=30)
+        return ft.Container(ring, width=size, height=size, alignment=ft.Alignment.CENTER, ink=True,
+                            border_radius=size / 2, on_click=tick,
+                            tooltip=f"{name}: set {line.setsDone + 1} of {line.targetSets} done")
+    if done:
+        tooltip = f"{name}: take back the last set" if line.setsDone > 1 else f"{name}: take back"
+    elif line.needsWeight and not line.setsDone:
+        tooltip = f"{name}: enter the weight"
+    elif line.setsLeft:
+        tooltip = f"{name}: set 1 of {line.targetSets} done"
+    else:
+        tooltip = f"{name}: done as targeted"
+    return ft.IconButton(ft.Icons.CHECK_CIRCLE if done else ft.Icons.RADIO_BUTTON_UNCHECKED, icon_size=34,
+                         icon_color=ft.Colors.PRIMARY if done else ft.Colors.OUTLINE, tooltip=tooltip,
+                         on_click=tick, width=size, height=size)
 
 
 def NewMark(line: ExerciseLine, undo) -> ft.Card:

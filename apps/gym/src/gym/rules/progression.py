@@ -8,7 +8,9 @@ day. sessions.py says which day a logged exercise belongs to):
 - One rep target for all sets. A new track starts at repsMin (12.1).
 - Every set reaches repsMax → the weight step (per side for a plates-per-side lift) and back to repsMin:
   Today marks it ↑new. Undo on it (UN1.1) means not today: that session's target is the last weight at
-  repsMax, judged there as usual, so topping the range again suggests the step again.
+  repsMax, judged there as usual, so topping the range again suggests the step again. The step needs all the
+  planned sets done (TK1.2): fewer, all at the top, keep the target at repsMax, so a session stopped after a
+  set or two never steps up.
   Otherwise every set hits the target → next target = the lowest set + 1 (R6a).
 - Miss = 2 or more sets under repsMin (a 1-set exercise: that set) (8.14a). Two misses in a row → back
   to the last lower weight that worked, with the reps last achieved there (R7b). After such a drop, two
@@ -424,6 +426,9 @@ class _Replay:
         track.worked[track.weightKg] = min(reps)
         stepKg = self.steps.get(exercise.exerciseId, exercise.incrementKg)
         if all(done >= repsMax for done in reps):
+            if len(sets) < (exercise.sets or 0):  # every set done topped the range, but not every set was done
+                track.reps = repsMax  # (TK1.2): the step waits for a session with all of them
+                return
             if track.dropped and track.toppedInRow + 1 < 2:  # after a drop: twice at the top first (R7c-1)
                 track.toppedInRow += 1
                 track.reps = repsMax
