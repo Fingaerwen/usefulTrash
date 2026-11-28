@@ -10,6 +10,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from gym.rules.health import StoredDay
 from gym.rules.planImport import knownExercises
 from gym.rules.progression import Training, training
 from gym.rules.stats import (
@@ -60,6 +61,7 @@ class GymState:
         self.workouts: list[LoggedWorkout] = []
         self.logs: dict[dt.date, dict[str, LoggedExercise]] = {}
         self.steps: dict[dt.date, int] = {}
+        self.stepDays: dict[dt.date, StoredDay] = {}  # each day's steps and calories, and whether from Health Connect
         self.weights: dict[dt.date, float] = {}
         self.weighTimes: dict[dt.date, dt.datetime] = {}  # when today's weigh-in was saved (AM6.3)
         self.known: dict[str, PlanExercise] = {}  # every exercise of every plan so far (R8)
@@ -79,6 +81,9 @@ class GymState:
         # which ones count (WD4.1), read the same way Ambrosia reads them (usefulShared.training.workouts)
         self.workouts = loggedWorkouts(self.rows.get("sessions", {}).values(), self.plans, self.logs)
         self.steps = {row["date"]: row["steps"] for row in self._live("dailySteps")}
+        self.stepDays = {row["date"]: StoredDay(row["steps"], row.get("activeKcal"), row.get("totalKcal"),
+                                                row.get("healthReadAt") is not None)
+                         for row in self._live("dailySteps")}  # with their calories from Health Connect (HC1.1)
         self.weights = {row["date"]: row["weightKg"] for row in self._live("bodyWeight")}
         self.weighTimes = {row["date"]: row["weighedAt"] for row in self._live("bodyWeight") if row.get("weighedAt")}
         self.weightEdits = [WeightEdit(row["exerciseId"], row["weekday"], row["weightKg"], row["fromDate"])
@@ -197,6 +202,11 @@ class GymState:
                 text = f"From {_shortDate(imported.start.effectiveDate)}: {name}"
                 later.append(PlanEntry(text, "later", imported.start.planImportId, name))
         return tuple(active + later + earlier + archived) or (PlanEntry("No plan yet.", "none"),)
+
+    def fromHealth(self, date: dt.date) -> bool:
+        """The day's steps came from Health Connect, so they aren't typed any more (HC1.3)."""
+        known = self.stepDays.get(date)
+        return known is not None and known.fromHealth
 
     def row(self, tableName: str, rowId: str) -> dict[str, Any] | None:
         """A stored row, deleted or not (edits start from it)."""

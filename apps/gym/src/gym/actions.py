@@ -13,6 +13,7 @@ import math
 from collections.abc import Callable, Sequence
 from typing import Any, Protocol
 
+from gym.rules.health import HealthDay
 from gym.rules.today import ExerciseLine, SetDone, TodayView
 from gym.state import GymState
 from gym.tables import exerciseLogs, sessions
@@ -150,9 +151,12 @@ class GymActions:
     # --- Steps (CA1.1) -----------------------------------------------------------------------
 
     async def setSteps(self, date: dt.date, steps: int | None) -> None:
-        """A day's step total: entering it again replaces it. None clears it. Steps are never a workout."""
+        """A day's step total: entering it again replaces it. None clears it. Steps are never a workout. A day
+        Health Connect filled isn't typed over: its next read would replace it anyway (HC1.3)."""
         rowId = dayRowId(dailySteps, self.userId, date=date)
         existing = self.state.row("dailySteps", rowId)
+        if self.state.fromHealth(date):
+            raise ActionRefused("This day's steps come from Health Connect, so they can't be typed.")
         if steps is None:
             if existing is not None and not existing["deleted"]:
                 await self.store.saveRows([("dailySteps", dict(existing, deleted=True))])
@@ -222,6 +226,19 @@ class GymActions:
         row = self.state.row("deloads", rowId) if rowId else None
         if row is not None and not row["deleted"]:
             await self.store.saveRows([("deloads", dict(row, deleted=True))])
+
+    async def saveHealthDays(self, days: Sequence[HealthDay], readAt: dt.datetime) -> None:
+        """Days read from Health Connect (HC1.1): their steps and calories, replacing what's there, typed steps
+        included (HC1.3), stamped with when they were read. One save for all of them."""
+        edits: list[tuple[str, dict[str, Any]]] = []
+        for day in days:
+            rowId = dayRowId(dailySteps, self.userId, date=day.date)
+            edits.append(("dailySteps", {**(self.state.row("dailySteps", rowId) or {}), "id": rowId,
+                                         "userId": self.userId, "deleted": False, "date": day.date,
+                                         "steps": day.steps, "activeKcal": day.activeKcal,
+                                         "totalKcal": day.totalKcal, "healthReadAt": readAt}))
+        if edits:
+            await self.store.saveRows(edits)
 
     # --- Building the rows -------------------------------------------------------------------
 
