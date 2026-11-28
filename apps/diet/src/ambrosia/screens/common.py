@@ -91,8 +91,11 @@ def backButton(app) -> ft.IconButton:
 
 
 def centred(parts: list[ft.Control]) -> ft.Column:
-    return ft.Column(parts, spacing=16, horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                     alignment=ft.MainAxisAlignment.CENTER, expand=True)
+    """A start screen's few parts (signing in, the first download), in the middle across and a fifth of the way down,
+    above the goddess's katana. Right in the middle, a phone's shorter screen had the blade across the sign-in
+    screen's subtitle, because she stands on the bottom edge (the phone check, 2026-10-28, AM12.6)."""
+    return ft.Column([ft.Container(expand=1), *parts, ft.Container(expand=4)], spacing=16,
+                     horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=True)
 
 
 @ft.component
