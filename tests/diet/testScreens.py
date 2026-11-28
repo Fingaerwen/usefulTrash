@@ -24,6 +24,7 @@ from screenTestKit import (
 )
 
 from ambrosia.screens.addFood import AmountScreen
+from ambrosia.screens.shake import PowderCard, ShakeScreen
 from ambrosia.screens.root import AmbrosiaApp
 from usefulTestKit import FakeClock, userA
 
@@ -71,6 +72,9 @@ def everyScreen(app, loop):
     for mode in ("search", "scan", "recent"):
         app.setAddMode(mode)
         drawn(app)
+    app.openShake()
+    drawn(app)  # the protein shake (AM12.3)
+    app.openAdd("lunch")
     loop.run_until_complete(app.search("nutella"))
     drawn(app)
     loop.run_until_complete(app.useBarcode("3017620422003"))
@@ -301,3 +305,39 @@ def testADayThePhoneCantEditOpensItsEntriesToLookAtOnly(loop):
     loop.run_until_complete(app.saveAmount("servings", 3, "lunch"))
     [log] = list(app.rows["foodLogs"].values())
     assert log["grams"] == 15 and not log["deleted"]
+
+
+def testAddingAShakeAndSettingThePowderThroughTheScreens(loop):
+    """AM12.3: the shake at the top of the add screen, its protein typed for this shake, and the powder's values set
+    with the pencil. The protein field starts again from the new value."""
+    app = makeApp()
+    press(find(drawn(app), "Add to Breakfast", "IconButton"))
+    press(find(drawn(app), "Add a protein shake"))
+    assert app.model.screen == "shake"
+    shake = draw(ShakeScreen, app, app.model)
+    assert "These are placeholders: set your powder's values with the pencil. Shakes logged before that keep them." \
+        in visibleTexts(shake)
+
+    told = []
+    powder = draw(PowderCard, app, app.model, told.append)  # its own state, kept by redrawing it alone
+    press(find(powder, "Set your powder's values", "IconButton"))
+    redraw(powder)
+    for name, value in (("Powder g", "32"), ("kcal", "125"), ("Protein g", "25.5"), ("Fat g", "1.6"),
+                        ("Carbs g", "2.9")):
+        fields = {control.label: control for control in walk(powder) if type(control).__name__ == "TextField"}
+        type_(fields[name], value)
+        redraw(powder)
+    press(find(powder, "Save the powder", "Button"))
+    assert told == [25.5] and not app.model.shakeIsPlaceholder
+
+    shake = draw(ShakeScreen, app, app.model)
+    assert "32 g · 125 kcal · P 25.5 g · F 1.6 g · C 2.9 g" in visibleTexts(shake)
+    [protein] = [control for control in walk(shake) if type(control).__name__ == "TextField"]
+    assert protein.label == "Protein in this shake (g)" and protein.value == "25.5"
+    type_(protein, "23")
+    redraw(shake)
+    assert "P 23 g · F 1.6 g · C 2.9 g" in visibleTexts(shake)
+    press(find(shake, "Add to Breakfast", "Button"))
+    assert app.model.screen == "main" and app.model.today.eaten.proteinG == pytest.approx(23, abs=0.01)
+    root = drawn(app)
+    assert "Protein shake" in visibleTexts(root) and "1 serving (32 g)" in visibleTexts(root)

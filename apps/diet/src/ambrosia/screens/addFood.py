@@ -1,6 +1,7 @@
 """Adding food (apps/diet/docs/plan.md 4a, 4b, AM2.2–AM2.4, AM5.2), as sketched in the design round:
 
     ←  Add to Lunch                 Add: Scan · Search · Recent (the PC view: search and a typed barcode)
+    ┌ Protein shake  30 g of your powder · 24 g protein · 120 kcal   + ┐   premade (AM12.3), screens/shake.py
     [ Search foods: chicken breast ]
     YOUR FOODS        Chicken, breast, boneless…   112 kcal · … · eaten 12 times   +
     GENERIC (USDA, OFFLINE)                        Chicken, breast, meat and skin, raw …
@@ -47,7 +48,7 @@ def _forWhen(app, model) -> str | None:
 def AddScreen(app, model):
     meal = mealNames.get(model.addMeal, "")
     parts: list[ft.Control] = [header(f"Add to {meal}", _forWhen(app, model), leading=backButton(app)),
-                               Notice(app, model)]
+                               Notice(app, model), shakeCard(app, model)]
     if app.mode == "phone":
         parts.append(segments([("scan", "Scan"), ("search", "Search"), ("recent", "Recent")], model.addMode,
                               app.setAddMode))
@@ -65,6 +66,18 @@ def AddScreen(app, model):
         "Type it from the pack's label, per 100 g (or 100 ml). It's saved as one of your foods."))], spacing=0))
     parts.append(faint(f"{genericCredit} {packagedCredit}", size=11))  # what their licences ask for
     return screen(parts)
+
+
+def shakeCard(app, model) -> ft.Container:
+    """The premade protein shake (AM12.3), one tap from any meal's +."""
+    values = model.shakeValues
+    return listCard([listRow(ft.Row([
+        ft.Icon(ft.Icons.LOCAL_DRINK_OUTLINED, size=24, color=ft.Colors.ON_SURFACE_VARIANT),
+        ft.Column([ft.Text("Protein shake", size=15, weight=ft.FontWeight.W_600),
+                   faint(f"{values.powderG:g} g of your powder · {values.proteinG:g} g protein · "
+                         f"{values.kcal:g} kcal")], spacing=2, expand=True),
+        ft.Icon(ft.Icons.ADD, size=20, color=ft.Colors.OUTLINE)], spacing=14),
+        on_click=lambda e: app.openShake(), tooltip="Add a protein shake")])
 
 
 def resultsCard(app, found: tuple[Found, ...]) -> ft.Container:

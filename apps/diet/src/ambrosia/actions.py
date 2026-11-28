@@ -13,6 +13,7 @@ from typing import Any, Protocol
 
 from ambrosia.rules.bulkCheck import BlockCheck
 from ambrosia.rules.foods import Food, FoodProblem, checkValues, foodRowId, gramsFor, meals, portions
+from ambrosia.rules.shake import ShakeValues, checkShake, placeholder, shakeFood, shakeFoodId, withProtein
 from ambrosia.rules.targets import BulkCheckSettings, macroGrams, targetsFromJson
 from ambrosia.state import AmbrosiaState
 from ambrosia.tables import targetChanges, water
@@ -67,9 +68,10 @@ class AmbrosiaActions:
 
     # --- Food --------------------------------------------------------------------------------
 
-    async def logFood(self, date: dt.date, meal: str, food: Food, portion: str, count: float) -> str:
-        """Logs what you ate. A food you haven't used before becomes one of your foods in the same save.
-        Returns the log's ID."""
+    async def logFood(self, date: dt.date, meal: str, food: Food, portion: str, count: float,
+                      savedAs: Food | None = None) -> str:
+        """Logs what you ate. A food you haven't used before becomes one of your foods in the same save, as savedAs
+        when the log's values differ from the food's (a shake's protein, AM12.3). Returns the log's ID."""
         if meal not in meals:
             raise ActionRefused("That isn't one of the day's meals.")
         try:
@@ -82,7 +84,7 @@ class AmbrosiaActions:
         edits: list[tuple[str, dict[str, Any]]] = []
         existing = self.state.row("foods", foodId)
         if existing is None or existing["deleted"]:
-            edits.append(("foods", foodRow(food, foodId, self.userId)))
+            edits.append(("foods", foodRow(savedAs or food, foodId, self.userId)))
         logId = newRowId()
         values = food.per100
         edits.append(("foodLogs", {
@@ -140,6 +142,44 @@ class AmbrosiaActions:
         _checkCount(portion, count)
         await self.store.saveRows([("foodLogs", dict(row, meal=meal, portion=portion, grams=grams,
                                                      portionCount=None if portion == "grams" else round(count, 2)))])
+
+    # --- The protein shake (AM12.3) ----------------------------------------------------------
+
+    def _shake(self) -> Food:
+        """Your shake as saved, or with the placeholders until you set its values."""
+        foodId = shakeFoodId(self.userId)
+        return self.state.foods.get(foodId) or shakeFood(foodId, placeholder)
+
+    async def saveShake(self, values: ShakeValues) -> None:
+        """The shake's values a serving, set in the app. Shakes already logged keep the values they had."""
+        try:
+            checkShake(values)
+            food = shakeFood(shakeFoodId(self.userId), values)
+            checkValues(food.per100)
+        except FoodProblem as problem:
+            raise ActionRefused(str(problem)) from None
+        await self.store.saveRows([("foods", foodRow(food, food.foodId, self.userId))])
+
+    async def logShake(self, date: dt.date, meal: str, proteinG: float) -> str:
+        """One shake with this flavour's protein, the rest as set. The shake itself keeps its saved values."""
+        shake = self._shake()
+        try:
+            food = withProtein(shake, proteinG)
+        except FoodProblem as problem:
+            raise ActionRefused(str(problem)) from None
+        return await self.logFood(date, meal, food, "servings", 1, savedAs=shake)
+
+    async def changeShake(self, logId: str, meal: str, proteinG: float) -> None:
+        """A logged shake's protein or meal changed. Its other values stay as they were logged."""
+        row = self.state.row("foodLogs", logId)
+        if row is None or row["deleted"]:
+            raise ActionRefused("That entry is gone.")
+        if meal not in meals:
+            raise ActionRefused("That isn't one of the day's meals.")
+        if not 0 <= proteinG <= row["grams"]:
+            raise ActionRefused(f"A shake's protein must be between 0 and the {row['grams']:g} g of powder.")
+        await self.store.saveRows([("foodLogs", dict(row, meal=meal,
+                                                     proteinG=round(proteinG * 100 / row["grams"], 2)))])
 
     async def deleteLog(self, logId: str) -> None:
         row = self.state.row("foodLogs", logId)

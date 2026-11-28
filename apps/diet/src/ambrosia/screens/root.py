@@ -14,6 +14,7 @@ from ambrosia.screens.common import (
     StartingScreen,
 )
 from ambrosia.screens.history import HistoryScreen, HistoryTab
+from ambrosia.screens.shake import ShakeScreen
 from ambrosia.screens.look import (
     appMark,
     backdrop,
@@ -44,7 +45,8 @@ def AmbrosiaApp(app, model):
     """The root: model is passed in so every change to it redraws what it touches."""
     screens = {"starting": StartingScreen, "failed": FailedScreen, "signIn": SignInScreen,
                "downloading": DownloadingScreen, "main": PcMain if app.mode == "pc" else PhoneMain,
-               "add": AddScreen, "amount": AmountScreen, "label": LabelScreen, "importTargets": ImportTargetsScreen,
+               "add": AddScreen, "amount": AmountScreen, "label": LabelScreen, "shake": ShakeScreen,
+               "importTargets": ImportTargetsScreen,
                "history": HistoryScreen, "problems": ProblemsScreen}
     body = screens.get(model.screen, StartingScreen)(app, model)
     if model.screen != "main":  # the tabs bring their own margins, so their bar can reach the edges

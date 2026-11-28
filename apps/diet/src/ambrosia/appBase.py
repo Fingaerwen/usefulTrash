@@ -13,9 +13,10 @@ from typing import Any
 import flet as ft
 
 from ambrosia.actions import ActionRefused, AmbrosiaActions
-from ambrosia.model import AppModel, Found, LabelDraft, Picked, SearchResults, appName, appVersion
+from ambrosia.model import AppModel, Found, LabelDraft, Picked, SearchResults, ShakeDraft, appName, appVersion
 from ambrosia.rules.barcodes import cleanBarcode, isShopCode, weighedPack
 from ambrosia.rules.foods import Food, LoggedFood, UsedFood, Values, searchYourFoods
+from ambrosia.rules.shake import ShakeValues, isShake, loggedProtein, placeholder, shakeFoodId, shakeValues
 from ambrosia.rules.targets import FileCheck, readTargetsFile, targetsFromJson
 from ambrosia.rules.week import mondayOf
 from ambrosia.sources.genericFoods import GenericFoods
@@ -128,6 +129,9 @@ class AmbrosiaBase:
             self.model.historyDays = tuple(self.state.historyDays(self.model.historyMonth, today))
         if self.model.historyDay is not None:
             self.model.historyDay = self._dayForHistory(self.model.historyDay.date)
+        stored = self.state.foods.get(shakeFoodId(self.userId)) if self.userId else None
+        self.model.shakeValues = shakeValues(stored)
+        self.model.shakeIsPlaceholder = self.model.shakeValues == placeholder
         self.model.bulkCheck = self.state.bulkCheckView(today, self.dismissedCheck())
         self.model.applyReady = self.syncedToday()
         self.afterRefresh()
@@ -183,10 +187,14 @@ class AmbrosiaBase:
     def back(self) -> None:
         """The back arrow: from How much or a label to adding food, from there (or anything else) to the tabs. An
         opened entry goes back to its day."""
-        opened = self.model.screen == "amount" and self.model.picked is not None and self.model.picked.logId
+        opened = ((self.model.screen == "amount" and self.model.picked is not None and self.model.picked.logId)
+                  or (self.model.screen == "shake" and self.model.shake is not None and self.model.shake.logId))
         if opened:
-            self.model.picked = None
+            self.model.picked = self.model.shake = None
             self.model.screen = "history" if self.model.historyDay is not None else "main"
+        elif self.model.screen == "shake":
+            self.model.shake = None
+            self.model.screen = "add"
         elif self.model.screen in ("amount", "label"):
             self.model.screen = "add"
         elif self.model.screen == "add" and self.model.historyDay is not None:
@@ -296,7 +304,10 @@ class AmbrosiaBase:
 
     def pick(self, food: Food, weighedG: float | None = None) -> None:
         """How much (4a): a serving if the food has one, else 100 g (or ml). A weighed pack's weight only fills in
-        when you tap Whole pack (AM11.1)."""
+        when you tap Whole pack (AM11.1). The shake, found among your foods, opens its own screen (AM12.3)."""
+        if isShake(food.foodId, self.userId):
+            self.openShake()
+            return
         portion, count = ("servings", 1.0) if food.servingG else ("grams", 100.0)
         self.model.picked = Picked(food, self.model.addMeal, self.model.addDate or self.localToday(), portion, count,
                                    weighedG or None)
@@ -316,7 +327,10 @@ class AmbrosiaBase:
             return
         count = last.portionCount if last.portion != "grams" and last.portionCount else last.grams
         date = self.model.addDate or self.localToday()
-        if await self._act(self.actions.logFood(date, self.model.addMeal, found.food, last.portion, count)):
+        work = (self.actions.logShake(date, self.model.addMeal, loggedProtein(last))
+                if isShake(found.food.foodId, self.userId) else  # the same flavour again (AM12.3)
+                self.actions.logFood(date, self.model.addMeal, found.food, last.portion, count))
+        if await self._act(work):
             self.model.screen = "history" if self.model.historyDay is not None else "main"
 
     async def saveAmount(self, portion: str, count: float, meal: str) -> None:
@@ -333,6 +347,12 @@ class AmbrosiaBase:
     def openLog(self, entry: LoggedFood, editable: bool = True) -> None:
         """Something you logged, tapped in its meal (AM12.2): How much with its amount, meal and values as they were
         logged, to change or delete. A serving or a pack keeps the size it had then, like changeLog."""
+        if isShake(entry.foodId, self.userId):
+            self.model.shake = ShakeDraft(entry.meal, entry.date, loggedProtein(entry), entry.logId, not editable,
+                                          entry)
+            self.model.notice = ""
+            self.model.screen = "shake"
+            return
         stored = self.state.foods.get(entry.foodId)
         unitGrams = entry.grams / entry.portionCount if entry.portion != "grams" and entry.portionCount else None
         servingG = unitGrams if entry.portion == "servings" else stored.servingG if stored else None
@@ -346,13 +366,49 @@ class AmbrosiaBase:
         self.model.screen = "amount"
 
     async def deleteOpened(self) -> None:
-        """Delete on an opened entry: it's gone, and its day shows again."""
-        picked = self.model.picked
-        if picked is None or picked.logId is None or picked.readOnly:
+        """Delete on an opened entry, a shake too: it's gone, and its day shows again."""
+        opened = self.model.shake if self.model.screen == "shake" else self.model.picked
+        if opened is None or opened.logId is None or opened.readOnly:
             return
-        if await self._act(self.actions.deleteLog(picked.logId)):
-            self.model.picked = None
+        if await self._act(self.actions.deleteLog(opened.logId)):
+            self.model.picked = self.model.shake = None
             self.model.screen = "history" if self.model.historyDay is not None else "main"
+
+    # --- The protein shake (AM12.3) ----------------------------------------------------------
+
+    def openShake(self) -> None:
+        """The shake on the add screen: for the meal and day being added to, its protein starting as saved."""
+        self.model.shake = ShakeDraft(self.model.addMeal, self.model.addDate or self.localToday(),
+                                      self.model.shakeValues.proteinG)
+        self.model.notice = ""
+        self.model.screen = "shake"
+
+    async def saveShakeEntry(self, proteinG: float, meal: str) -> None:
+        """Adds the shake with this flavour's protein, or saves an opened one's protein and meal."""
+        draft = self.model.shake
+        if draft is None or draft.readOnly:
+            return
+        work = (self.actions.changeShake(draft.logId, meal, proteinG) if draft.logId else
+                self.actions.logShake(draft.date, meal, proteinG))
+        if await self._act(work):
+            self.model.shake = None
+            self.model.screen = "history" if self.model.historyDay is not None else "main"
+
+    async def saveShakeValues(self, fields: dict[str, str]) -> bool:
+        """Your powder's values a serving, as typed. True once saved. A shake being added starts again from the
+        saved protein."""
+        try:
+            numbers = {key: _number(fields.get(key, ""), True) for key in ("powderG", "kcal", "proteinG", "fatG",
+                                                                           "carbsG")}
+        except ValueError:
+            self.model.notice = "Fill in the powder, kcal, protein, fat and carbs of one shake, each a number."
+            return False
+        if not await self._act(self.actions.saveShake(ShakeValues(**numbers))):
+            return False
+        draft = self.model.shake
+        if draft is not None and draft.logId is None:
+            self.model.shake = replace(draft, proteinG=self.model.shakeValues.proteinG)
+        return True
 
     def typeLabel(self, why: str, barcode: str = "", product: Product | None = None,
                   weighedG: float | None = None) -> None:

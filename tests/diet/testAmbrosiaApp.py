@@ -276,3 +276,97 @@ def testTheReadableHistoryHasEveryEntryAndEveryDay(clock):
     assert files["days.csv"].splitlines() == [
         "date,day,kcal,protein g,fat g,carbs g,target kcal,target protein g,target fat g,target carbs g,water ml",
         "2026-10-26,training,340,4,19.5,36.3,3200,160,90,440,250"]
+
+
+# --- The protein shake (AM12.3) -------------------------------------------------------------------
+
+def shakeLogs(app):
+    from ambrosia.rules.shake import shakeFoodId
+    return [row for row in live(app, "foodLogs") if row["foodId"] == shakeFoodId(userA)]
+
+
+def testAShakeIsLoggedWithItsOwnProteinAndTheShakeKeepsItsValues(clock):
+    from ambrosia.rules.shake import placeholder, shakeFoodId
+    app = makeApp(clock)
+    app.openAdd("breakfast")
+    app.openShake()
+    assert app.model.screen == "shake" and app.model.shake.proteinG == placeholder.proteinG
+    run(app.saveShakeEntry(27, "breakfast"))
+    assert app.model.screen == "main"
+    [food] = [row for row in live(app, "foods") if row["id"] == shakeFoodId(userA)]
+    assert (food["servingG"], food["proteinG"], food["kcal"]) == (30, 80, 400)  # the placeholders, per 100 g
+    [log] = shakeLogs(app)
+    assert (log["meal"], log["portion"], log["portionCount"], log["grams"]) == ("breakfast", "servings", 1, 30)
+    assert log["proteinG"] == 90 and log["kcal"] == 400 and log["name"] == "Protein shake"
+    assert app.model.today.eaten.proteinG == pytest.approx(27) and app.model.today.eaten.kcal == pytest.approx(120)
+
+
+def testSettingThePowdersValues(clock):
+    """AM12.3: the placeholders until you set yours. Shakes logged before keep what they had, like any food."""
+    from ambrosia.rules.shake import ShakeValues
+    app = makeApp(clock)
+    app.openAdd("lunch")
+    app.openShake()
+    run(app.saveShakeEntry(24, "lunch"))
+    assert app.model.shakeIsPlaceholder
+    app.openAdd("dinner")
+    app.openShake()
+    assert run(app.saveShakeValues({"powderG": "35", "kcal": "140", "proteinG": "27,5", "fatG": "2",
+                                    "carbsG": "4"}))
+    assert app.model.shakeValues == ShakeValues(35, 140, 27.5, 2, 4) and not app.model.shakeIsPlaceholder
+    assert app.model.shake.proteinG == 27.5  # the shake being added starts from the new value
+    run(app.saveShakeEntry(26, "dinner"))
+    first, second = sorted(shakeLogs(app), key=lambda row: row["meal"] != "lunch")
+    assert first["grams"] == 30 and first["kcal"] == 400  # as logged
+    assert second["grams"] == 35 and second["kcal"] == 400 and second["proteinG"] == pytest.approx(74.29)
+
+
+def testShakeValuesAndProteinThatCantBeAreRefused(clock):
+    app = makeApp(clock)
+    app.openAdd("lunch")
+    app.openShake()
+    assert not run(app.saveShakeValues({"powderG": "30", "kcal": "120", "proteinG": "28", "fatG": "2",
+                                        "carbsG": "3"}))
+    assert "can't weigh more than the 30 g of powder" in app.model.notice
+    assert not run(app.saveShakeValues({"powderG": "30", "kcal": "", "proteinG": "24", "fatG": "2", "carbsG": "3"}))
+    assert app.model.notice.startswith("Fill in the powder")
+    run(app.saveShakeEntry(31, "lunch"))
+    assert "between 0 and the 30 g of powder" in app.model.notice and shakeLogs(app) == []
+    assert app.model.screen == "shake"
+
+
+def testALoggedShakeOpensToChangeItsProteinAndMealOrDelete(clock):
+    app = makeApp(clock)
+    app.openAdd("breakfast")
+    app.openShake()
+    run(app.saveShakeEntry(22, "breakfast"))
+    [entry] = app.model.today.meals["breakfast"]
+    app.openLog(entry)
+    assert app.model.screen == "shake" and app.model.shake.proteinG == 22 and app.model.shake.logId == entry.logId
+    run(app.saveShakeEntry(25, "snacks"))
+    [log] = shakeLogs(app)
+    assert log["meal"] == "snacks" and log["proteinG"] == pytest.approx(83.33) and log["kcal"] == 400
+    app.openLog(app.model.today.meals["snacks"][0])
+    app.back()
+    assert app.model.screen == "main"
+    app.openLog(app.model.today.meals["snacks"][0])
+    run(app.deleteOpened())
+    assert shakeLogs(app) == [] and app.model.screen == "main"
+
+
+def testTheShakeFoundAmongYourFoodsOrAgainFromRecent(clock):
+    """Picked from a search it opens its own screen. Recent's one tap is the same flavour again."""
+    app = makeApp(clock)
+    app.openAdd("breakfast")
+    app.openShake()
+    run(app.saveShakeEntry(21, "breakfast"))
+    app.openAdd("lunch")
+    run(app.search("protein shake"))
+    [found] = app.model.results.yours
+    app.pickFound(found)
+    assert app.model.screen == "shake" and app.model.shake.meal == "lunch"
+    app.openAdd("dinner")
+    [again] = [item for item in app.model.recent if item.title == "Protein shake"]
+    run(app.again(again))
+    dinner = [row for row in shakeLogs(app) if row["meal"] == "dinner"]
+    assert len(dinner) == 1 and dinner[0]["proteinG"] == 70  # 21 g again

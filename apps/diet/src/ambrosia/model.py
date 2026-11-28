@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 import flet as ft
 
 from ambrosia.rules.foods import Food, LoggedFood
+from ambrosia.rules.shake import ShakeValues, placeholder
 from ambrosia.rules.targets import FileCheck
 from ambrosia.rules.today import DayView
 from ambrosia.rules.week import WeekView
@@ -54,6 +55,18 @@ class Picked:
 
 
 @dataclass(frozen=True, slots=True)
+class ShakeDraft:
+    """The protein shake screen (AM12.3): a shake being added to a meal, or one you logged, opened (AM12.2)."""
+
+    meal: str
+    date: dt.date
+    proteinG: float  # this shake's protein, to start the field with
+    logId: str | None = None  # an opened shake. None: adding one
+    readOnly: bool = False  # opened on a day the phone can't edit any more (AM5.5)
+    logged: LoggedFood | None = None  # an opened shake as logged, with its values then
+
+
+@dataclass(frozen=True, slots=True)
 class LabelDraft:
     """Typing a food from its label (AM2.3): what's known so far, as text for the fields."""
 
@@ -78,8 +91,8 @@ class LabelDraft:
 class AppModel:
     """Everything the screens show. Fields are replaced, never changed in place, so each change redraws."""
 
-    screen: str = "starting"  # starting, signIn, downloading, main, add, amount, label, importTargets, history,
-    # problems or failed
+    screen: str = "starting"  # starting, signIn, downloading, main, add, amount, label, shake, importTargets,
+    # history, problems or failed
     tab: str = "today"  # phone: today, week, targets. The PC view also history, backup
     busy: str = ""  # what's running right now ("Signing in…"). Buttons wait while it's set
     notice: str = ""  # a message shown once, like a refused entry or a sign-in problem
@@ -106,6 +119,9 @@ class AppModel:
     recent: tuple[Found, ...] = ()
     picked: Picked | None = None
     label: LabelDraft | None = None
+    shake: ShakeDraft | None = None  # the protein shake screen (AM12.3)
+    shakeValues: ShakeValues = placeholder  # your shake's values a serving, as set in the app
+    shakeIsPlaceholder: bool = True  # they're still the placeholders: the screen asks you to set yours
     # A targets file being imported (4f)
     targetsCheck: FileCheck | None = None
     targetsData: dict | None = field(default=None, repr=False)
