@@ -9,7 +9,7 @@ from usefulShared.tables import Column, exerciseLogs, plans, sessions, sharedTab
 
 # The last cloud upgrade (cloud/NNN_*.sql) this app is built for. Before each sync the app reads
 # cloudInfo and syncs only if minAppSchema <= appSchema <= schemaVersion (14b, UP1.1).
-appSchema = 3
+appSchema = 4
 
 # A weight you set in the app for one exercise on one day (WD2.1): from fromDate on, that day's target
 # starts again from it (WD3.7). Every change is its own row, so a later one never rewrites what an

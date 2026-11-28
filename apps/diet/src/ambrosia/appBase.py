@@ -63,7 +63,7 @@ class AmbrosiaBase:
 
     def startActions(self, userId: str) -> None:
         """Signed in: the actions write rows for this account."""
-        self.userId = userId
+        self.userId = self.state.userId = userId
         self.actions = AmbrosiaActions(self, self.state, userId, self.clock)
 
     # --- What each mode provides -------------------------------------------------------------
@@ -115,7 +115,7 @@ class AmbrosiaBase:
             return
         self.state.load(rows)
         today = self.localToday()
-        self.model.today = self.state.dayView(today)
+        self.model.today = self.state.dayView(today, today)
         self._refreshDays()
         monday = mondayOf(today) - dt.timedelta(weeks=self.model.weekOffset)
         self.model.week = self.state.weekView(monday, today)
@@ -145,7 +145,7 @@ class AmbrosiaBase:
         shown = self.model.dayShown
         if shown is not None and (shown == today or shown not in self.model.weekDays):
             shown = self.model.dayShown = None
-        self.model.dayView = self.state.dayView(shown, ahead=shown > today) if shown is not None else None
+        self.model.dayView = self.state.dayView(shown, today, ahead=shown > today) if shown is not None else None
 
     def showDay(self, date: dt.date) -> None:
         """A day in the strip tapped: Today shows it, to look at or edit."""
@@ -504,7 +504,7 @@ class AmbrosiaBase:
 
     def _dayForHistory(self, date: dt.date):
         editable = self.mode == "pc" or (self.localToday() - date).days < phoneEditableDays
-        return self.state.dayView(date, editable)
+        return self.state.dayView(date, self.localToday(), editable)
 
     def editDay(self, date: dt.date) -> None:
         self.model.historyDay = self._dayForHistory(date)

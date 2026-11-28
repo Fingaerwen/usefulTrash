@@ -20,7 +20,7 @@ PlanCache = MutableMapping[tuple[str, Any], Plan | None]
 def readPlan(row: Mapping[str, Any], cache: PlanCache | None = None) -> Plan | None:
     """A stored plan, read leniently (fields from newer app versions are ignored). None if it can't be read. With a
     cache, each version of a row is read once."""
-    key = (row["id"], row["updatedAt"])
+    key = (row["id"], row.get("updatedAt"))
     if cache is not None and key in cache:
         return cache[key]
     plan = checkPlan(row["planJson"], strict=False).plan

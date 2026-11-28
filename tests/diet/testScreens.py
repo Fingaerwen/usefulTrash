@@ -182,7 +182,7 @@ def testTheDayStripShowsAndEditsTheWeeksOtherDays(loop):
     root = drawn(app)
     texts = visibleTexts(root)
     assert "Wednesday" in texts and "28 Oct · in 2 days · training day" in texts
-    assert "+250 ml" not in buttons(root) and "Set the day's water" not in tooltips(root)  # not drunk yet
+    assert "+250 ml" not in buttons(root) and "Set the water you added" not in tooltips(root)  # not drunk yet
     press(find(root, "Add to Dinner", "IconButton"))
     assert app.model.screen == "add" and app.model.addDate == monday + dt.timedelta(days=2)
     loop.run_until_complete(app.useBarcode("3017620422003"))
@@ -336,8 +336,33 @@ def testAddingAShakeAndSettingThePowderThroughTheScreens(loop):
     assert protein.label == "Protein in this shake (g)" and protein.value == "25.5"
     type_(protein, "23")
     redraw(shake)
-    assert "P 23 g · F 1.6 g · C 2.9 g" in visibleTexts(shake)
+    assert "P 23 g · F 1.6 g · C 2.9 g · 600 ml water" in visibleTexts(shake)
     press(find(shake, "Add to Breakfast", "Button"))
     assert app.model.screen == "main" and app.model.today.eaten.proteinG == pytest.approx(23, abs=0.01)
     root = drawn(app)
     assert "Protein shake" in visibleTexts(root) and "1 serving (32 g)" in visibleTexts(root)
+
+
+def testTheWaterEditorOpensInTheCardsOwnRow(loop):
+    """It opened in a row below, under the tab bar (the phone check, 2026-10-28). Now the field takes the card's row
+    and the focus, so the phone keeps it in view, and the pencil sets only what you added (AM12.4)."""
+    from ambrosia.screens.today import WaterCard
+
+    app = makeApp()
+    app.openAdd("breakfast")
+    app.openShake()
+    loop.run_until_complete(app.saveShakeEntry(24, "breakfast"))
+    loop.run_until_complete(app.addWater())
+    card = draw(WaterCard, app, app.model.today)
+    assert "850 ml" in visibleTexts(card) and "600 ml from a shake" in visibleTexts(card)
+    press(find(card, "Set the water you added", "IconButton"))
+    redraw(card)
+    [box] = [control for control in walk(card) if type(control).__name__ == "TextField"]
+    assert box.label == "Water you added (ml)" and box.value == "250" and box.autofocus
+    [row] = [control for control in walk(card) if type(control).__name__ == "Row" and box in control.controls]
+    assert [label(control) for control in row.controls[2:]] == ["Save", "Cancel"]
+    assert "Plus 600 ml from a shake, added for you." in visibleTexts(card)
+    type_(box, "500")
+    redraw(card)
+    press(find(card, "Save", "Button"))
+    assert app.model.today.waterMl == 1100 and app.state.water[app.localToday()] == 500

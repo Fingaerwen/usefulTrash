@@ -370,3 +370,77 @@ def testTheShakeFoundAmongYourFoodsOrAgainFromRecent(clock):
     run(app.again(again))
     dinner = [row for row in shakeLogs(app) if row["meal"] == "dinner"]
     assert len(dinner) == 1 and dinner[0]["proteinG"] == 70  # 21 g again
+
+
+# --- Water that adds itself (AM12.4, AM12.5) ------------------------------------------------------
+
+def testEachShakeAddsItsWaterAndADeletedOneTakesItBack(clock):
+    app = makeApp(clock)
+    for meal in ("breakfast", "snacks"):
+        app.openAdd(meal)
+        app.openShake()
+        run(app.saveShakeEntry(24, meal))
+    water = app.model.today.water
+    assert (water.byHandMl, water.shakes, water.totalMl) == (0, 2, 1200) and app.model.today.waterMl == 1200
+    run(app.addWater())
+    assert app.model.today.waterMl == 1450 and app.state.water[app.localToday()] == 250  # only what you added
+    app.openLog(app.model.today.meals["snacks"][0])
+    run(app.deleteOpened())
+    assert app.model.today.waterMl == 850
+    run(app.setWater(app.localToday(), 100))  # the pencil sets what you added, the shake's stays
+    assert app.model.today.waterMl == 700 and app.state.water[app.localToday()] == 100
+
+
+def testAFinishedTalonWorkoutThatCountsAdds13Litres(clock):
+    from ambrosiaStandIn import talonRows, talonWorkout
+    today = clock().date()
+    app = makeApp(clock, rows=talonRows(talonWorkout(today)))
+    assert app.model.today.water.workout and app.model.today.waterMl == 1300
+
+
+def testNotBeforeFinishOrMidnight(clock):
+    """Past 70% Talon counts it at once, but the water waits for Finish or the day being over (AM12.4)."""
+    from ambrosiaStandIn import talonRows, talonWorkout
+    today = clock().date()
+    app = makeApp(clock, rows=talonRows(talonWorkout(today, finished=False)))
+    assert app.model.today.waterMl == 0
+    clock.advance(days=1)
+    app.refresh()
+    assert app.state.dayWater(today, clock().date()).totalMl == 1300
+
+
+def testAWorkoutThatDoesntCountAddsNothing(clock):
+    """More than 30% skipped or not done (WD4.1): finished or not, no water."""
+    from ambrosiaStandIn import talonRows, talonWorkout
+    today = clock().date()
+    app = makeApp(clock, rows=talonRows(talonWorkout(today, done=6)))
+    assert app.model.today.waterMl == 0
+    app = makeApp(clock, rows=talonRows(talonWorkout(today, done=7)))  # exactly 30%: it counts
+    assert app.model.today.waterMl == 1300
+
+
+def testAWorkoutTakenAwayTakesItsWater(clock):
+    """AM12.5: its last entry taken back or Delete this workout in Talon marks it deleted, and the 1.3 L goes."""
+    from ambrosiaStandIn import talonRows, talonWorkout
+    today = clock().date()
+    app = makeApp(clock, rows=talonRows(talonWorkout(today)))
+    for table, rows in talonWorkout(today, deleted=True).items():  # Talon's change, as the next sync brings it
+        for row in rows:
+            app.rows[table][row["id"]] = row
+    app.refresh()
+    assert app.model.today.waterMl == 0
+
+
+def testTheReadableHistoryHasEachDaysWholeWater(clock):
+    """days.csv's water is the day's total, shakes and Talon's workout included, and a day with only a workout is
+    there too."""
+    from ambrosiaStandIn import talonRows, talonWorkout
+    today = clock().date()
+    app = makeApp(clock, rows=talonRows(talonWorkout(today - dt.timedelta(days=1))))
+    app.openAdd("breakfast")
+    app.openShake()
+    run(app.saveShakeEntry(24, "breakfast"))
+    run(app.addWater())
+    days = app.state.historyFiles(today)["days.csv"].splitlines()
+    assert days[1].startswith(f"{today - dt.timedelta(days=1)},") and days[1].endswith(",1300")
+    assert days[2].startswith(f"{today},") and days[2].endswith(",850")

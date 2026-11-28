@@ -1,5 +1,6 @@
 """The facts, worked out from every row (plan 3b, F10.1): your foods, what you ate, water, the targets files and
-the changes applied to them, and from Talon its plans, the days you trained and your weigh-ins. Everything the
+the changes applied to them, and from Talon its plans, the days you trained, its workouts (read with Talon's own
+rules, usefulShared.training) and your weigh-ins. Everything the
 screens show is recalculated from these. Nothing derived is stored.
 
 Rows are plain dicts with the columns of apps/diet/docs/plan.md 4e (and Talon's own for its tables).
@@ -26,8 +27,11 @@ from ambrosia.rules.targets import (
     targetsOn,
     trainedDays,
 )
-from ambrosia.rules.today import DayView
+from ambrosia.rules.shake import isShake
+from ambrosia.rules.today import DayView, DayWater
 from ambrosia.rules.week import WeekView, weekView, weighIns
+from usefulShared.training.schedule import LoggedWorkout, isFinished
+from usefulShared.training.workouts import importedPlans, loggedExercises, loggedWorkouts
 
 
 
@@ -75,7 +79,10 @@ class AmbrosiaState:
         self.changes: list[AppliedChange] = []
         self.plans = []
         self.trained: set[dt.date] = set()
+        self.workouts: list[LoggedWorkout] = []  # Talon's, each with whether it counts (WD4.1), for water (AM12.4)
         self.weights: dict[dt.date, float] = {}
+        self.userId = ""  # whose rows these are, set when signed in: the shake's ID comes from it (AM12.3)
+        self._planCache: dict = {}  # Talon's plans read once per version
 
     def load(self, rowsByTable: Mapping[str, Iterable[dict[str, Any]]]) -> None:
         """Takes in every row of every table and works out the facts again."""
@@ -87,6 +94,9 @@ class AmbrosiaState:
         self.changes = changesFromRows(self._live("targetChanges"))
         self.plans = [plan for plan in (planWeekFromRow(row) for row in self._live("plans")) if plan is not None]
         self.trained = trainedDays(self._live("exerciseLogs"))
+        talonPlans, _ = importedPlans(self.rows.get("plans", {}).values(), self._planCache)
+        self.workouts = loggedWorkouts(self.rows.get("sessions", {}).values(), talonPlans,
+                                       loggedExercises(self.rows.get("exerciseLogs", {}).values()))
         self.weights = weighIns(self._live("bodyWeight"))
 
     def _live(self, table: str) -> list[dict[str, Any]]:
@@ -107,12 +117,22 @@ class AmbrosiaState:
         found = importInEffect(self.imports, date)
         return found.targets.waterMl if found else None
 
-    def dayView(self, date: dt.date, editable: bool = True, ahead: bool = False) -> DayView:
+    def dayWater(self, date: dt.date, today: dt.date) -> DayWater:
+        """A day's water (AM12.4): what you added, the shakes that day, and Talon's workout once it's finished
+        (Finish tapped, or the day over) and counts (WD4.1)."""
+        shakes = sum(1 for log in self.logs if log.date == date and isShake(log.foodId, self.userId))
+        workout = any(workout.date == date and workout.counts and isFinished(workout, today)
+                      for workout in self.workouts)
+        return DayWater(self.water.get(date, 0), shakes, workout)
+
+    def dayView(self, date: dt.date, today: dt.date, editable: bool = True, ahead: bool = False) -> DayView:
         kind = self.dayKind(date)
         targets = self.targetsFor(date, kind)
         later = targets is None and any(found.effectiveDate > date for found in self.imports)
+        water = self.dayWater(date, today)
         return DayView(date, kind, targets, dayTotal(self.logs, date), byMeal(self.logs, date),
-                       self.water.get(date, 0), self.waterTarget(date), editable, later, ahead)
+                       waterMl=water.totalMl, waterTargetMl=self.waterTarget(date), editable=editable,
+                       targetsLater=later, ahead=ahead, water=water)
 
     def weekView(self, monday: dt.date, today: dt.date) -> WeekView:
         return weekView(monday, today, self.logs, self.dayKind, self.targetsFor, self.weights)
@@ -153,7 +173,10 @@ class AmbrosiaState:
 
     def historyFiles(self, today: dt.date) -> dict[str, str]:
         """The readable history for the backups and Export CSV (AM5.6): food.csv and days.csv."""
-        return readableFiles(self.logs, self.water, self.dayKind, self.targetsFor, today)
+        dates = (set(self.water) | {log.date for log in self.logs if isShake(log.foodId, self.userId)}
+                 | {workout.date for workout in self.workouts})
+        water = {date: self.dayWater(date, today).totalMl for date in dates}  # with what adds itself (AM12.4)
+        return readableFiles(self.logs, water, self.dayKind, self.targetsFor, today)
 
     def historyDays(self, month: dt.date, today: dt.date) -> list[HistoryDay]:
         """A month's days up to today, newest first, with what was eaten (AM5.5)."""

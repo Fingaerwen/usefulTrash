@@ -26,7 +26,7 @@ under its own date. Like Talon's steps, water can't be added to a day ahead, sin
 import flet as ft
 
 from ambrosia.rules.foods import LoggedFood, mealNames, meals, total
-from ambrosia.rules.today import DayView
+from ambrosia.rules.today import DayView, DayWater
 from ambrosia.screens.bulkCheck import blockLine, ruleText, suggestionTitle
 from ambrosia.screens.common import Banners, Menu, Notice, dayText, dayWords, kcalText, months, weekdays
 from ambrosia.screens.look import (
@@ -187,12 +187,27 @@ def LogRow(app, entry: LoggedFood, editable: bool):
                    padding=ft.Padding.only(left=16, right=10, top=10, bottom=10))
 
 
+def waterSources(water: DayWater) -> str:
+    """What adds itself to a day's water (AM12.4): "1,300 ml from your Talon workout · 600 ml from a shake"."""
+    parts = []
+    if water.workout:
+        parts.append(f"{water.workoutMl:,} ml from your Talon workout")
+    if water.shakes:
+        parts.append(f"{water.shakesMl:,} ml from " + ("a shake" if water.shakes == 1 else f"{water.shakes} shakes"))
+    return " · ".join(parts)
+
+
 @ft.component
 def WaterCard(app, day: DayView):
-    """The day's water (AM2.6): +250 ml a tap. The pencil sets the total, to fix a mistake."""
+    """The day's water (AM2.6): +250 ml a tap, and the pencil sets what you added, to fix a mistake. The pencil's
+    field opens in the card's own row, where you tapped, and takes the focus, so the phone keeps it in view above
+    the keyboard (it used to open in a row below, under the tab bar). Shakes and Talon's finished workout add their
+    water by themselves (AM12.4), shown under the total."""
     setting, setSetting = ft.use_state(False)
     typed, setTyped = ft.use_state("")
+    water = day.water or DayWater(day.waterMl)
     of = f" of {day.waterTargetMl:,} ml" if day.waterTargetMl else ""
+    sources = waterSources(water)
 
     async def add(e):
         await app.addWater(day.date)
@@ -207,15 +222,21 @@ def WaterCard(app, day: DayView):
         setSetting(False)
 
     def edit(e):
-        setSetting(not setting)
-        setTyped(str(day.waterMl))
+        setTyped(str(water.byHandMl))
+        setSetting(True)
 
-    actions = [iconButton(ft.Icons.EDIT_OUTLINED, "Set the day's water", edit), softButton("+250 ml", add)] \
-        if day.editable and not day.ahead else []
-    parts: list[ft.Control] = [ft.Row([
-        ft.Icon(ft.Icons.WATER_DROP_OUTLINED, color=ft.Colors.ON_SURFACE_VARIANT),
-        ft.Column([heading("Water"), quiet(f"{day.waterMl:,} ml{of}")], spacing=0, expand=True), *actions])]
+    icon = ft.Icon(ft.Icons.WATER_DROP_OUTLINED, color=ft.Colors.ON_SURFACE_VARIANT)
     if setting:
-        parts.append(ft.Row([field("Water today (ml)", typed, lambda e: setTyped(e.control.value), expand=True),
-                             mainButton("Save", save)], spacing=8))
-    return card(ft.Column(parts, spacing=10), padding=ft.Padding.only(left=16, right=12, top=10, bottom=10))
+        box = field("Water you added (ml)", typed, lambda e: setTyped(e.control.value), expand=True)
+        box.autofocus, box.on_submit = True, save
+        parts: list[ft.Control] = [
+            ft.Row([icon, box, mainButton("Save", save),
+                    iconButton(ft.Icons.CLOSE, "Cancel", lambda e: setSetting(False))], spacing=8),
+            faint(f"Plus {sources}, added for you.") if sources else ft.Container(visible=False)]
+    else:
+        actions = [iconButton(ft.Icons.EDIT_OUTLINED, "Set the water you added", edit),
+                   softButton("+250 ml", add)] if day.editable and not day.ahead else []
+        parts = [ft.Row([icon, ft.Column([heading("Water"), quiet(f"{water.totalMl:,} ml{of}")], spacing=0,
+                                         expand=True), *actions]),
+                 faint(sources) if sources else ft.Container(visible=False)]
+    return card(ft.Column(parts, spacing=6), padding=ft.Padding.only(left=16, right=12, top=10, bottom=10))

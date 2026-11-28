@@ -1,7 +1,7 @@
 """The phone database's numbered steps (plan 14c): step N brings the phone's database to schema N, matching cloud
-upgrade N. Ambrosia's database holds its own tables and copies of the three Talon tables it reads, so each step
-creates what that upgrade added of those (step 2 is empty: upgrade 002 added only Talon's settings). A new phone
-runs all three at once.
+upgrade N. Ambrosia's database holds its own tables and copies of the four Talon tables it reads, so each step
+creates what that upgrade added of those (step 2 is empty: upgrade 002 added only Talon's settings), or what
+Ambrosia started reading then (step 4: Talon's workouts, AM12.4). A new phone runs all four at once.
 
 Frozen once released: a later change is a new step, never an edit to an old one, because phones that already ran
 a step never run it again. A test checks that running every step builds exactly the tables in ambrosia/tables.py,
@@ -81,5 +81,14 @@ phoneSteps: tuple[tuple[str, ...], ...] = (
             "deleted" integer not null, "cloudUpdatedAt" text,
             "madeAt" text not null, "fileName" text not null, "driveFileId" text, "sizeBytes" integer,
             "schemaVersion" integer not null, "madeBy" text not null)""",
+    ),
+    # Step 4 (cloud 004): a copy of Talon's workouts, for the water a finished one adds (AM12.4). The next fetch
+    # brings them all, since the table has no fetch cursor yet.
+    (
+        """create table "sessions" (
+            "id" text not null primary key, "userId" text not null, "updatedAt" text not null,
+            "deleted" integer not null, "cloudUpdatedAt" text,
+            "date" text not null, "planImportId" text not null, "stepIndex" integer not null,
+            "finishedAt" text)""",
     ),
 )

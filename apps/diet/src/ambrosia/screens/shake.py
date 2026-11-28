@@ -2,7 +2,7 @@
 
     ←  Protein shake                              30 g of your powder
     [ Protein in this shake (g): 24 ]             typed for each shake, flavours differ
-    THIS ADDS 120 kcal · P 24 g · F 1.5 g · C 3 g
+    THIS ADDS 120 kcal · P 24 g · F 1.5 g · C 3 g · 600 ml water   (the water adds itself, AM12.4)
     Breakfast  Lunch  Dinner  Snacks              [ + Add to Lunch ]
     ┌ YOUR POWDER, ONE SHAKE                   ✎ ┐   its values a serving, placeholders until you set them
     └ 30 g · 120 kcal · P 24 g · F 1.5 g · C 3 g ┘
@@ -14,6 +14,7 @@ on a day the phone can't edit any more. Its other values stay as they were logge
 import flet as ft
 
 from ambrosia.rules.foods import mealNames, meals
+from ambrosia.rules.today import shakeWaterMl
 from ambrosia.screens.common import Notice, backButton, dayText
 from ambrosia.screens.look import (
     card,
@@ -57,8 +58,8 @@ def ShakeScreen(app, model):
         if not 0 <= proteinG <= powderG:
             raise ValueError
         tile = statTile("This entry" if opened else "This adds", f"{kcal:,.0f} kcal",
-                        f"P {_number(proteinG)} g · F {_number(fatG)} g · C {_number(carbsG)} g", expand=False,
-                        size=26)
+                        f"P {_number(proteinG)} g · F {_number(fatG)} g · C {_number(carbsG)} g · "
+                        f"{shakeWaterMl} ml water", expand=False, size=26)
     except ValueError:
         proteinG = None
         tile = faint(f"Type the protein in grams, at most the {_number(powderG)} g of powder.")

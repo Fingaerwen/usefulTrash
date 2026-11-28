@@ -20,6 +20,7 @@ from ambrosia.pcApp import PcApp
 from ambrosia.rules.foods import Food, Values
 from ambrosia.screens.root import AmbrosiaApp
 from ambrosia.sources.openFoodFacts import OpenFoodFacts
+from ambrosia.tables import appSchema
 from usefulShared.backup.backupFile import readBackupZip
 from usefulShared.backup.driveApi import DriveApi
 from usefulShared.platform.appLog import AppLog
@@ -85,12 +86,12 @@ def testAFailedWriteChangesNothingAndSaysWhy(cloud, clock, loop):
     assert app.state.water == {} and "water" not in cloud.rows
 
 
-def testACloudWithoutUpgrade003SaysSo(cloud, clock, loop):
-    cloud.schemaVersion = 2
+def testACloudWithoutTheUpgradeItNeedsSaysSo(cloud, clock, loop):
+    cloud.schemaVersion = appSchema - 1
     app = PcApp(config, PhoneServices(userA), AppLog(None, clock), clock, lambda: clock().date(), cloud=cloud)
     loop.run_until_complete(app.start())
     press(find(draw(AmbrosiaApp, app, app.model), "Sign in with Google", "Button"))
-    assert app.model.screen == "downloading" and "needs cloud upgrade 003" in app.model.notice
+    assert app.model.screen == "downloading" and f"needs cloud upgrade {appSchema:03d}" in app.model.notice
 
 
 def testApplyNeedsTodaysRows(cloud, clock, loop):

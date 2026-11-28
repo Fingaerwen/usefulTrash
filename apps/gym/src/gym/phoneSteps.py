@@ -74,4 +74,7 @@ phoneSteps: tuple[tuple[str, ...], ...] = (
     (
         """alter table "bodyWeight" add column "weighedAt" text""",
     ),
+    # Step 4 (cloud 004): nothing. That upgrade only gave Ambrosia a number for its copy of Talon's workouts
+    # (apps/diet/docs/plan.md AM12.4).
+    (),
 )

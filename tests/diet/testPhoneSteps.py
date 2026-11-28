@@ -16,7 +16,7 @@ def testOneStepPerCloudUpgrade():
 
 def testStepsBuildExactlyTheAppTables(tmp_path):
     path = str(tmp_path / "ambrosia.sqlite3")
-    assert runPhoneSteps(path, phoneSteps) == 3
+    assert runPhoneSteps(path, phoneSteps) == 4
     db = sqlite3.connect(path)
     storedAs = {"uuid": "TEXT", "text": "TEXT", "date": "TEXT", "timestamp with time zone": "TEXT", "jsonb": "TEXT",
                 "integer": "INTEGER", "bigint": "INTEGER", "boolean": "INTEGER"}

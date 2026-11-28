@@ -225,3 +225,52 @@ class PcServices(PhoneServices):
         super().__init__(account)
         self.prefs = FakePrefs()
         self.urlLauncher = FakeGoogleWindow(self.prefs)
+
+
+# --- Talon's workouts, for the water a finished one adds (AM12.4) ----------------------------------
+
+talonPlanId = "33333333-3333-3333-3333-333333333333"
+_machine = {"equipment": "machine", "sets": 3, "repsMin": 8, "repsMax": 12, "weightKg": 1, "incrementKg": 2.5}
+talonPlanJson = {"planId": "everyDay", "name": "Every day", "version": 1, "weeklyTarget": 5, "week": [
+    {"day": day, "title": "Ten", "exercises": [dict(_machine, exerciseId=f"ten{number}", name=f"Ten {number}")
+                                               for number in range(10)]}
+    for day in ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")]}
+
+
+def talonWorkout(date: dt.date, finished: bool = True, done: int = 10, deleted: bool = False) -> dict[str, list]:
+    """Talon's rows for one workout: the plan (ten exercises every day), the day's session, `done` of its ten
+    exercises done and the rest skipped. Merge several with talonRows."""
+    from usefulTestKit import exampleRow, userA
+
+    from usefulShared.tables import dayRowId, exerciseLogs, sessions
+
+    plan = exampleRow("plans", id=talonPlanId, effectiveDate=dt.date(2026, 10, 12), startStep=0,
+                      importedAt=dt.datetime(2026, 10, 12, 8, tzinfo=dt.UTC), planJson=talonPlanJson)
+    session = exampleRow("sessions", id=dayRowId(sessions, userA, date=date), date=date, planImportId=talonPlanId,
+                         stepIndex=date.weekday(), deleted=deleted,
+                         finishedAt=dt.datetime.combine(date, dt.time(18), dt.UTC) if finished else None)
+    logs = [exampleRow("exerciseLogs", id=dayRowId(exerciseLogs, userA, date=date, exerciseId=f"ten{number}"),
+                       date=date, exerciseId=f"ten{number}", skipped=number >= done, minutes=None,
+                       sets=[] if number >= done else [{"reps": 8, "weightKg": 40}] * 3, declinedSuggestion=False,
+                       deleted=deleted)
+            for number in range(10)]
+    return {"plans": [plan], "sessions": [session], "exerciseLogs": logs}
+
+
+def talonRows(*workouts: dict[str, list]) -> dict[str, list]:
+    rows: dict[str, dict[str, dict]] = {}
+    for workout in workouts:
+        for table, tableRows in workout.items():
+            for row in tableRows:
+                rows.setdefault(table, {})[row["id"]] = row
+    return {table: list(byId.values()) for table, byId in rows.items()}
+
+
+def workoutInCloud(cloud, date: dt.date, **options) -> None:
+    """A workout Talon synced to the cloud stand-in."""
+    from ambrosia.tables import tablesByName
+    from usefulShared.tables import toCloud
+
+    for table, rows in talonWorkout(date, **options).items():
+        for row in rows:
+            cloud.storeDirectly(table, toCloud(tablesByName[table], row))

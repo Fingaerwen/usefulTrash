@@ -17,10 +17,12 @@ from driveStandIn import DriveStandIn
 from screenTestKit import draw, find, press, useLoop, visibleTexts
 from usefulTestKit import FakeClock, userA
 
+from ambrosia.model import appVersion
 from ambrosia.phoneApp import PhoneApp
 from ambrosia.rules.foods import Food, Values
 from ambrosia.screens.root import AmbrosiaApp
 from ambrosia.sources.openFoodFacts import OpenFoodFacts
+from ambrosia.tables import appSchema
 from usefulShared.backup.backupFile import readBackupZip
 from usefulShared.backup.driveApi import DriveApi
 from usefulShared.platform.appLog import AppLog
@@ -134,12 +136,13 @@ def testARestartKeepsYouSignedIn(phone, cloud):
     app.syncLoop.stop()
 
 
-def testACloudWithoutUpgrade003SaysSo(phone, cloud):
-    """Until you paste upgrade 003, the first download stops and says what's missing (UP1.1)."""
-    cloud.schemaVersion = 2
+def testACloudWithoutTheUpgradeItNeedsSaysSo(phone, cloud):
+    """Until you paste the upgrade the app is built for (004 for Ambrosia 0.2, AM12.4), the first download stops
+    and says what's missing (UP1.1)."""
+    cloud.schemaVersion = appSchema - 1
     press(find(draw(AmbrosiaApp, phone.app, phone.app.model), "Sign in with Google", "Button"))
     assert phone.app.model.screen == "downloading"
-    assert "needs cloud upgrade 003" in phone.app.model.notice
+    assert f"needs cloud upgrade {appSchema:03d}" in phone.app.model.notice
 
 
 # --- Saving and syncing -------------------------------------------------------------------------
@@ -254,7 +257,7 @@ def testTheFirstSyncOfAStartBacksUpToAmbrosiasOwnFolder(phone, cloud):
     assert phone.drive.folders() == ["Ambrosia backups"]
     [backup] = phone.drive.zips("Ambrosia-backup-")
     manifest, tables = readBackupZip(backup["content"])
-    assert manifest["appName"] == "Ambrosia" and manifest["schemaVersion"] == 3 and manifest["madeBy"] == "phone"
+    assert manifest["appName"] == "Ambrosia" and manifest["schemaVersion"] == appSchema and manifest["madeBy"] == "phone"
     assert set(tables) == {"foods", "foodLogs", "water", "dietTargets", "targetChanges", "dietBackups"}
     assert len(tables["foodLogs"]) == 1 and len(tables["dietTargets"]) == 1
     [history] = phone.drive.history("Ambrosia-history.zip")
@@ -291,7 +294,7 @@ def testProblemsSaysTheVersionSchemaAndSync(phone, cloud):
     phone.run(phone.app.syncNow())
     phone.app.openProblems()
     lines = phone.app.model.problems
-    assert lines[0].startswith("Ambrosia 0.1-alpha · schema 3")
+    assert lines[0].startswith(f"Ambrosia {appVersion} · schema {appSchema}")
     assert lines[1].startswith("Sync: up to date") and "Last backup: 5 Dec 2026 (phone) · 1 day ago" in lines
     phone.run(phone.app.copyProblems())
     assert phone.services.clipboard.text.startswith("Ambrosia 0.1-alpha")
@@ -305,3 +308,49 @@ def testThePhonesCodeNeedsNothingFromTalon():
                             capture_output=True, text=True, timeout=60,
                             env={"PYTHONPATH": f"{repoRoot / 'apps/diet/src'}:{repoRoot / 'shared/src'}"})
     assert result.stdout.strip() == "ok", result.stderr[-2000:]
+
+
+# --- Talon's workouts and the water they add (AM12.4) -----------------------------------------------
+
+def testTalonsWorkoutsComeDownAndAddTheirWaterButNeverGoUp(phone, cloud):
+    from ambrosiaStandIn import workoutInCloud
+    workoutInCloud(cloud, sixthDec)
+    signedIn(phone)
+    app = phone.app
+    assert app.model.today.waterMl == 1300 and "1,300 ml from your Talon workout" in phone.texts()
+    phone.run(app.addWater())
+    phone.run(app.syncNow())
+    sent = {call.split()[1] for call in cloud.calls if call.startswith("upsert")}
+    assert sent == {"water"} and cloud.rows["water"] and list(cloud.rows["water"].values())[0]["ml"] == 250
+
+
+def testAPhoneOnAmbrosia01GetsTalonsWorkoutsAfterTheUpdate(phone, cloud, tmp_path):
+    """Step 4 adds the copy of Talon's workouts to a phone database from 0.1 (schema 3), keeping what's there, and
+    the next sync brings every workout, since that table has never been fetched."""
+    import sqlite3
+
+    from ambrosiaStandIn import workoutInCloud
+
+    from ambrosia.phoneApp import databaseName
+    from ambrosia.phoneSteps import phoneSteps
+    from usefulShared.store.phoneStore import runPhoneSteps
+
+    signedIn(phone)
+    phone.run(phone.app.addWater())
+    phone.run(phone.app.syncNow())
+    phone.close()
+    path = str(tmp_path / databaseName)
+    database = sqlite3.connect(path)
+    database.execute('drop table "sessions"')  # as 0.1 left it: three steps, no copy of Talon's workouts
+    database.execute("delete from \"syncState\" where \"tableName\" = 'sessions'")
+    database.execute("pragma user_version = 3")
+    database.commit()
+    database.close()
+    workoutInCloud(cloud, sixthDec)
+    phone.loop = asyncio.new_event_loop()
+    useLoop(phone.loop)
+    app = phone.restart()
+    assert runPhoneSteps(path, phoneSteps) == 0  # step 4 ran at the start
+    app.syncLoop.stop()
+    phone.run(app.syncNow())
+    assert app.model.today.waterMl == 1550 and app.state.water[sixthDec] == 250

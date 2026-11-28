@@ -184,6 +184,7 @@ def testRunningAnUpgradeTwiceIsRefused(database):
     assert database.ok('select count(*) from public."cloudInfo";') == ["1"]
     database.fails(cloudScripts[1].read_text(encoding="utf-8"), "has already been run")
     database.fails(cloudScripts[2].read_text(encoding="utf-8"), "has already been run")
+    database.fails(cloudScripts[3].read_text(encoding="utf-8"), "has already been run")
 
 
 def testUpgrade002NeedsUpgrade001First(emptyDatabase):
@@ -195,6 +196,17 @@ def testUpgrade003RunsOnlyRightAfter002(emptyDatabase):
     emptyDatabase.ok(cloudScripts[0].read_text(encoding="utf-8"))
     emptyDatabase.fails(cloudScripts[2].read_text(encoding="utf-8"), "003 needs 002")
     assert emptyDatabase.ok("""select to_regclass('public."foods"') is null;""") == ["t"]  # nothing changed
+
+
+def testUpgrade004RunsOnlyRightAfter003(emptyDatabase):
+    """AM12.4: it only raises the number, and only on a cloud at 003."""
+    for script in cloudScripts[:2]:
+        emptyDatabase.ok(script.read_text(encoding="utf-8"))
+    emptyDatabase.fails(cloudScripts[3].read_text(encoding="utf-8"), "004 needs 003")
+    assert emptyDatabase.ok('select "schemaVersion" from public."cloudInfo";') == ["2"]  # nothing changed
+    emptyDatabase.ok(cloudScripts[2].read_text(encoding="utf-8"))
+    assert emptyDatabase.ok(cloudScripts[3].read_text(encoding="utf-8"))[-1] == "upgrade 004 done"
+    assert emptyDatabase.ok('select "schemaVersion", "minAppSchema" from public."cloudInfo";') == ["4|1"]
 
 
 def testTheUpgradesLetOlderAppsKeepSyncing(database):

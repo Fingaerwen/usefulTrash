@@ -1,16 +1,17 @@
 """Ambrosia's tables (apps/diet/docs/plan.md 4e) and the cloud upgrade it's built for (plan 14c).
 
-Its own six tables, and three of Talon's it reads but never writes: the plans (training and rest days, AM3.2),
-the exercises you logged (whether you trained) and your weigh-ins (the bulk check). A test runs the cloud scripts
+Its own six tables, and four of Talon's it reads but never writes: the plans (training and rest days, AM3.2),
+the workouts and the exercises you logged (whether you trained, and the water a finished workout adds, AM12.4)
+and your weigh-ins (the bulk check). A test runs the cloud scripts
 in a local Postgres and checks these definitions match the real tables exactly. Rows are plain dicts, with the
 values usefulShared.tables describes.
 """
 
-from usefulShared.tables import Column, Table, backups, bodyWeight, exerciseLogs, moment, plans, table
+from usefulShared.tables import Column, Table, backups, bodyWeight, exerciseLogs, moment, plans, sessions, table
 
 # The last cloud upgrade (cloud/NNN_*.sql) this app is built for. Before each sync the app reads cloudInfo and
 # syncs only if minAppSchema <= appSchema <= schemaVersion (plan 14b, UP1.1).
-appSchema = 3
+appSchema = 4
 
 # A food you've used: your copy, so Recent works offline and a label typed once is found again (4d). Its ID
 # comes from its barcode or its USDA number, so the phone and the PC view saving it make one row.
@@ -86,6 +87,6 @@ targetChanges = table(
 dietBackups = Table("dietBackups", backups.columns)
 
 dietTables = (foods, foodLogs, water, dietTargets, targetChanges, dietBackups)
-talonTables = (plans, exerciseLogs, bodyWeight)  # read, never written (4e)
+talonTables = (plans, sessions, exerciseLogs, bodyWeight)  # read, never written (4e, AM12.4)
 appTables = dietTables + talonTables  # everything this app syncs
 tablesByName = {table.name: table for table in appTables}

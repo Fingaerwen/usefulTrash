@@ -67,7 +67,7 @@ def testStep3KeepsAPhonesDataAndWhatsWaiting(path, clock):
                                                                   "2026-10-16T07:05:00.000000+00:00"))
     db.execute("insert into \"meta\" values ('userId', ?)", (userA,))
     db.close()
-    assert runPhoneSteps(path, phoneSteps) == 1
+    assert runPhoneSteps(path, phoneSteps) == len(phoneSteps) - 2  # step 3, and the steps after it
     store = PhoneStore(path, appTables, clock)
     row = store.row("bodyWeight", "be055b0d-fdfa-5290-8a6f-eb9d25bde5f3")
     assert (row["weightKg"], row["weighedAt"]) == (81.2, None)
