@@ -8,7 +8,7 @@
 
     ←  Chicken, breast, boneless, skinless, raw    How much: Grams · Servings · Part of the pack
     [ 200 ]  100 g  150 g  200 g  250 g            THIS ADDS 224 kcal · P 45 g · F 4 g · C 0 g
-    Breakfast  Lunch  Dinner  Snacks               [ + Add to Lunch ]
+    Breakfast  Lunch  Dinner  Snacks               [ + Add to Lunch ]   (something logged: [ Save ] [ Delete ])
 
     ←  Type it from the label                     name, brand, per 100 g (or ml), serving and pack size
 """
@@ -150,7 +150,8 @@ def BarcodePart(app):
 @ft.component
 def AmountScreen(app, model):
     """How much (AM2.4): grams, servings or part of the pack, what it adds, and the meal. A scanned weighed pack
-    adds Whole pack with its weight from the barcode (AM11.1)."""
+    adds Whole pack with its weight from the barcode (AM11.1). Something you logged opens here too (AM12.2), with
+    Save and Delete, or only to look at on a day the phone can't edit any more."""
     picked = model.picked
     portion, setPortion = ft.use_state(picked.portion if picked else "grams")  # hooks first, always (Flet's rule)
     typed, setTyped = ft.use_state(f"{picked.count:g}" if picked else "100")
@@ -173,7 +174,7 @@ def AmountScreen(app, model):
         count = float(typed.replace(",", "."))
         grams = gramsFor(food, portion, count)
         adds = food.per100.scaled(grams)
-        addsText = statTile("This adds", f"{adds.kcal:,.0f} kcal",
+        addsText = statTile("This entry" if picked.logId else "This adds", f"{adds.kcal:,.0f} kcal",
                             f"P {adds.proteinG:.0f} g · F {adds.fatG:.0f} g · C {adds.carbsG:.0f} g"
                             + ("" if portion == "grams" else f" · {grams:g} {unit}"), expand=False, size=26)
     except (ValueError, FoodProblem) as problem:
@@ -197,10 +198,21 @@ def AmountScreen(app, model):
         if count is not None:
             await app.saveAmount(portion, count, meal)
 
+    async def delete(e):
+        await app.deleteOpened()
+
     v = food.per100
+    top = header(food.title, f"{v.kcal:.0f} kcal · P {v.proteinG:g} · F {v.fatG:g} · C {v.carbsG:g} per 100 {unit}",
+                 leading=backButton(app))
+    if picked.readOnly:
+        return screen([top, quiet(f"{mealNames[picked.meal]} · {dayText(picked.date)}", size=14), addsText,
+                       faint("Read only: the phone edits the last 7 days, the PC view edits any day.")])
+    buttons = (ft.Row([mainButton("Save", save, icon=ft.Icons.CHECK, disabled=count is None, expand=True),
+                       softButton("Delete", delete, icon=ft.Icons.DELETE_OUTLINE)], spacing=8) if picked.logId else
+               mainButton(f"Add to {mealNames[meal]}", save, icon=ft.Icons.ADD, disabled=count is None))
     return screen([
-        header(food.title, f"{v.kcal:.0f} kcal · P {v.proteinG:g} · F {v.fatG:g} · C {v.carbsG:g} per 100 {unit}",
-               leading=backButton(app)),
+        top,
+        quiet(dayText(picked.date), size=14) if picked.logId else ft.Container(visible=False),
         Notice(app, model),
         segments(choices, portion, choose) if len(choices) > 1 else ft.Container(visible=False),
         field({"grams": "Grams" if unit == "g" else "Millilitres", "servings": "Servings",
@@ -212,7 +224,7 @@ def AmountScreen(app, model):
         ft.Row([pill(mealNames[option], option == meal, on_click=lambda e, option=option: setMeal(option))
                 for option in meals], spacing=6, wrap=True),
         ft.Container(height=4),
-        mainButton(f"Add to {mealNames[meal]}", save, icon=ft.Icons.ADD, disabled=count is None),
+        buttons,
     ])
 
 

@@ -110,7 +110,7 @@ Settled point by point in the design round, as Talon's plan was: 4a, 4b and 4d o
 - **Week:** each day's kcal against its target, the week's average macros, and your body weight from Talon.
 - **Bulk check banner** on check Sundays: e.g. "+0.12 kg a week → add 150 kcal a day?" with **Apply** and **Not now** (AM3.3).
 - **Targets:** import a file, the current targets for training and rest days, and the changes made to them.
-- **⋮ menu:** History (AM5.5), Import a targets file and Problems. **As built (2026-10-25):** tapping an entry unfolds it to change the amount or the meal, or delete it. The water card's pencil sets the day's total, to fix a mistake. A day before your first targets file says so instead of asking for one.
+- **⋮ menu:** History (AM5.5), Import a targets file and Problems. **As built (2026-10-25):** tapping an entry unfolds it to change the amount or the meal, or delete it (from 2026-11-28 it opens on its own screen, AM12.2). The water card's pencil sets the day's total, to fix a mistake. A day before your first targets file says so instead of asking for one.
 - **Tabs:** Today, Week, Targets (AM5.8).
 
 ### 4b. PC view
@@ -198,6 +198,7 @@ Settled 2026-10-25 at max effort and reworked for Friday weigh-ins on 2026-10-28
 ### 4k. Your changes from 2026-11-28 (AM12)
 Talon is the reference for how they behave.
 - **The day strip (AM12.1), as built:** `Mon Tue Wed Thu · Fri Sat Sun` under Today's header, the seven chips sharing the width, today with a dot and the day shown filled. Another day has its weekday as the title and `28 Nov · in 2 days · training day` under it, and its summary says Left instead of Left today. A flick sideways faster than 300 pixels a second moves one day, stopping at Monday and Sunday, and a new week goes back to today. The PC view's Today has the strip too.
+- **Opening an entry (AM12.2), as built:** a tap on something logged opens How much with its values as they were logged: what it adds (THIS ENTRY), the amount in grams, servings or part of the pack, the meal, **Save** and **Delete**. A serving or a pack keeps the size it had when you logged it. Back leads to its day, on Today or in History. On a day the phone can't edit any more it opens with the meal, the day and what it adds, and a line saying the PC view edits any day.
 
 ## 5. Max-effort gates
 Your rule (2026-10-25): at each of these I stop, tell you to switch to max effort, and don't start until you say it's on. I can't see the effort setting myself, so your word is the check.

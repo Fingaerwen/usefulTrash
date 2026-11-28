@@ -223,3 +223,81 @@ def testANewWeekGoesBackToToday(loop):
     app.clock.now += dt.timedelta(days=7)
     app.refresh()
     assert app.model.dayShown is None and app.model.weekDays[0] == app.localToday()
+
+
+def pillNamed(root, text: str):
+    """The tappable part of a pill (the container around its words)."""
+    [found] = [control for control in walk(root) if type(control).__name__ == "Container"
+               and isinstance(control.content, BaseControl) and label(control.content) == text
+               and control.on_click is not None]
+    return found
+
+
+def logNutella(app, loop, date=None, meal="breakfast"):
+    """One serving (15 g) of Nutella, from its barcode."""
+    app.openAdd(meal, date)
+    loop.run_until_complete(app.useBarcode("3017620422003"))
+    loop.run_until_complete(app.saveAmount("servings", 1, meal))
+
+
+def testOpeningAnEntryChangesItsAmountAndMeal(loop):
+    """AM12.2: a tap on something logged opens it with what it adds, the amount and the meal. Save keeps the
+    serving's size, and the day shows again."""
+    app = makeApp()
+    logNutella(app, loop)
+    press(find(drawn(app), "Nutella · Ferrero: change or delete"))
+    assert app.model.screen == "amount" and app.model.picked.logId is not None
+    drawn(app)
+    root = draw(AmountScreen, app, app.model)  # the amount is the screen's own state, kept by redrawing it
+    texts = visibleTexts(root)
+    assert "THIS ENTRY" in texts and "81 kcal" in texts and "Add to Breakfast" not in buttons(root)
+    [amount] = [control for control in walk(root) if type(control).__name__ == "TextField"]
+    assert amount.label == "Servings" and amount.value == "1"
+    type_(amount, "2")
+    redraw(root)
+    press(pillNamed(root, "Lunch"))
+    redraw(root)
+    assert "162 kcal" in visibleTexts(root)
+    press(find(root, "Save", "Button"))
+    [log] = [row for row in app.rows["foodLogs"].values() if not row["deleted"]]
+    assert (log["meal"], log["portion"], log["portionCount"], log["grams"]) == ("lunch", "servings", 2, 30)
+    assert app.model.screen == "main" and app.model.picked is None
+
+
+def testDeletingAnOpenedEntry(loop):
+    app = makeApp()
+    logNutella(app, loop)
+    press(find(drawn(app), "Nutella · Ferrero: change or delete"))
+    press(find(drawn(app), "Delete", "Button"))
+    assert [row["deleted"] for row in app.rows["foodLogs"].values()] == [True] and app.model.screen == "main"
+
+
+def testBackFromAnOpenedEntryGoesToItsDay(loop):
+    """From an opened entry the back arrow leads to the day it's on, Today or History's day, not to adding food."""
+    app = makeApp()
+    logNutella(app, loop)
+    press(find(drawn(app), "Nutella · Ferrero: change or delete"))
+    press(find(drawn(app), "Back", "IconButton"))
+    assert app.model.screen == "main" and app.model.picked is None
+    app.openHistory()
+    app.editDay(app.localToday())
+    press(find(drawn(app), "Nutella · Ferrero: change or delete"))
+    press(find(drawn(app), "Back", "IconButton"))
+    assert app.model.screen == "history" and app.model.historyDay is not None
+
+
+def testADayThePhoneCantEditOpensItsEntriesToLookAtOnly(loop):
+    """AM5.5: the phone edits the last 7 days. An older entry opens without Save or Delete, and Save does nothing."""
+    app = makeApp()
+    old = app.localToday() - dt.timedelta(days=8)
+    logNutella(app, loop, old)
+    app.openHistory()
+    app.showMonth(0)
+    app.editDay(old)
+    press(find(drawn(app), "Nutella · Ferrero: look at it"))
+    root = drawn(app)
+    assert "Read only: the phone edits the last 7 days, the PC view edits any day." in visibleTexts(root)
+    assert buttons(root) == [] and "81 kcal" in visibleTexts(root)
+    loop.run_until_complete(app.saveAmount("servings", 3, "lunch"))
+    [log] = list(app.rows["foodLogs"].values())
+    assert log["grams"] == 15 and not log["deleted"]

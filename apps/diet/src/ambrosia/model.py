@@ -40,7 +40,8 @@ class SearchResults:
 
 @dataclass(frozen=True, slots=True)
 class Picked:
-    """The food whose amount you're choosing (the How much screen), for which meal and day."""
+    """The food whose amount you're choosing (the How much screen), for which meal and day. Also something you
+    logged, opened from its meal to change the amount or the meal, or delete it (AM12.2)."""
 
     food: Food
     meal: str
@@ -48,6 +49,8 @@ class Picked:
     portion: str = "grams"
     count: float = 100
     weighedG: float | None = None  # a weighed pack's weight from its barcode, for the Whole pack button (AM11.1)
+    logId: str | None = None  # something you logged, opened to look at or change (AM12.2). None: adding food
+    readOnly: bool = False  # opened on a day the phone can't edit any more (AM5.5)
 
 
 @dataclass(frozen=True, slots=True)

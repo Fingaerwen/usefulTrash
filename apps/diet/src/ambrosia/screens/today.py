@@ -14,8 +14,9 @@
     … Lunch, Dinner, Snacks …
     ┌ Water  1,250 ml of 3,000 ml        [+250 ml] ┐
 
-A meal's + adds food to it. Tapping an entry unfolds it to change the amount or the meal, or delete it. The
-same parts make History's day editor (AM5.5). A day the phone can't edit any more shows without + and taps.
+A meal's + adds food to it. Tapping an entry opens it (AM12.2) to change the amount or the meal, or delete it. The
+same parts make History's day editor (AM5.5). A day the phone can't edit any more shows without + and opens its
+entries to look at only.
 
 The strip under the header (AM12.1, like Talon's DY1.1) shows another day of this week, and so does a flick
 sideways (to the left for the next day). That day is laid out and edited the same, a day ahead too, its food saved
@@ -175,44 +176,15 @@ def MealCard(app, day: DayView, meal: str):
 
 @ft.component
 def LogRow(app, entry: LoggedFood, editable: bool):
-    """One thing eaten. A tap unfolds it: the amount, the meal, Save and Delete."""
-    editing, setEditing = ft.use_state(False)
-    amount, setAmount = ft.use_state("")
-    meal, setMeal = ft.use_state(entry.meal)
-    count = entry.portionCount if entry.portion != "grams" and entry.portionCount else entry.grams
-    unitWord = {"grams": entry.unit, "servings": "servings", "pack": "packs"}[entry.portion]
-
-    def toggle(e):
-        setEditing(not editing)
-        setAmount(f"{count:g}")
-        setMeal(entry.meal)
-
-    async def save(e):
-        try:
-            value = float(amount.replace(",", "."))
-        except ValueError:
-            app.model.notice = "The amount must be a number."
-            return
-        await app.changeLog(entry.logId, meal, entry.portion, value)
-        setEditing(False)
-
-    async def delete(e):
-        await app.deleteLog(entry.logId)
-
+    """One thing eaten. A tap opens it (AM12.2): what it adds, the amount, the meal, Save and Delete, or only to
+    look at on a day the phone can't edit any more."""
     line = ft.Row([ft.Column([ft.Text(entry.title, size=14, max_lines=1, overflow=ft.TextOverflow.ELLIPSIS),
                               faint(entry.amount)], spacing=2, expand=True),
-                   quiet(kcalText(entry.values.kcal), size=14)])
-    row = listRow(line, on_click=toggle if editable else None,
-                  tooltip=f"{entry.title}: change or delete" if editable else None,
-                  padding=ft.Padding.symmetric(horizontal=16, vertical=10))
-    if not editing:
-        return row
-    return ft.Column([row, ft.Container(ft.Column([
-        ft.Row([field(f"How much ({unitWord})", amount, lambda e: setAmount(e.control.value), expand=True)]),
-        ft.Row([pill(mealNames[option], option == meal, on_click=lambda e, option=option: setMeal(option))
-                for option in meals], spacing=6, wrap=True),
-        ft.Row([mainButton("Save", save), softButton("Delete", delete, icon=ft.Icons.DELETE_OUTLINE)], spacing=8),
-    ], spacing=10), padding=ft.Padding.only(left=16, right=16, bottom=14))], spacing=0)
+                   quiet(kcalText(entry.values.kcal), size=14), ft.Icon(ft.Icons.CHEVRON_RIGHT, size=18,
+                                                                        color=ft.Colors.OUTLINE)], spacing=6)
+    return listRow(line, on_click=lambda e: app.openLog(entry, editable),
+                   tooltip=f"{entry.title}: {'change or delete' if editable else 'look at it'}",
+                   padding=ft.Padding.only(left=16, right=10, top=10, bottom=10))
 
 
 @ft.component

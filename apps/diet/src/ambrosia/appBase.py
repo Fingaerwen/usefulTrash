@@ -15,7 +15,7 @@ import flet as ft
 from ambrosia.actions import ActionRefused, AmbrosiaActions
 from ambrosia.model import AppModel, Found, LabelDraft, Picked, SearchResults, appName, appVersion
 from ambrosia.rules.barcodes import cleanBarcode, isShopCode, weighedPack
-from ambrosia.rules.foods import Food, UsedFood, Values, searchYourFoods
+from ambrosia.rules.foods import Food, LoggedFood, UsedFood, Values, searchYourFoods
 from ambrosia.rules.targets import FileCheck, readTargetsFile, targetsFromJson
 from ambrosia.rules.week import mondayOf
 from ambrosia.sources.genericFoods import GenericFoods
@@ -181,8 +181,13 @@ class AmbrosiaBase:
         self.refresh()
 
     def back(self) -> None:
-        """The back arrow: from How much or a label to adding food, from there (or anything else) to the tabs."""
-        if self.model.screen in ("amount", "label"):
+        """The back arrow: from How much or a label to adding food, from there (or anything else) to the tabs. An
+        opened entry goes back to its day."""
+        opened = self.model.screen == "amount" and self.model.picked is not None and self.model.picked.logId
+        if opened:
+            self.model.picked = None
+            self.model.screen = "history" if self.model.historyDay is not None else "main"
+        elif self.model.screen in ("amount", "label"):
             self.model.screen = "add"
         elif self.model.screen == "add" and self.model.historyDay is not None:
             self.model.screen = "history"
@@ -315,10 +320,37 @@ class AmbrosiaBase:
             self.model.screen = "history" if self.model.historyDay is not None else "main"
 
     async def saveAmount(self, portion: str, count: float, meal: str) -> None:
+        """How much's button: logs the food, or for an opened entry saves its new amount and meal (AM12.2)."""
         picked = self.model.picked
-        if picked is None:
+        if picked is None or picked.readOnly:
             return
-        if await self._act(self.actions.logFood(picked.date, meal, picked.food, portion, count)):
+        work = (self.actions.changeLog(picked.logId, meal, portion, count) if picked.logId else
+                self.actions.logFood(picked.date, meal, picked.food, portion, count))
+        if await self._act(work):
+            self.model.picked = None
+            self.model.screen = "history" if self.model.historyDay is not None else "main"
+
+    def openLog(self, entry: LoggedFood, editable: bool = True) -> None:
+        """Something you logged, tapped in its meal (AM12.2): How much with its amount, meal and values as they were
+        logged, to change or delete. A serving or a pack keeps the size it had then, like changeLog."""
+        stored = self.state.foods.get(entry.foodId)
+        unitGrams = entry.grams / entry.portionCount if entry.portion != "grams" and entry.portionCount else None
+        servingG = unitGrams if entry.portion == "servings" else stored.servingG if stored else None
+        packG = unitGrams if entry.portion == "pack" else stored.packG if stored else None
+        food = Food(entry.foodId, stored.source if stored else "label", entry.name, entry.per100, entry.brand,
+                    unit=entry.unit, servingG=servingG, packG=packG)
+        count = entry.portionCount if entry.portion != "grams" and entry.portionCount else entry.grams
+        self.model.picked = Picked(food, entry.meal, entry.date, entry.portion, count, None, entry.logId,
+                                   not editable)
+        self.model.notice = ""
+        self.model.screen = "amount"
+
+    async def deleteOpened(self) -> None:
+        """Delete on an opened entry: it's gone, and its day shows again."""
+        picked = self.model.picked
+        if picked is None or picked.logId is None or picked.readOnly:
+            return
+        if await self._act(self.actions.deleteLog(picked.logId)):
             self.model.picked = None
             self.model.screen = "history" if self.model.historyDay is not None else "main"
 
