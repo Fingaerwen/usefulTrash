@@ -14,6 +14,7 @@ from typing import Any, Protocol
 
 from gym.appBase import AppBase
 from gym.model import SyncFacts
+from gym.rules.health import changedDays, readHealthDays, readWindow
 from gym.phoneSteps import phoneSteps
 from usefulShared.signIn.signInFlow import signInWithGoogle
 from gym.tables import appSchema, appTables
@@ -29,6 +30,7 @@ databaseName = "gymTracker.sqlite3"
 notSyncedAfter = dt.timedelta(days=3)  # the "Not synced" banner (G9.2b)
 creatineAt = (8, 0)  # the daily creatine reminder (WD3.8)
 weighInAt = (5, 7, 0)  # the weekly weigh-in reminder: Friday (ISO weekday 5) at 07:00 (G9.1, NT1.2)
+healthReadEvery = dt.timedelta(minutes=1)  # coming back on screen reads Health Connect at most this often (HC1.2)
 
 
 class PhoneServices(Protocol):
@@ -39,6 +41,7 @@ class PhoneServices(Protocol):
     clipboard: Any  # Flet's Clipboard: set(text)
     filePicker: Any  # Flet's FilePicker: pick_files(...)
     notifier: Any  # weighInNotify: requestPermission(), scheduleDaily(...), scheduleWeekly(...), scheduleRest(...)
+    health: Any  # healthConnect: status(), hasPermissions(), requestPermissions(), readDays(fromIso, toIso) (HC1.1)
 
 
 class PhoneApp(AppBase):
@@ -58,11 +61,15 @@ class PhoneApp(AppBase):
         self.syncLoop: SyncLoop | None = None
         self.lastOutcome = SyncOutcome("none")
         self.remindersTask: asyncio.Task | None = None  # setting the reminders runs beside the app (it may ask you)
+        self.healthTask: asyncio.Task | None = None  # reading Health Connect runs beside the app too (HC1.2)
+        self.lastHealthReadAt: dt.datetime | None = None
+        self.mainLoop: asyncio.AbstractEventLoop | None = None  # the app's loop, for work started off it (onResume)
 
     # --- Start-up ----------------------------------------------------------------------------
 
     async def start(self) -> None:
         """Opens everything and decides the first screen."""
+        self.mainLoop = asyncio.get_running_loop()
         if not self.hasCloudSettings():
             self._fail("This build has no cloud settings. Rebuild it with tools/buildRelease.py.")
             return
@@ -107,6 +114,7 @@ class PhoneApp(AppBase):
         self.model.screen = "main"
         self.syncLoop.start()
         self.startReminders()
+        self.startHealthRead()
 
     def startReminders(self) -> None:
         """Sets the reminders in the background: Android's question about notifications waits for your
@@ -165,6 +173,7 @@ class PhoneApp(AppBase):
         self.model.screen = "main"
         self.syncLoop.start()
         self.startReminders()
+        self.startHealthRead()
 
     # --- Signing in and out ------------------------------------------------------------------
 
@@ -260,10 +269,75 @@ class PhoneApp(AppBase):
         return outcome
 
     def onResume(self) -> None:
-        """Back on screen: sync now, and Today may be a new day."""
+        """Back on screen: sync now, Today may be a new day, and Health Connect may have more (HC1.2)."""
         if self.syncLoop is not None and self.model.screen == "main":
             self.syncLoop.resumed()
             self.refresh()
+            self.startHealthRead()
+
+    # --- Steps and calories from Health Connect (HC1.1 to HC1.3) ---------------------------------
+
+    def startHealthRead(self, force: bool = False) -> None:
+        """Reads Health Connect beside the app, so the screen never waits for it. At most once a minute, unless
+        forced, and never two at once. Called off the app's loop (Flet runs a plain handler like onResume in a
+        thread), it hands the start over to the loop."""
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            if self.mainLoop is not None:
+                self.mainLoop.call_soon_threadsafe(self.startHealthRead, force)
+            return
+        if self.healthTask is not None and not self.healthTask.done():
+            return
+        now = self.clock()
+        if not force and self.lastHealthReadAt is not None and now - self.lastHealthReadAt < healthReadEvery:
+            return
+        self.lastHealthReadAt = now
+        self.healthTask = asyncio.get_running_loop().create_task(self.readHealth())
+
+    async def readHealth(self) -> int:
+        """OHealth hands its steps and calories to Health Connect, often late, so each read covers the last 7 days
+        again (30 the first time) and saves the days whose numbers changed, typed steps included (HC1.3). Without
+        Health Connect or its permission it only notes why, for the steps card. Returns how many days it saved."""
+        try:
+            status = await self.services.health.status()
+            if status != "available":
+                self.model.health = status if status == "needsUpdate" else "unavailable"
+                return 0
+            if not await self.services.health.hasPermissions():
+                self.model.health = "notAllowed"
+                return 0
+            self.model.health = "on"
+            today = self.localToday()
+            first, last = readWindow([date for date, day in self.state.stepDays.items() if day.fromHealth], today)
+            raw = await self.services.health.readDays(first.isoformat(), last.isoformat())
+            days, skipped = readHealthDays(raw, today)
+            if skipped:
+                self.log.problem("health", "Some days from Health Connect were left out.", "; ".join(skipped)[:300])
+            changed = changedDays(days, self.state.stepDays)
+            if changed and await self._act(self.actions.saveHealthDays(changed, self.clock())):
+                self.log.info("health", f"{len(changed)} day(s) read from Health Connect")
+            return len(changed)
+        except Exception as problem:  # the app works the same without it, and the next opening tries again
+            self.log.problem("health", "Steps and calories couldn't be read from Health Connect. Talon tries again "
+                             "the next time it opens.", f"{type(problem).__name__}: {problem}"[:300])
+            return 0
+
+    async def connectHealth(self) -> None:
+        """Read from Health Connect: Health Connect's own screen asks whether Talon may read your steps and both
+        kinds of calories. Allowed, the first read goes 30 days back."""
+        try:
+            granted = await self.services.health.requestPermissions()
+        except Exception as problem:
+            self.log.problem("health", "Health Connect couldn't be asked.", f"{type(problem).__name__}: {problem}"[:300])
+            self.model.notice = "Health Connect couldn't be asked. Details are on the Problems page."
+            return
+        if not granted:
+            self.model.health = "notAllowed"
+            self.model.notice = "Talon can read Health Connect once you allow steps and both kinds of calories."
+            return
+        self.model.health = "on"
+        self.startHealthRead(force=True)
 
     def tryRefusedAgain(self) -> None:
         """Problems page: send the refused changes again (say, after fixing the clock)."""

@@ -201,7 +201,7 @@ def testThePhonesChangesShowUpAfterAFetch(browser, cloud):
     cloud.storeDirectly("dailySteps", toCloud(tablesByName["dailySteps"], exampleRow("dailySteps", date=monday)))
     browser.run(browser.app.fetchNow())
     texts = browser.texts()
-    assert texts[texts.index("STEPS TODAY") + 1] == "14,000"
+    assert texts[texts.index("STEPS SO FAR") + 1] == "14,000"
 
 
 def testCloudNotUpgradedYetSaysSo(browser, cloud):

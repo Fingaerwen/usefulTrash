@@ -36,6 +36,7 @@ import flet as ft
 
 from usefulShared.training.planFile import dropSuffix
 from usefulShared.training.schedule import weekdayNames
+from gym.rules.health import kcalText
 from gym.rules.stats import kgText, setsText, thousands
 from gym.rules.today import (
     ExerciseLine,
@@ -101,8 +102,8 @@ def TodayTab(app, model):
         if view.date >= today.date:  # a past day's workout counts as finished anyway (R5a)
             parts.append(FinishLine(app, view, other))
     if view.date <= today.date:
-        parts.append(StepsLine(app, view.stepsToday, view.date if other is not None else None,
-                               key=f"steps{view.date}"))
+        parts.append(StepsLine(app, app.state.stepDays.get(view.date), view.date if other is not None else None,
+                               model.health, key=f"steps{view.date}"))
 
     def swipe(e):
         """A flick sideways (DY1.1): to the left for the next day, to the right for the one before, like pages."""
@@ -491,40 +492,62 @@ def FinishLine(app, view, other=None):
     return ft.Row([mainButton("Finish workout", finish, disabled=not view.workoutExists, expand=True)])
 
 
+healthWords = {  # Today's steps card when Health Connect can't be read yet (HC1.1)
+    "needsUpdate": "Health Connect needs an update before Talon can read your steps.",
+    "unavailable": "Health Connect isn't on this phone, so steps are typed here.",
+}
+
+
 @ft.component
-def StepsLine(app, stepsToday: int | None, date=None):
-    """Today's steps (SC4.1), on rest days too, with ✎ to enter them. Steps are never a workout (CA1.1). An
-    earlier day in the strip (DY1.1) passes its date, and its steps go to that day."""
+def StepsLine(app, known, date=None, health: str = ""):
+    """The day's steps (SC4.1), on rest days too. Steps are never a workout (CA1.1). From Health Connect (HC1.1)
+    with that day's active and total calories under them, so the pencil only shows on a day it has nothing for
+    (HC1.3). Today says "so far": OHealth keeps adding to it. An earlier day in the strip (DY1.1) passes its date,
+    and its steps go to that day. Until Talon may read Health Connect, a button asks."""
+    steps = known.steps if known is not None else None
     editing, setEditing = ft.use_state(False)
-    typed, setTyped = ft.use_state("" if stepsToday is None else str(stepsToday))
+    typed, setTyped = ft.use_state("" if steps is None else str(steps))
     problem, setProblem = ft.use_state("")
 
     def open(e):
-        setTyped("" if stepsToday is None else str(stepsToday))  # start from what's saved now
+        setTyped("" if steps is None else str(steps))  # start from what's saved now
         setProblem("")
         setEditing(True)
 
     async def save(e):
         try:
-            steps = _steps(typed) if typed.strip() else None
+            value = _steps(typed) if typed.strip() else None
         except ValueError as refused:
             setProblem(str(refused))
             return
         if date is None:
-            await app.setSteps(steps)
+            await app.setSteps(value)
         else:
-            await app.setStepsOn(date, steps)
+            await app.setStepsOn(date, value)
         setProblem("")
         setEditing(False)
 
-    shown = f"{stepsToday:,}" if stepsToday is not None else "—"
-    words = "Steps today" if date is None else "Steps"
+    async def connect(e):
+        await app.connectHealth()
+
+    shown = f"{steps:,}" if steps is not None else "—"
+    words = "Steps so far" if date is None else "Steps"
+    fromHealth = known is not None and known.fromHealth
     if not editing:
+        kcal = kcalText(known.activeKcal, known.totalKcal) if known is not None else ""
+        under: list[ft.Control] = [quiet(kcal, size=13)] if kcal else []
+        if health == "notAllowed":
+            under.append(ft.Row([softButton("Read from Health Connect", connect, icon=ft.Icons.FAVORITE_BORDER,
+                                            tooltip="Let Talon read your steps and calories")]))
+        elif health in healthWords and not fromHealth:
+            under.append(faint(healthWords[health], size=12))
         return card(ft.Row([
             ft.Icon(ft.Icons.DIRECTIONS_WALK, size=24, color=ft.Colors.ON_SURFACE_VARIANT),
-            ft.Column([label(words), big(shown, 20)], spacing=2, expand=True),
-            ft.IconButton(ft.Icons.EDIT_OUTLINED, tooltip="Enter steps", on_click=open),
-        ], spacing=14), padding=ft.Padding.only(left=16, top=12, right=8, bottom=12))
+            ft.Column([label(words), big(shown, 20), *under], spacing=2, expand=True),
+            ft.IconButton(ft.Icons.EDIT_OUTLINED, tooltip="Enter steps", on_click=open) if not fromHealth
+            else ft.Container(visible=False),
+        ], spacing=14, vertical_alignment=ft.CrossAxisAlignment.START),
+            padding=ft.Padding.only(left=16, top=12, right=8, bottom=12))
     return card(ft.Column([
         ft.Row([field(words, typed, lambda e: setTyped(e.control.value), expand=True),
                 mainButton("Save", save), ft.TextButton("Cancel", on_click=lambda e: setEditing(False))]),

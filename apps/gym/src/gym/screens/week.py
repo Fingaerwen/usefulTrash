@@ -13,7 +13,8 @@
     └  Mo  Tu  We  Th  Fr  Sa  Su   ┘
 
 A part that's zero is left out. Tapping a day in the calendar enters or fixes that day's steps: on the
-phone for the last 7 days, on the PC for any day.
+phone for the last 7 days, on the PC for any day. A day Health Connect filled (HC1.1) shows its steps instead of
+the field (HC1.3). Under the calendar, Steps and calories lists each day's steps with its active and total kcal.
 """
 
 import datetime as dt
@@ -83,8 +84,33 @@ def WeekTab(app, model):
     if choosing is not None:
         date = week.calendar[choosing][0]
         steps = week.steps[choosing] if choosing < len(week.steps) else None
-        parts.append(card(DaySteps(app, date, steps, lambda: setChoosing(None), key=f"steps{date}"), padding=12))
+        known = app.state.stepDays.get(date)
+        if known is not None and known.fromHealth:  # Health Connect's, not typed over (HC1.3)
+            parts.append(card(ft.Row([quiet(f"{date.day} {date:%b}: {known.steps:,} steps from Health Connect",
+                                            size=14, expand=True),
+                                      ft.TextButton("Close", on_click=lambda e: setChoosing(None))]), padding=12))
+        else:
+            parts.append(card(DaySteps(app, date, steps, lambda: setChoosing(None), key=f"steps{date}"), padding=12))
+    activity = [(date, app.state.stepDays.get(date)) for date, _ in week.calendar]
+    activity = [(date, known) for date, known in activity if known is not None]
+    if activity:  # each day's steps with its calories from Health Connect (HC1.1)
+        parts += [label("Steps and calories"), listCard([
+            listRow(ft.Row([ft.Text(f"{dayLetters[date.weekday()]} {date.day}", size=14, width=56),
+                            ft.Text(f"{known.steps:,} steps", size=14, expand=True),
+                            quiet(_kcalShort(known.activeKcal, known.totalKcal), size=14)], spacing=8),
+                    padding=ft.Padding.symmetric(horizontal=16, vertical=10))
+            for date, known in activity])]
     return screen(parts)
+
+
+def _kcalShort(activeKcal: int | None, totalKcal: int | None) -> str:
+    """ "412 active · 2,310 kcal" for a row of Steps and calories, the parts that are known."""
+    parts = []
+    if activeKcal is not None:
+        parts.append(f"{activeKcal:,} active")
+    if totalKcal is not None:
+        parts.append(f"{totalKcal:,} kcal")
+    return " · ".join(parts)
 
 
 def DayMark(status: str, isToday: bool) -> ft.Container:

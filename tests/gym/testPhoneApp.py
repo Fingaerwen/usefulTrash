@@ -105,6 +105,37 @@ class FakeNotifier:
         return True
 
 
+class FakeHealth:
+    """healthConnect (HC1.1): Health Connect on the phone, holding what OHealth wrote. Not allowed until a test says
+    so or the permission is asked and granted."""
+
+    def __init__(self):
+        self.state = "available"  # or "needsUpdate", "unavailable"
+        self.allowed = False
+        self.grants = True  # the answer when Talon asks
+        self.days: dict[dt.date, tuple] = {}  # date -> (steps, activeKcal, totalKcal), None for what OHealth hasn't
+        self.asked: list[tuple[str, str]] = []
+        self.fails = False
+
+    async def status(self) -> str:
+        return self.state
+
+    async def hasPermissions(self) -> bool:
+        return self.allowed
+
+    async def requestPermissions(self) -> bool:
+        self.allowed = self.grants
+        return self.allowed
+
+    async def readDays(self, fromIso: str, toIso: str) -> list[dict]:
+        if self.fails:
+            raise RuntimeError("SecurityException: not allowed in the background")
+        self.asked.append((fromIso, toIso))
+        first, last = dt.date.fromisoformat(fromIso), dt.date.fromisoformat(toIso)
+        return [{"date": date.isoformat(), "steps": steps, "activeKcal": active, "totalKcal": total}
+                for date, (steps, active, total) in sorted(self.days.items()) if first <= date <= last]
+
+
 @dataclasses.dataclass
 class Services:
     googleSignIn: FakeGoogle
@@ -112,6 +143,7 @@ class Services:
     clipboard: FakeClipboard
     filePicker: FakePicker
     notifier: FakeNotifier = dataclasses.field(default_factory=FakeNotifier)
+    health: FakeHealth = dataclasses.field(default_factory=FakeHealth)
 
 
 class Phone:
@@ -411,7 +443,7 @@ def testStepsEditing(phone, cloud):
     press(find(stepsLine, "Enter steps", "IconButton"))
     from screenTestKit import redraw
     redraw(stepsLine)
-    type_(find(stepsLine, "Steps today", "TextField"), "14.000")
+    type_(find(stepsLine, "Steps so far", "TextField"), "14.000")
     redraw(stepsLine)
     press(find(stepsLine, "Save", "Button"))
     assert phone.app.model.today.stepsToday == 14000
@@ -450,7 +482,7 @@ def testTheDayStripShowsAndEditsTheWeeksOtherDays(phone, cloud):
     press(byTooltip(phone.screen(), "Show Wednesday"))
     texts = phone.texts()
     assert "Pull" in texts and "Wednesday · in 2 days · 0 of 3 this week" in texts and "Deadlift" in texts
-    assert finishButtons(phone) == 1 and "STEPS TODAY" not in texts and "STEPS" not in texts
+    assert finishButtons(phone) == 1 and "STEPS SO FAR" not in texts and "STEPS" not in texts
     assert "Deadlift: start the rest timer" in tooltips(phone.screen())
     press(find(phone.screen(), "Deadlift: set 1 of 3 done", "IconButton"))
     assert app.state.logs[monday + dt.timedelta(days=2)]["deadlift"].sets[0].reps == 5
@@ -1190,3 +1222,134 @@ def testTheRemindersAreSetCreatineDailyAndTheWeighInOnFridays(phone, cloud):
     phone.run(phone.app.scheduleReminders())
     assert phone.services.notifier.daily is None and phone.services.notifier.weekly is None
     assert "there are no reminders" in (phone.folder / "appLog.txt").read_text()
+
+
+# --- Steps and calories from Health Connect (HC1.1 to HC1.4) ---------------------------------------
+
+def healthRead(phone: Phone) -> None:
+    """Lets the read that runs beside the app start (onResume hands it to the loop) and finish."""
+    phone.run(asyncio.sleep(0))
+    if phone.app.healthTask is not None:
+        phone.run(phone.app.healthTask)
+
+
+def stepsRow(phone: Phone, date: dt.date) -> dict:
+    [row] = [row for row in phone.app.store.rows("dailySteps") if row["date"] == date and not row["deleted"]]
+    return row
+
+
+def testOnceAllowedTalonReads30DaysThenSyncsThem(phone, cloud):
+    """HC1.1, HC1.2: until you allow it, Talon only notes that. Allowed, the first read goes 30 days back, each
+    day with its steps and both kinds of calories, and they sync like any change."""
+    health = phone.services.health
+    health.days = {monday: (9500, 411.6, 2310.2), monday - dt.timedelta(days=1): (None, 120.0, None)}
+    signedIn(phone)
+    healthRead(phone)
+    app = phone.app
+    assert app.model.health == "notAllowed" and health.asked == [] and app.store.rows("dailySteps") == []
+    phone.run(app.connectHealth())
+    healthRead(phone)
+    assert app.model.health == "on"
+    assert health.asked == [((monday - dt.timedelta(days=29)).isoformat(), monday.isoformat())]
+    today = stepsRow(phone, monday)
+    assert (today["steps"], today["activeKcal"], today["totalKcal"], today["healthReadAt"]) == (
+        9500, 412, 2310, phone.clock())
+    sunday = stepsRow(phone, monday - dt.timedelta(days=1))
+    assert (sunday["steps"], sunday["activeKcal"], sunday["totalKcal"]) == (0, 120, None)
+    phone.run(app.syncNow())
+    assert len(cloud.rows["dailySteps"]) == 2
+
+
+def testALateSyncIsPickedUpWhenTalonComesBack(phone, cloud):
+    """HC1.2: OHealth hands over Sunday's evening late. Coming back on screen reads the last 7 days again and
+    saves only the day that changed. Within a minute it doesn't read again."""
+    health = phone.services.health
+    health.allowed = True
+    health.days = {monday: (3000, 100.0, 1000.0), monday - dt.timedelta(days=1): (8000, 300.0, 2100.0)}
+    signedIn(phone)
+    healthRead(phone)
+    app = phone.app
+    before = stepsRow(phone, monday)
+    health.days[monday - dt.timedelta(days=1)] = (11000, 450.0, 2350.0)
+    app.onResume()
+    healthRead(phone)
+    assert len(health.asked) == 1  # within the minute
+    phone.clock.advance(minutes=2)
+    app.onResume()
+    healthRead(phone)
+    assert health.asked[-1] == ((monday - dt.timedelta(days=6)).isoformat(), monday.isoformat())
+    assert stepsRow(phone, monday - dt.timedelta(days=1))["steps"] == 11000
+    assert stepsRow(phone, monday)["updatedAt"] == before["updatedAt"]  # unchanged, so not written again
+
+
+def testHealthConnectReplacesTypedStepsAndTheyCantBeTypedAfter(phone, cloud):
+    """HC1.3: Health Connect's numbers win, and a day it filled can't be typed over."""
+    signedIn(phone)
+    app = phone.app
+    phone.run(app.setSteps(4000))
+    assert stepsRow(phone, monday)["healthReadAt"] is None
+    health = phone.services.health
+    health.days = {monday: (5200, 180.0, 1500.0)}
+    phone.run(app.connectHealth())
+    healthRead(phone)
+    assert stepsRow(phone, monday)["steps"] == 5200
+    phone.run(app.setSteps(6000))
+    assert app.model.notice == "This day's steps come from Health Connect, so they can't be typed."
+    assert stepsRow(phone, monday)["steps"] == 5200
+
+
+def testWithoutHealthConnectOrPermissionNothingIsRead(phone, cloud):
+    health = phone.services.health
+    health.state = "unavailable"
+    signedIn(phone)
+    healthRead(phone)
+    assert phone.app.model.health == "unavailable" and health.asked == []
+    health.state, health.grants = "available", False
+    phone.run(phone.app.connectHealth())
+    assert phone.app.model.health == "notAllowed" and phone.app.model.notice.startswith("Talon can read Health")
+
+
+def testAFailedReadIsOnlyLogged(phone, cloud):
+    health = phone.services.health
+    health.allowed, health.fails = True, True
+    signedIn(phone)
+    healthRead(phone)
+    assert phone.app.store.rows("dailySteps") == [] and phone.app.model.notice == ""
+    assert any(entry.area == "health" for entry in phone.app.log.entries(limit=20))
+
+
+def testTheStepsCardWeekAndHistoryShowHealthConnectsNumbers(phone, cloud):
+    """HC1.1, HC1.3: Today says so far with both kinds of calories and no pencil on a day Health Connect filled.
+    Until it may read, a button asks. Week lists each day's steps and calories, and History shows them instead of
+    its steps field."""
+    health = phone.services.health
+    health.days = {monday: (5200, 180.4, 1500.0)}
+    signedIn(phone)
+    healthRead(phone)
+    app = phone.app
+    assert "Let Talon read your steps and calories" in tooltips(phone.screen())
+    press(byTooltip(phone.screen(), "Let Talon read your steps and calories"))
+    healthRead(phone)
+    texts = phone.texts()
+    assert texts[texts.index("STEPS SO FAR") + 1] == "5,200" and "Active 180 kcal · Total 1,500 kcal" in texts
+    assert "Enter steps" not in tooltips(phone.screen())
+    assert "Let Talon read your steps and calories" not in tooltips(phone.screen())
+
+    app.model.tab = "week"
+    texts = phone.texts()
+    assert "STEPS AND CALORIES" in texts and "5,200 steps" in texts and "180 active · 1,500 kcal" in texts
+
+    app.model.tab = "today"
+    app.openHistory()
+    app.editDay(monday)
+    texts = phone.texts()
+    assert "5,200 steps from Health Connect" in texts and "Steps" not in [
+        control.label for control in walk(phone.screen()) if type(control).__name__ == "TextField"]
+
+
+def testWithoutHealthConnectTheStepsCardSaysWhy(phone, cloud):
+    phone.services.health.state = "needsUpdate"
+    signedIn(phone)
+    healthRead(phone)
+    assert "Health Connect needs an update before Talon can read your steps." in phone.texts()
+    assert "Enter steps" in tooltips(phone.screen())  # typed until then

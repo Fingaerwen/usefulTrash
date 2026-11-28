@@ -29,6 +29,8 @@ class AppModel:
     screen: str = "starting"  # starting, signIn, downloading, main, problems, importPlan or failed
     busy: str = ""  # what's running right now ("Signing in…"). Buttons wait while it's set
     notice: str = ""  # a message shown once, like a refused entry or a sign-in problem
+    health: str = ""  # Health Connect on the phone (HC1.1): "on", "notAllowed", "needsUpdate", "unavailable", or
+    # "" when unknown (not asked yet, or the PC view, which never reads it)
     failure: str = ""  # why the app can't start (screen "failed")
     today: TodayView | None = None
     weekDays: tuple[dt.date, ...] = ()  # Today's day strip (DY1.1): this week's workout days, and today

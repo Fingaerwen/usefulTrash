@@ -42,6 +42,7 @@ from gym.screens.look import (
     segments,
     statTile,
 )
+from gym.rules.health import kcalText
 from gym.screens.today import ExerciseRow, _kilograms, _steps
 from gym.screens.weight import dayText
 
@@ -166,11 +167,17 @@ def DayEditor(app, model, view):
         parts.append(card(ft.Text("Rest day")))
     else:
         parts += [ExerciseRow(app, line, view, key=f"{date}{line.exercise.exerciseId}") for line in view.exercises]
+    known = app.state.stepDays.get(date)
+    if known is not None and known.fromHealth:  # Health Connect's, not typed over (HC1.3)
+        stepsPart: ft.Control = ft.Column([ft.Text(f"{known.steps:,} steps from Health Connect", size=15),
+                                           quiet(kcalText(known.activeKcal, known.totalKcal), size=13)], spacing=2)
+    else:
+        stepsPart = ft.Row([field("Steps", typedSteps, lambda e: setTypedSteps(e.control.value), expand=True),
+                            mainButton("Save", saveSteps, tooltip="Save the steps")])
     parts += [
         label("Steps and weigh-in"),
         card(ft.Column([
-            ft.Row([field("Steps", typedSteps, lambda e: setTypedSteps(e.control.value), expand=True),
-                    mainButton("Save", saveSteps, tooltip="Save the steps")]),
+            stepsPart,
             ft.Row([field("Weight, kg", typedKg, lambda e: setTypedKg(e.control.value), expand=True),
                     mainButton("Save", saveWeight, tooltip="Save the weigh-in")]),
             quiet(problem) if problem else ft.Container(visible=False),
@@ -201,9 +208,11 @@ def DayView(app, view):
     if rows:
         parts.append(listCard(rows))
     steps, weighIn = app.state.steps.get(date), app.state.weights.get(date)
-    parts += [ft.Row([statTile("Steps", f"{steps:,}" if steps is not None else "—", size=18),
+    known = app.state.stepDays.get(date)
+    kcal = kcalText(known.activeKcal, known.totalKcal) if known is not None else ""
+    parts += [ft.Row([statTile("Steps", f"{steps:,}" if steps is not None else "—", kcal or None, size=18),
                       statTile("Weight", f"{kgText(weighIn)} kg" if weighIn is not None else "—", size=18)],
-                     spacing=8),
+                     spacing=8, vertical_alignment=ft.CrossAxisAlignment.START),
               faint("Older than 7 days: edit it in the PC view.")]
     return ft.Column(parts, spacing=12)
 

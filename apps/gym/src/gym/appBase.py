@@ -68,6 +68,9 @@ class AppBase:
     def onResume(self) -> None:
         """Back on screen."""
 
+    async def connectHealth(self) -> None:
+        """Read from Health Connect (HC1.1): only the phone reads it. The PC view shows what the phone saved."""
+
     # --- The facts and Today -----------------------------------------------------------------
 
     def refresh(self) -> None:
