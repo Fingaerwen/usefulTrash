@@ -18,7 +18,7 @@ from usefulShared.platform import problems
 from usefulShared.platform.problems import LogFacts, SyncFacts
 
 appName = "Talon"  # Gym Tracker until 0.4-alpha (AM1.4, AM9.6): only the visible name changed
-appVersion = "0.5-alpha"  # the release script checks it matches pyproject.toml (V3a)
+appVersion = "0.6-alpha"  # the release script checks it matches pyproject.toml (V3a)
 
 
 @ft.observable
