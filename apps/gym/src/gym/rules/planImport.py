@@ -12,9 +12,9 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from gym.rules.planFile import Plan, PlanExercise, placeholderKg, planExercises
+from usefulShared.training.planFile import Plan, PlanExercise, placeholderKg, planExercises
 from gym.rules.progression import Training
-from gym.rules.schedule import weekdayNames
+from usefulShared.training.schedule import weekdayNames
 from gym.rules.stats import kgText, unit
 
 likenessNeeded = 0.8  # how alike two names must be (0 to 1) to ask whether they're the same exercise

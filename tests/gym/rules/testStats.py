@@ -4,10 +4,10 @@
 import datetime as dt
 import json
 
-from gym.rules.facts import ImportedPlan, LoggedExercise, SetDone
-from gym.rules.planFile import PlanExercise, checkPlan, planExercises, scheduleDays
+from usefulShared.training.facts import ImportedPlan, LoggedExercise, SetDone
+from usefulShared.training.planFile import PlanExercise, checkPlan, planExercises, scheduleDays
 from gym.rules.progression import training
-from gym.rules.schedule import LoggedWorkout, PlanStart
+from usefulShared.training.schedule import LoggedWorkout, PlanStart
 from gym.rules.stats import (
     chartView,
     dayBanners,

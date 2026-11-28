@@ -18,11 +18,11 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from gym.rules.facts import ImportedPlan, LoggedExercise, SetDone
-from gym.rules.planFile import PlanExercise, dropPart
+from usefulShared.training.facts import ImportedPlan, LoggedExercise, SetDone
+from usefulShared.training.planFile import PlanExercise, dropPart
 from gym.rules.progression import Target, Training, workingWeight
-from gym.rules.schedule import LoggedWorkout, daySchedule, isFinished, replay, weekdayNames
-from gym.rules.sessions import sessionExercises
+from usefulShared.training.schedule import LoggedWorkout, daySchedule, isFinished, replay, weekdayNames
+from usefulShared.training.sessions import sessionExercises
 from gym.rules.week import weekStart, weeklyTarget, workoutsInWeek
 
 oneDay = dt.timedelta(days=1)

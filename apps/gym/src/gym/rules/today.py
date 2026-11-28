@@ -10,11 +10,11 @@ import datetime as dt
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from gym.rules.facts import ImportedPlan, LoggedExercise, SetDone
-from gym.rules.planFile import PlanExercise, dropPart
+from usefulShared.training.facts import ImportedPlan, LoggedExercise, SetDone
+from usefulShared.training.planFile import PlanExercise, dropPart
 from gym.rules.progression import Deload, Training, deloadReps, deloadSets
-from gym.rules.schedule import LoggedWorkout, daySchedule, weekdayNames
-from gym.rules.sessions import SessionExercise, sessionExercises
+from usefulShared.training.schedule import LoggedWorkout, daySchedule, weekdayNames
+from usefulShared.training.sessions import SessionExercise, sessionExercises
 from gym.rules.stats import kgText, unit, workoutVolumeKg
 from gym.rules.week import weeklyTarget, workoutsInWeek
 

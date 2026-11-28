@@ -3,10 +3,10 @@ and deloads (WD2.4, WD3.2–WD3.5), written before the code. Days are counted fr
 
 import datetime as dt
 
-from gym.rules.facts import ImportedPlan, LoggedExercise, SetDone, StepEdit, WeightEdit
-from gym.rules.planFile import checkPlan, planExercises, scheduleDays
+from usefulShared.training.facts import ImportedPlan, LoggedExercise, SetDone, StepEdit, WeightEdit
+from usefulShared.training.planFile import checkPlan, planExercises, scheduleDays
 from gym.rules.progression import Deload, Target, deloadReps, deloadSets, training, workingWeight
-from gym.rules.schedule import LoggedWorkout, PlanStart
+from usefulShared.training.schedule import LoggedWorkout, PlanStart
 
 monday = dt.date(2026, 10, 12)
 mon, tue, wed, thu, fri, sat, sun = range(7)

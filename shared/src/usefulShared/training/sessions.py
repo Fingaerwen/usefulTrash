@@ -15,9 +15,9 @@ import datetime as dt
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from gym.rules.facts import ImportedPlan, LoggedExercise
-from gym.rules.planFile import Plan, PlanExercise
-from gym.rules.schedule import LoggedWorkout, daySchedule
+from usefulShared.training.facts import ImportedPlan, LoggedExercise
+from usefulShared.training.planFile import Plan, PlanExercise
+from usefulShared.training.schedule import LoggedWorkout, daySchedule
 
 maxSkippedShare = 0.3  # a workout counts with at most this share of its exercises skipped or not done (WD4.1)
 

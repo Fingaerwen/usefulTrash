@@ -1,8 +1,8 @@
 """Checks a plan file the way the app's import does, and shows the week as the app will run it (plan 4, PF1).
 
 PC-only, never shipped: for a plan from your Claude project, before importing it. It prints the problems
-the import would list (the same plain words, from gym/rules/planFile.py), then each day with its exercises,
-the flex day's make-up order, and what each move does to the week (gym/rules/sessions.py, as Today shows it).
+the import would list (the same plain words, from usefulShared/training/planFile.py), then each day with its exercises,
+the flex day's make-up order, and what each move does to the week (usefulShared/training/sessions.py, as Today shows it).
 
 Usage (from the repo root): .venv/bin/python tools/checkPlan.py <plan.json>
 Exit code: 0 if the app would import it, 1 if it would refuse it, 2 for a wrong command line.
@@ -14,9 +14,9 @@ from pathlib import Path
 repoRoot = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(repoRoot / "apps/gym/src"), str(repoRoot / "shared/src")]
 
-from gym.rules.planFile import Plan, PlanExercise, readPlanFile  # noqa: E402
-from gym.rules.schedule import weekdayNames  # noqa: E402
-from gym.rules.sessions import sessionExercises  # noqa: E402
+from usefulShared.training.planFile import Plan, PlanExercise, readPlanFile  # noqa: E402
+from usefulShared.training.schedule import weekdayNames  # noqa: E402
+from usefulShared.training.sessions import sessionExercises  # noqa: E402
 from gym.rules.stats import barWeightKg, kgText, unit  # noqa: E402
 
 

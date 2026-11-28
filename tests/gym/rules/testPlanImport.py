@@ -3,7 +3,7 @@ new plan takes effect. Written before the code."""
 
 import datetime as dt
 
-from gym.rules.planFile import Plan, checkPlan, planExercises
+from usefulShared.training.planFile import Plan, checkPlan, planExercises
 from gym.rules.planImport import (
     SameExerciseQuestion,
     effectiveDate,
@@ -141,10 +141,10 @@ def testNewPlanTakesEffectTodayOrTomorrow():
 # --- Weights a re-import keeps (WD3.9) -----------------------------------------------------------
 
 def testAReImportListsThePlanWeightsItWontUse():
-    from gym.rules.facts import ImportedPlan, LoggedExercise, SetDone
-    from gym.rules.planFile import scheduleDays
+    from usefulShared.training.facts import ImportedPlan, LoggedExercise, SetDone
+    from usefulShared.training.planFile import scheduleDays
     from gym.rules.progression import training
-    from gym.rules.schedule import LoggedWorkout, PlanStart
+    from usefulShared.training.schedule import LoggedWorkout, PlanStart
     from gym.rules.planImport import keptWeights
 
     first = checked(barbell("benchPress", "Bench Press"), barbell("row", "Row"))

@@ -83,6 +83,17 @@ plans = table(
     Column("archived", "boolean"),
 )
 
+# Workouts: one per day (DT1.1), each recording which plan step it was. Ambrosia reads them too, for the water
+# a finished workout adds (apps/diet/docs/plan.md AM12.4).
+sessions = table(
+    "sessions",
+    Column("date", "date"),
+    Column("planImportId", "uuid"),
+    Column("stepIndex", "integer"),
+    Column("finishedAt", moment, required=False),  # empty until you tap Finish
+    dayKey=("date",),
+)
+
 # One exercise on one workout day: what was suggested and what you did.
 exerciseLogs = table(
     "exerciseLogs",

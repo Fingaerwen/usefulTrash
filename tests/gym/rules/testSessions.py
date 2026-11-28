@@ -3,10 +3,10 @@ moves included. Days are counted from Monday 12 Oct 2026."""
 
 import datetime as dt
 
-from gym.rules.facts import ImportedPlan, LoggedExercise, SetDone
-from gym.rules.planFile import checkPlan, scheduleDays
-from gym.rules.schedule import LoggedWorkout, PlanStart
-from gym.rules.sessions import withCounts
+from usefulShared.training.facts import ImportedPlan, LoggedExercise, SetDone
+from usefulShared.training.planFile import checkPlan, scheduleDays
+from usefulShared.training.schedule import LoggedWorkout, PlanStart
+from usefulShared.training.sessions import withCounts
 
 monday = dt.date(2026, 10, 12)
 

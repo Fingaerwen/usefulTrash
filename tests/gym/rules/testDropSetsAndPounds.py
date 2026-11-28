@@ -3,10 +3,10 @@ progression, the totals in kg, and how Today writes them. Days are counted from 
 
 import datetime as dt
 
-from gym.rules.facts import ImportedPlan, LoggedExercise, SetDone
-from gym.rules.planFile import checkPlan, dropPart, planExercises, scheduleDays
+from usefulShared.training.facts import ImportedPlan, LoggedExercise, SetDone
+from usefulShared.training.planFile import checkPlan, dropPart, planExercises, scheduleDays
 from gym.rules.progression import Target, training
-from gym.rules.schedule import LoggedWorkout, PlanStart
+from usefulShared.training.schedule import LoggedWorkout, PlanStart
 from gym.rules.stats import loadKg, nextTargetText, oneRepMaxKg, readableSets, setsText, unit, volumeKg
 from gym.rules.today import setsLeftText, targetText, todayView
 

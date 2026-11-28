@@ -5,7 +5,7 @@ starting step to choose (WD1.1). The same screen serves the PC view's Plans tab 
 
 import flet as ft
 
-from gym.rules.schedule import weekdayNames
+from usefulShared.training.schedule import weekdayNames
 from gym.screens.look import card, faint, gap, header, iconButton, label, listCard, listRow, mainButton, quiet, screen
 
 

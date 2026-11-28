@@ -8,8 +8,8 @@ Pure data: no screen, database, network or clock. state.py turns stored rows int
 import datetime as dt
 from dataclasses import dataclass
 
-from gym.rules.planFile import Plan
-from gym.rules.schedule import PlanStart
+from usefulShared.training.planFile import Plan
+from usefulShared.training.schedule import PlanStart
 
 
 @dataclass(frozen=True, slots=True)

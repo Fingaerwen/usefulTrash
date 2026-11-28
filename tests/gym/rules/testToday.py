@@ -4,8 +4,8 @@ exercises, rest days, the flex day and its moves, the week's count and the heade
 import datetime as dt
 import json
 
-from gym.rules.planFile import checkPlan, planExercises, scheduleDays
-from gym.rules.schedule import LoggedWorkout, PlanStart
+from usefulShared.training.planFile import checkPlan, planExercises, scheduleDays
+from usefulShared.training.schedule import LoggedWorkout, PlanStart
 from gym.rules.today import (
     ImportedPlan,
     LoggedExercise,

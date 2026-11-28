@@ -22,7 +22,7 @@ import datetime as dt
 
 import flet as ft
 
-from gym.rules.schedule import weekdayNames
+from usefulShared.training.schedule import weekdayNames
 from gym.rules.stats import kgText, setsText
 from gym.screens.charts import ExerciseChart, LineChart, dateLabel  # noqa: F401  (dateLabel: shared with tests)
 from gym.screens.common import Banners, Menu, Notice

@@ -10,12 +10,8 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from gym.rules.facts import ImportedPlan, LoggedExercise, SetDone, StepEdit, WeightEdit
-from gym.rules.planFile import Plan, PlanExercise, checkPlan, scheduleDays
 from gym.rules.planImport import knownExercises
 from gym.rules.progression import Training, training
-from gym.rules.schedule import LoggedWorkout, PlanStart, planInEffect
-from gym.rules.sessions import withCounts
 from gym.rules.stats import (
     ChartView,
     ExerciseDetail,
@@ -37,6 +33,10 @@ from gym.rules.stats import (
 )
 from gym.rules.today import TodayView, todayView
 from gym.rules.week import weekStart, weeklyTarget
+from usefulShared.training.facts import ImportedPlan, LoggedExercise, StepEdit, WeightEdit
+from usefulShared.training.planFile import Plan, PlanExercise
+from usefulShared.training.schedule import LoggedWorkout, planInEffect
+from usefulShared.training.workouts import importedPlans, loggedExercises, loggedWorkouts
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,24 +73,11 @@ class GymState:
         """Takes in every row of every table and works out the facts again."""
         self.rows = {name: {row["id"]: row for row in rows} for name, rows in rowsByTable.items()}
 
-        self.plans, self.unreadablePlans = [], []
-        for row in self._live("plans"):
-            plan = self._readPlan(row)
-            if plan is None:
-                self.unreadablePlans.append(row["id"])
-                continue
-            start = PlanStart(row["id"], row["effectiveDate"], row["importedAt"], scheduleDays(plan), plan.weeklyTarget)
-            self.plans.append(ImportedPlan(start, plan))
+        self.plans, self.unreadablePlans = importedPlans(self.rows.get("plans", {}).values(), self._planCache)
         self.known = knownExercises((imported.start.importedAt, imported.plan) for imported in self.plans)
-
-        workouts = [LoggedWorkout(row["date"], row["planImportId"], row["stepIndex"], row["finishedAt"] is not None)
-                    for row in self._live("sessions")]
-        self.logs = {}
-        for row in self._live("exerciseLogs"):
-            self.logs.setdefault(row["date"], {})[row["exerciseId"]] = LoggedExercise(
-                row["exerciseId"], _readSets(row["sets"]), row["minutes"], row["skipped"],
-                bool(row.get("declinedSuggestion")))
-        self.workouts = withCounts(self.plans, workouts, self.logs)  # which ones count (WD4.1)
+        self.logs = loggedExercises(self.rows.get("exerciseLogs", {}).values())
+        # which ones count (WD4.1), read the same way Ambrosia reads them (usefulShared.training.workouts)
+        self.workouts = loggedWorkouts(self.rows.get("sessions", {}).values(), self.plans, self.logs)
         self.steps = {row["date"]: row["steps"] for row in self._live("dailySteps")}
         self.weights = {row["date"]: row["weightKg"] for row in self._live("bodyWeight")}
         self.weighTimes = {row["date"]: row["weighedAt"] for row in self._live("bodyWeight") if row.get("weighedAt")}
@@ -218,13 +205,6 @@ class GymState:
     def _live(self, tableName: str) -> list[dict[str, Any]]:
         return [row for row in self.rows.get(tableName, {}).values() if not row["deleted"]]
 
-    def _readPlan(self, row: dict[str, Any]) -> Plan | None:
-        """A stored plan, read leniently (fields from newer app versions are ignored). Cached per version."""
-        key = (row["id"], row["updatedAt"])
-        if key not in self._planCache:
-            self._planCache[key] = checkPlan(row["planJson"], strict=False).plan
-        return self._planCache[key]
-
 
 def _inOrder(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Changes set in the app, oldest first: by the day they apply from, then when they were made (the id
@@ -235,24 +215,3 @@ def _inOrder(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def _shortDate(date: dt.date) -> str:
     """6 Oct."""
     return f"{date.day} {date:%b}"
-
-
-def _readSets(sets: Any) -> tuple[SetDone, ...]:
-    """The sets of a log row ([{"reps": 9, "weightKg": 82.5}, ...], a drop set's with "dropReps" and "dropKg" too,
-    DS1.1). Anything malformed is left out."""
-    done = []
-    for entry in sets if isinstance(sets, list) else ():
-        if not isinstance(entry, dict) or not _isWhole(entry.get("reps")):
-            continue
-        weightKg, dropReps, dropKg = entry.get("weightKg"), entry.get("dropReps"), entry.get("dropKg")
-        drop = (dropReps, float(dropKg)) if _isWhole(dropReps) and _isNumber(dropKg) else (None, None)
-        done.append(SetDone(entry["reps"], float(weightKg) if _isNumber(weightKg) else None, *drop))
-    return tuple(done)
-
-
-def _isWhole(value: Any) -> bool:
-    return isinstance(value, int) and not isinstance(value, bool)
-
-
-def _isNumber(value: Any) -> bool:
-    return isinstance(value, (int, float)) and not isinstance(value, bool)

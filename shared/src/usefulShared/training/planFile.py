@@ -20,7 +20,7 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import Any
 
-from gym.rules.schedule import ScheduleDay, weekdayNames
+from usefulShared.training.schedule import ScheduleDay, weekdayNames
 
 maxFileBytes = 1_000_000  # a plan is a few KB. A file this big isn't one
 idPattern = re.compile(r"[a-z][A-Za-z0-9]{0,99}")  # camelCase (11.4c), at most 100 characters

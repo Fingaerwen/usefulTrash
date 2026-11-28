@@ -7,7 +7,7 @@ The example plan is Upper, Lower A, Push, Pull, Lower B, a flex day that makes u
 
 import datetime as dt
 
-from gym.rules.schedule import (
+from usefulShared.training.schedule import (
     LoggedWorkout,
     PlanStart,
     ScheduleDay,

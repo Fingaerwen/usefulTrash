@@ -10,7 +10,7 @@ import flet as ft
 from gym.actions import ActionRefused, GymActions
 from gym.model import AppModel, LogFacts, SyncFacts, problemsReport
 from gym.planImporter import answerQuestions, askSwitch, finishImport, startImport, switchBack
-from gym.rules.planFile import dropSuffix
+from usefulShared.training.planFile import dropSuffix
 from gym.rules.stats import summaryBanner, weighInBanner
 from gym.rules.today import ExerciseLine, SetDone, TodayView
 from gym.state import GymState, PlanEntry

@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from gym.rules.planFile import checkPlan, maxFileBytes, planExercises, readPlanFile, scheduleDays
-from gym.rules.schedule import ScheduleDay
+from usefulShared.training.planFile import checkPlan, maxFileBytes, planExercises, readPlanFile, scheduleDays
+from usefulShared.training.schedule import ScheduleDay
 
 repoRoot = Path(__file__).resolve().parents[3]
 

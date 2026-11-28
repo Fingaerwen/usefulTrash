@@ -20,7 +20,7 @@ import datetime as dt
 
 import flet as ft
 
-from gym.rules.schedule import weekdayNames
+from usefulShared.training.schedule import weekdayNames
 from gym.rules.stats import chartRanges, clockText, kgText
 from gym.screens.charts import LineChart
 from gym.screens.common import Banners, Menu, Notice

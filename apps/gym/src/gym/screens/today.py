@@ -34,8 +34,8 @@ import asyncio
 
 import flet as ft
 
-from gym.rules.planFile import dropSuffix
-from gym.rules.schedule import weekdayNames
+from usefulShared.training.planFile import dropSuffix
+from usefulShared.training.schedule import weekdayNames
 from gym.rules.stats import kgText, setsText, thousands
 from gym.rules.today import (
     ExerciseLine,

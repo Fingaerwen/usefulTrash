@@ -48,10 +48,10 @@ from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
-from gym.rules.facts import ImportedPlan, LoggedExercise, SetDone, StepEdit, WeightEdit
-from gym.rules.planFile import PlanExercise, dropPart, placeholderKg, planExercises
-from gym.rules.schedule import LoggedWorkout, daySchedules, planInEffect
-from gym.rules.sessions import sessionExercises
+from usefulShared.training.facts import ImportedPlan, LoggedExercise, SetDone, StepEdit, WeightEdit
+from usefulShared.training.planFile import PlanExercise, dropPart, placeholderKg, planExercises
+from usefulShared.training.schedule import LoggedWorkout, daySchedules, planInEffect
+from usefulShared.training.sessions import sessionExercises
 
 oneDay = dt.timedelta(days=1)
 oneWeek = dt.timedelta(days=7)

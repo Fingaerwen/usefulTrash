@@ -7,7 +7,7 @@ Pure logic: no screen, database, network or clock. The date is passed in.
 import datetime as dt
 from collections.abc import Iterable
 
-from gym.rules.schedule import LoggedWorkout, PlanStart, planInEffect
+from usefulShared.training.schedule import LoggedWorkout, PlanStart, planInEffect
 
 oneWeek = dt.timedelta(days=7)
 

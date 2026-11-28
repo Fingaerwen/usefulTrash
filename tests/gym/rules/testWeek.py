@@ -3,7 +3,7 @@ Monday to Sunday. Written before the code."""
 
 import datetime as dt
 
-from gym.rules.schedule import LoggedWorkout, PlanStart, ScheduleDay
+from usefulShared.training.schedule import LoggedWorkout, PlanStart, ScheduleDay
 from gym.rules.week import weekStart, weeklyTarget, workoutsInWeek
 
 monday = dt.date(2026, 10, 12)

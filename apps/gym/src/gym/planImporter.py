@@ -13,7 +13,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from typing import Any
 
-from gym.rules.planFile import Plan, PlanCheck, PlanExercise, checkPlan, readPlanFile
+from usefulShared.training.planFile import Plan, PlanCheck, PlanExercise, checkPlan, readPlanFile
 from gym.rules.planImport import SameExerciseQuestion, effectiveDate, keptWeights, renameExercises, sameExerciseQuestions
 from gym.rules.progression import Training
 from usefulShared.tables import newRowId
