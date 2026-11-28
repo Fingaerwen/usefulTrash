@@ -341,9 +341,10 @@ def testTheDiarysChartIsOnePointAMonth():
 
 def testTheReadableHistory():
     """EX1.1, BK1.2: every set, weigh-in and day's steps, and the diary month by month, as CSV."""
-    files = historyFiles(imported, known, weekLogs, {day(4): 82.0}, {day(1): 9500}, day(20))
+    files = historyFiles(imported, known, weekLogs, {day(4): 82.0}, {day(1): 9500, day(2): 11000}, day(20),
+                         {day(2): (610, 2580)})
     assert files["sets.csv"].splitlines()[1] == "2026-10-12,Bench Press,bench,1,8,25,kg/side,"
     assert files["weighIns.csv"] == "date,kg\n2026-10-16,82\n"
-    assert files["steps.csv"] == "date,steps\n2026-10-13,9500\n"
+    assert files["steps.csv"] == "date,steps,active kcal,total kcal\n2026-10-13,9500,,\n2026-10-14,11000,610,2580\n"
     assert files["diary.csv"].splitlines()[:2] == [
         "month,exercise,weight,best and sessions", "2026-10,Bench Press,25 to 26.25 kg/side  +1.25,best 10 · 9 @ 26.25 kg/side · 2 sessions"]

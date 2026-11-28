@@ -545,9 +545,11 @@ def readableSets(logs: Mapping[dt.date, Mapping[str, LoggedExercise]], known: Ma
 
 def historyFiles(current: ImportedPlan | None, known: Mapping[str, PlanExercise],
                  logs: Mapping[dt.date, Mapping[str, LoggedExercise]], weights: Mapping[dt.date, float],
-                 steps: Mapping[dt.date, int], today: dt.date) -> dict[str, str]:
+                 steps: Mapping[dt.date, int], today: dt.date,
+                 kcal: Mapping[dt.date, tuple[int | None, int | None]] | None = None) -> dict[str, str]:
     """The readable history, for Export CSV (EX1.1) and the history file (BK1.2): every set, every weigh-in,
-    every day's steps, and the diary month by month (DI1.1), as CSV files a spreadsheet opens."""
+    every day's steps with its active and total kcal from Health Connect (HC1.1, empty for typed steps), and the
+    diary month by month (DI1.1), as CSV files a spreadsheet opens."""
     import csv
     import io
 
@@ -567,7 +569,10 @@ def historyFiles(current: ImportedPlan | None, known: Mapping[str, PlanExercise]
     return {
         "sets.csv": readableSets(logs, known),
         "weighIns.csv": table(["date", "kg"], [[date.isoformat(), kgText(kg)] for date, kg in sorted(weights.items())]),
-        "steps.csv": table(["date", "steps"], [[date.isoformat(), count] for date, count in sorted(steps.items())]),
+        "steps.csv": table(["date", "steps", "active kcal", "total kcal"],
+                           [[date.isoformat(), count, *("" if value is None else value
+                                                        for value in (kcal or {}).get(date, (None, None)))]
+                            for date, count in sorted(steps.items())]),
         "diary.csv": table(["month", "exercise", "weight", "best and sessions"], diaryRows),
     }
 

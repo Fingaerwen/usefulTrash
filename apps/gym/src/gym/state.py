@@ -153,7 +153,8 @@ class GymState:
 
     def historyFiles(self, date: dt.date) -> dict[str, str]:
         """The readable history (EX1.1, BK1.2): sets, weigh-ins, steps and the diary as CSV files."""
-        return historyFiles(self.currentPlan(date), self.known, self.logs, self.weights, self.steps, date)
+        return historyFiles(self.currentPlan(date), self.known, self.logs, self.weights, self.steps, date,
+                            {day: (known.activeKcal, known.totalKcal) for day, known in self.stepDays.items()})
 
     def monthlyPoints(self, exerciseId: str) -> tuple[tuple[dt.date, float], ...]:
         """The diary's month-by-month chart for an exercise, or the body weight for "" (DI1.1)."""
