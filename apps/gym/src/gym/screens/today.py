@@ -26,8 +26,8 @@ the header (WD2.4). An exercise with no weight of yours yet shows "@ ? kg", and 
 
 The strip under the header (DY1.1) shows another of this week's workout days, and so does a flick sideways (to
 the left for the next day). That day is laid out the same and edited the same, a day ahead too, like History's
-day editor: no rest timer, weight or Not today, which all work from today. A past day has no Finish (it counts as
-finished anyway), and a day ahead no steps.
+day editor: no weight or Not today, which work from today. Its rest timer runs like today's (RT1.2). A past day
+has no Finish (it counts as finished anyway), and a day ahead no steps.
 """
 
 import asyncio
@@ -96,7 +96,7 @@ def TodayTab(app, model):
         parts.append(RestDay(app, view))
     else:
         parts.append(WorkoutProgress(view))
-        parts += [ExerciseRow(app, line, other, key=f"{view.date}{line.exercise.exerciseId}")
+        parts += [ExerciseRow(app, line, other, rests=True, key=f"{view.date}{line.exercise.exerciseId}")
                   for line in view.exercises]
         if view.date >= today.date:  # a past day's workout counts as finished anyway (R5a)
             parts.append(FinishLine(app, view, other))
@@ -167,11 +167,13 @@ def WorkoutProgress(view):
 
 
 @ft.component
-def ExerciseRow(app, line: ExerciseLine, view=None):
+def ExerciseRow(app, line: ExerciseLine, view=None, rests=None):
     """One exercise as a card (19.1, SC2.3): name, target, the big tick. Under it the cue, the rest time (a tap
     starts the timer) and Sets. ⋯ for the rest. Done or skipped, it turns hollow and shows what was logged.
-    Tapping the name unfolds its how-to (SC7.1). History's day editor passes its day's view (HI1.1): a past day
-    has no weight, Undo or rest timer, which all work from today."""
+    Tapping the name unfolds its how-to (SC7.1). Another day passes its day's view (HI1.1, DY1.1): it has no
+    weight or Undo, which work from today. rests: the rest timer runs (RT1.2), on Today's tab for today and the
+    strip's other days alike. History's day editor leaves it off."""
+    rests = view is None if rests is None else rests
     editing, setEditing = ft.use_state(False)
     showingHowTo, setShowingHowTo = ft.use_state(False)
     settingWeight, setSettingWeight = ft.use_state(False)
@@ -185,10 +187,10 @@ def ExerciseRow(app, line: ExerciseLine, view=None):
         if line.asksWeight and not line.setsDone:
             setEditing(True)  # the plan's weight is only a placeholder: type the real one (PF3)
             return
-        await app.checkSet(line, view)
+        await app.checkSet(line, view, rests)
 
     async def allDone(e):
-        await app.check(line, view)
+        await app.check(line, view, rests)
 
     async def takeBack(e):
         await app.takeBack(line, view)
@@ -245,7 +247,7 @@ def ExerciseRow(app, line: ExerciseLine, view=None):
         if exercise.notes:
             parts.append(quiet(f"“{exercise.notes}”"))
         actions = []
-        if exercise.restSec and view is None:
+        if exercise.restSec and rests:
             actions.append(pill(clockText(exercise.restSec), icon=ft.Icons.TIMER_OUTLINED, on_click=rest,
                                 tooltip=f"{exercise.name}: start the rest timer"))
         actions.append(pill("Sets" if not exercise.isCardio else "Minutes", icon=ft.Icons.EDIT_NOTE,
@@ -255,7 +257,7 @@ def ExerciseRow(app, line: ExerciseLine, view=None):
     if showingHowTo:
         parts.append(HowTo(exercise))
     if editing:
-        parts.append(SetsEditor(app, line, lambda: setEditing(False), view))
+        parts.append(SetsEditor(app, line, lambda: setEditing(False), view, rests))
     if settingWeight:
         parts.append(WeightEditor(app, exercise, line.trackDay, line.targetWeightKg, line.stepKg,
                                   lambda: setSettingWeight(False), line.dropWeightKg))
@@ -409,7 +411,7 @@ def HowTo(exercise):
 
 
 @ft.component
-def SetsEditor(app, line: ExerciseLine, close, view=None):
+def SetsEditor(app, line: ExerciseLine, close, view=None, rests=None):
     """Sets: one row per set, pre-filled with what's logged or the target (19.1a-1). With no weight of yours
     yet, the kg fields start empty, and one left empty takes the set above's (PF4). A drop set (DS1.1) has a
     drop row under each set, its reps and weight, empty for no drop. Cardio: minutes."""
@@ -432,13 +434,13 @@ def SetsEditor(app, line: ExerciseLine, close, view=None):
     async def save(e):
         try:
             if exercise.isCardio:
-                await app.saveSets(line, [], _whole(minutes, "Minutes"), view=view)
+                await app.saveSets(line, [], _whole(minutes, "Minutes"), view=view, rests=rests)
             else:
                 weights = _setWeights([row[1] for row in rows]) if weighted else [None] * len(rows)
                 drops = _drops(rows) if hasDrop else [(None, None)] * len(rows)
                 sets = [SetDone(_whole(row[0], "Reps"), weightKg, *drop)
                         for row, weightKg, drop in zip(rows, weights, drops)]
-                await app.saveSets(line, sets, view=view)
+                await app.saveSets(line, sets, view=view, rests=rests)
         except ValueError as refused:
             setProblem(str(refused))
             return

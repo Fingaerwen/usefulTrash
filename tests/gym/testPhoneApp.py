@@ -439,7 +439,8 @@ def finishButtons(phone) -> int:
 
 def testTheDayStripShowsAndEditsTheWeeksOtherDays(phone, cloud):
     """DY1.1: this week's workout days under the header. A day ahead can be looked at and logged, under its own
-    date, with no rest timer or steps. A swipe moves along the strip, and today's chip goes back."""
+    date, without steps. Its rest timer runs like today's (RT1.2). A swipe moves along the strip, and today's chip
+    goes back."""
     from types import SimpleNamespace
     planInCloud(cloud)
     signedIn(phone)
@@ -450,9 +451,13 @@ def testTheDayStripShowsAndEditsTheWeeksOtherDays(phone, cloud):
     texts = phone.texts()
     assert "Pull" in texts and "Wednesday · in 2 days · 0 of 3 this week" in texts and "Deadlift" in texts
     assert finishButtons(phone) == 1 and "STEPS TODAY" not in texts and "STEPS" not in texts
+    assert "Deadlift: start the rest timer" in tooltips(phone.screen())
     press(find(phone.screen(), "Deadlift: set 1 of 3 done", "IconButton"))
     assert app.state.logs[monday + dt.timedelta(days=2)]["deadlift"].sets[0].reps == 5
-    assert app.model.restUntil is None and app.model.today.exercises[0].setsDone == 0  # Monday's untouched
+    assert app.model.today.exercises[0].setsDone == 0  # Monday's untouched
+    assert (app.model.restUntil, app.model.restName) == (phone.clock() + dt.timedelta(seconds=180), "Deadlift")
+    assert phone.services.notifier.rests[-1][0] == 180  # the phone's alert too
+    phone.run(app.stopRest())
 
     gesture = next(control for control in walk(phone.screen()) if type(control).__name__ == "GestureDetector")
     gesture.on_horizontal_drag_end(SimpleNamespace(primary_velocity=-800))  # a flick to the left: the next day
@@ -468,7 +473,8 @@ def testTheDayStripShowsAndEditsTheWeeksOtherDays(phone, cloud):
 
 
 def testTheDayStripEditsADayEarlierInTheWeek(phone, cloud):
-    """DY1.1: on Wednesday, Monday is in the strip, edited like today. It has no Finish, its steps are its own."""
+    """DY1.1: on Wednesday, Monday is in the strip, edited like today. It has no Finish, its steps are its own, and
+    its rest timer runs like today's (RT1.2)."""
     planInCloud(cloud)
     signedIn(phone)
     app = phone.app
@@ -479,7 +485,22 @@ def testTheDayStripEditsADayEarlierInTheWeek(phone, cloud):
     assert "Monday · 2 days ago · 0 of 3 this week" in texts and finishButtons(phone) == 0 and "STEPS" in texts
     tickAll(phone.screen, "Bench Press")
     assert len(app.state.logs[monday]["benchPress"].sets) == 4 and app.model.dayView.exercises[0].status == "done"
-    assert app.model.restUntil is None  # the rest timer is today's only
+    assert app.model.restName == "Bench Press" and app.model.restUntil is not None  # the rest of Monday is left
+
+
+def testHistorysDayEditorStartsNoRest(phone, cloud):
+    """RT1.2 is for Today's tab only: History's day editor has no rest time on its exercises and starts no rest."""
+    planInCloud(cloud)
+    signedIn(phone)
+    app = phone.app
+    app.localToday = lambda: monday + dt.timedelta(days=2)
+    app.refresh()
+    app.openHistory()
+    app.editDay(monday)
+    assert app.model.historyView is not None
+    assert "Bench Press: start the rest timer" not in tooltips(phone.screen())
+    press(find(phone.screen(), "Bench Press: set 1 of 4 done", "IconButton"))
+    assert len(app.state.logs[monday]["benchPress"].sets) == 1 and app.model.restUntil is None
 
 
 def testADayWithOver30PercentSkippedIsMissed(phone, cloud):

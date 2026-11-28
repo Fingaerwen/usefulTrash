@@ -129,31 +129,37 @@ class AppBase:
 
     # Today's actions. History's day editor passes its own day's view (HI1.1).
 
-    async def check(self, line: ExerciseLine, view: TodayView | None = None) -> None:
+    async def check(self, line: ExerciseLine, view: TodayView | None = None, rests: bool | None = None) -> None:
         """⋯ → All sets done (and a tap on a cardio exercise's circle)."""
         if await self._act(self.actions.checkExercise(view or self.model.today, line)):
-            await self._restAfter(line, view)
+            await self._restAfter(line, view, rests)
 
-    async def checkSet(self, line: ExerciseLine, view: TodayView | None = None) -> None:
+    async def checkSet(self, line: ExerciseLine, view: TodayView | None = None, rests: bool | None = None) -> None:
         """The big circle: the next set done, or once all are in, the last one taken back (TK1.1)."""
         if await self._act(self.actions.checkSet(view or self.model.today, line)):
-            await self._restAfter(line, view)
+            await self._restAfter(line, view, rests)
 
     async def takeBack(self, line: ExerciseLine, view: TodayView | None = None) -> None:
         await self._act(self.actions.takeBack(view or self.model.today, line))
 
     async def saveSets(self, line: ExerciseLine, sets: list[SetDone], minutes: int | None = None,
-                       view: TodayView | None = None) -> None:
+                       view: TodayView | None = None, rests: bool | None = None) -> None:
         if await self._act(self.actions.saveSets(view or self.model.today, line, sets, minutes)):
-            await self._restAfter(line, view)
+            await self._restAfter(line, view, rests)
 
     # The rest timer (RT1.1): logging one of today's exercises or one of its sets starts its rest, unless nothing is
     # left to do. Its rest time on Today starts it between sets. The phone also sets an alert for when it's over.
+    # Since RT1.2 the strip's other days rest the same as today. History's day editor starts none.
 
-    async def _restAfter(self, line: ExerciseLine, view: TodayView | None) -> None:
-        today = self.model.today
-        if (view is not None or line.status == "done" or not line.exercise.restSec
-                or today is None or not any(other.status == "todo" for other in today.exercises)):
+    async def _restAfter(self, line: ExerciseLine, view: TodayView | None, rests: bool | None = None) -> None:
+        """Starts the exercise's rest after something was logged on Today's tab: today, or another day of the week
+        shown from the strip (rests is on). Not when nothing is left to do that day."""
+        if rests is None:
+            rests = view is None
+        shown = self.model.today if view is None else self.model.dayView  # the day as it is now, after the save
+        if (not rests or line.status == "done" or not line.exercise.restSec or shown is None
+                or (view is not None and shown.date != view.date)
+                or not any(other.status == "todo" for other in shown.exercises)):
             return
         await self.startRest(line.exercise.restSec, line.exercise.name)
 
