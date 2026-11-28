@@ -209,6 +209,22 @@ def testUpgrade004RunsOnlyRightAfter003(emptyDatabase):
     assert emptyDatabase.ok('select "schemaVersion", "minAppSchema" from public."cloudInfo";') == ["4|1"]
 
 
+def testAnOlderTalonTypingStepsLeavesHealthConnectsCaloriesAlone(database):
+    """Upgrade 004 (HC1.1): Talon 0.5 knows only the date and the steps, and its upsert changes only those, so a
+    day's calories from Health Connect stay as they were until the next read replaces the steps again."""
+    rowId = str(uuid.uuid4())
+    database.ok(f'insert into public."dailySteps" ("id", "userId", "updatedAt", "date", "steps", "activeKcal", '
+                f'"totalKcal", "healthReadAt") values (\'{rowId}\', \'{userA}\', \'2026-11-01 21:00:00+00\', '
+                f"'2026-11-01', 9500, 412, 2310, '2026-11-01 21:00:00+00');", asUser=userA)
+    database.ok(f'insert into public."dailySteps" ("id", "userId", "updatedAt", "date", "steps") '
+                f"values ('{rowId}', '{userA}', '2026-11-01 21:05:00+00', '2026-11-01', 10000) "
+                f'on conflict ("id") do update set "updatedAt" = excluded."updatedAt", "steps" = excluded."steps";',
+                asUser=userA)
+    assert database.ok(f'select "steps", "activeKcal", "totalKcal", "healthReadAt" is not null '
+                       f'from public."dailySteps" where "id" = \'{rowId}\';') == ["10000|412|2310|t"]
+    database.ok(newRow("dailySteps", date="'2026-11-02'", activeKcal="20000", totalKcal="30000"), asUser=userA)
+
+
 def testTheUpgradesLetOlderAppsKeepSyncing(database):
     """They only add (UP1.1), so minAppSchema stays 1: Talon 0.3 (schema 2) keeps syncing after 003."""
     assert database.ok('select "schemaVersion", "minAppSchema" from public."cloudInfo";') == [
@@ -436,6 +452,9 @@ def testTheAppsAreBuiltForTheLatestUpgrade(database):
     ("targetChanges", {"macro": "'protein'"}),
     ("targetChanges", {"blockWeighIns": "0"}),
     ("dietBackups", {"madeBy": "'tablet'"}),
+    ("dailySteps", {"activeKcal": "-1"}),  # upgrade 004's calories from Health Connect (HC1.1)
+    ("dailySteps", {"activeKcal": "20001"}),
+    ("dailySteps", {"totalKcal": "30001"}),
 ])
 def testAmbrosiasTablesRefuseWhatTheAppNeverMakes(database, table, columns):
     database.fails(newRow(table, **columns), "violates check constraint", asUser=userA)

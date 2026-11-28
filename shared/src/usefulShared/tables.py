@@ -112,7 +112,11 @@ exerciseLogs = table(
 # day's and for every one from before Talon 0.4.
 bodyWeight = table("bodyWeight", Column("date", "date"), Column("weightKg", "numeric(5,2)"),
                    Column("weighedAt", moment, required=False), dayKey=("date",))
-dailySteps = table("dailySteps", Column("date", "date"), Column("steps", "integer"), dayKey=("date",))
+# A day's steps. From Talon 0.6 (upgrade 004, HC1.1) read from Health Connect with that day's active and total
+# calories in whole kcal and when Talon read them. All three are empty for steps you typed.
+dailySteps = table("dailySteps", Column("date", "date"), Column("steps", "integer"),
+                   Column("activeKcal", "integer", required=False), Column("totalKcal", "integer", required=False),
+                   Column("healthReadAt", moment, required=False), dayKey=("date",))
 backups = table(
     "backups",
     Column("madeAt", moment),

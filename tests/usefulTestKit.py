@@ -49,7 +49,8 @@ def exampleRow(tableName: str, userId: str = userA, updatedAt: dt.datetime = sta
         "exerciseSteps": {"exerciseId": "benchPress", "incrementKg": 2.5, "fromDate": dt.date(2026, 10, 12)},
         "deloads": {"startDate": dt.date(2026, 10, 19)},
         "bodyWeight": {"date": dt.date(2026, 10, 16), "weightKg": 81.2, "weighedAt": None},
-        "dailySteps": {"date": dt.date(2026, 10, 12), "steps": 14000},
+        "dailySteps": {"date": dt.date(2026, 10, 12), "steps": 14000, "activeKcal": None, "totalKcal": None,
+                       "healthReadAt": None},
         "backups": {"madeAt": updatedAt, "fileName": "gymBackup.zip", "driveFileId": None, "sizeBytes": 2048,
                     "schemaVersion": 1, "madeBy": "phone"},
         # Ambrosia's (apps/diet/docs/plan.md 4e)

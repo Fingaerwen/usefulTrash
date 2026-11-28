@@ -45,7 +45,9 @@ class CloudStandIn:
         # Like the real tables' check constraints (cloud/001): a refused row gives Postgres's error code.
         self.checks: dict[str, Callable[[dict[str, Any]], bool]] = {
             "bodyWeight": lambda row: 0 < row["weightKg"] < 1000,
-            "dailySteps": lambda row: 0 <= row["steps"] <= 200000,
+            "dailySteps": lambda row: (0 <= row["steps"] <= 200000
+                                       and (row.get("activeKcal") is None or 0 <= row["activeKcal"] <= 20000)
+                                       and (row.get("totalKcal") is None or 0 <= row["totalKcal"] <= 30000)),
         }
 
     def tokenFor(self, userId: str) -> str:

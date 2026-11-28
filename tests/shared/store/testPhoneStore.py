@@ -287,3 +287,24 @@ def testSeveralEditsAreSavedTogetherOrNotAtAll(store):
     saved = store.saveMany([("sessions", session), ("exerciseLogs", exampleRow("exerciseLogs"))])
     assert [row["id"] for row in saved] == [session["id"], exampleRow("exerciseLogs")["id"]]
     assert store.waiting().count == 2
+
+
+def testStep4KeepsAPhonesStepsAndWhatsWaiting(tmp_path, clock):
+    """Talon 0.5 (schema 3) to 0.6: step 4 adds the calories from Health Connect to the days' steps (HC1.1). A typed
+    day keeps its steps with the new columns empty, and its edit still waits in the outbox."""
+    path = str(tmp_path / "gymTracker.sqlite3")
+    runPhoneSteps(path, phoneSteps[:3])
+    db = sqlite3.connect(path, isolation_level=None)
+    rowId = "a3b7c1f0-0000-5000-8000-000000000001"
+    db.execute('insert into "dailySteps" values (?, ?, ?, 0, null, ?, ?)',
+               (rowId, userA, "2026-11-27T20:00:00.000000+00:00", "2026-11-27", 9500))
+    db.execute('insert into "outbox" values (?, ?, ?, ?, null)', ("dailySteps", rowId, "2026-11-27T20:00:00.000000+00:00",
+                                                                  "2026-11-27T20:00:00.000000+00:00"))
+    db.execute("insert into \"meta\" values ('userId', ?)", (userA,))
+    db.close()
+    assert runPhoneSteps(path, phoneSteps) == 1
+    store = PhoneStore(path, appTables, clock)
+    row = store.row("dailySteps", rowId)
+    assert (row["steps"], row["activeKcal"], row["totalKcal"], row["healthReadAt"]) == (9500, None, None, None)
+    assert [(name, row["id"]) for name, row in store.changesToSend(10)] == [("dailySteps", rowId)]
+    store.close()

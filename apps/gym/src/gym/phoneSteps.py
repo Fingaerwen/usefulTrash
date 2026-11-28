@@ -74,7 +74,10 @@ phoneSteps: tuple[tuple[str, ...], ...] = (
     (
         """alter table "bodyWeight" add column "weighedAt" text""",
     ),
-    # Step 4 (cloud 004): nothing. That upgrade only gave Ambrosia a number for its copy of Talon's workouts
-    # (apps/diet/docs/plan.md AM12.4).
-    (),
+    # Step 4 (cloud 004): the calories Talon reads from Health Connect with each day's steps, and when (HC1.1).
+    (
+        """alter table "dailySteps" add column "activeKcal" integer""",
+        """alter table "dailySteps" add column "totalKcal" integer""",
+        """alter table "dailySteps" add column "healthReadAt" text""",
+    ),
 )

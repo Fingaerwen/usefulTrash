@@ -223,7 +223,7 @@ too, so its next release just needs 004 in the cloud first, and Talon 0.5 on the
 2. **A fresh backup exists:** both apps backed up on 2026-11-28 (section 8, check 3), so a release within a few days
    of that is covered. Later than that, say so and we look first, since Back up now in the PC view has a bug
    (plan BK1.2).
-3. **Cloud upgrade 004:** Supabase → SQL Editor → New query → paste the whole of `cloud/004_ambrosiaReadsWorkouts.sql`
+3. **Cloud upgrade 004:** Supabase → SQL Editor → New query → paste the whole of `cloud/004_ambrosiaWorkoutsAndHealthConnect.sql`
    (on GitHub: "Copy raw file") → Run. The last line says `upgrade 004 done`. It only raises the schema number.
 4. I run `python3 tools/buildRelease.py ambrosia --cloudReady` (section 5): the checks, the signed APK, the tag
    `ambrosia-v0.2-alpha` and the site with Ambrosia's new PC view. Talon's PC view stays as it is.

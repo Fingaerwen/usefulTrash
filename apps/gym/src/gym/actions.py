@@ -158,7 +158,8 @@ class GymActions:
                 await self.store.saveRows([("dailySteps", dict(existing, deleted=True))])
             return
         _checkWhole(steps, 0, 200_000, "Steps")
-        await self.store.saveRows([("dailySteps", {**(existing or {}), "id": rowId, "userId": self.userId,
+        empty = {"activeKcal": None, "totalKcal": None, "healthReadAt": None}  # typed: nothing from Health Connect
+        await self.store.saveRows([("dailySteps", {**empty, **(existing or {}), "id": rowId, "userId": self.userId,
                                                    "deleted": False, "date": date, "steps": steps})])
 
     # --- Body weight (SC5.1, DT2.1) -----------------------------------------------------------
