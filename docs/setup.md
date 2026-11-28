@@ -211,34 +211,48 @@ backup exists (the PC view's Back up now, skipped on 2026-10-28 because of a bug
     sits on Today with Apply and Not now. Apply right after a sync adds the change to both kinds of day, and Targets
     shows it with Undo.
 
-## 9. Ambrosia 0.2-alpha and cloud upgrade 004, in order, and its check on your phone
-Your changes from 2026-11-28 (`apps/diet/docs/plan.md` AM12): the day strip, opened entries, the protein shake, the
-water that adds itself, and the two fixes from section 8's check. Built, tested and committed. A trial build ran
-on 2026-11-28 (`--buildOnly`, nothing tagged or published) and passed every check, on the PC's Python 3.15 with
-the APK carrying its own 3.14 (plan V2b). Talon isn't in this release: its code is built for 004
-too, so its next release just needs 004 in the cloud first, and Talon 0.5 on the phone keeps syncing meanwhile.
+## 9. Talon 0.6-alpha and Ambrosia 0.2-alpha with cloud upgrade 004, in order, and their check on your phone
+Your changes from 2026-11-28, released together (plan HC1.4):
+- **Ambrosia 0.2-alpha** (`apps/diet/docs/plan.md` AM12): the day strip, opened entries, the protein shake, the water
+  that adds itself, and the two fixes from section 8's check.
+- **Talon 0.6-alpha** (plan RT1.2, HC1.1 to HC1.3): the rest timer on every day you flick to, and your steps with
+  active and total calories read from Health Connect, where OHealth writes them.
 
-**Release day, in order (plan 14c):**
+Both are built, tested and committed, and a trial build of both passed every check (`--buildOnly`, nothing tagged
+or published), on the PC's Python 3.15 with the APKs carrying their own 3.14 (plan V2b). Before release day, a
+throwaway test app checks Health Connect on your phone over USB (section 9b).
+
+**Release day, at max effort (your rule), in order (plan 14c):**
 1. **Both apps have synced:** open Talon and Ambrosia on the phone, and neither shows `N waiting` beside the date.
 2. **A fresh backup exists:** both apps backed up on 2026-11-28 (section 8, check 3), so a release within a few days
    of that is covered. Later than that, say so and we look first, since Back up now in the PC view has a bug
    (plan BK1.2).
-3. **Cloud upgrade 004:** Supabase → SQL Editor → New query → paste the whole of `cloud/004_ambrosiaWorkoutsAndHealthConnect.sql`
-   (on GitHub: "Copy raw file") → Run. The last line says `upgrade 004 done`. It only raises the schema number.
-4. I run `python3 tools/buildRelease.py ambrosia --cloudReady` (section 5): the checks, the signed APK, the tag
-   `ambrosia-v0.2-alpha` and the site with Ambrosia's new PC view. Talon's PC view stays as it is.
-5. You create the release on GitHub from the link it prints: title `Ambrosia 0.2-alpha`, not a pre-release, with the
-   APK it names. Obtainium's `^Ambrosia` filter picks it up as an update.
+3. **Cloud upgrade 004:** Supabase → SQL Editor → New query → paste the whole of
+   `cloud/004_ambrosiaWorkoutsAndHealthConnect.sql` (on GitHub: "Copy raw file") → Run. The last line says
+   `upgrade 004 done`. It adds three columns to the daily steps, which may be empty, and raises the schema number.
+4. I run `python3 tools/buildRelease.py talon ambrosia --cloudReady` (section 5): the checks, both signed APKs, the
+   tags `gym-v0.6-alpha` and `ambrosia-v0.2-alpha`, and the site with both new PC views and the privacy page's
+   Health Connect section.
+5. You create both releases on GitHub from the links it prints: `Talon 0.6-alpha` and `Ambrosia 0.2-alpha`, not
+   pre-releases, each with the APK it names. Obtainium's filters pick each up as an update.
 
 **Then on the phone** (anything that looks wrong: ⋮ → Problems → **Copy**, and paste it to me):
-1. **The update:** ⋮ → Problems says `Ambrosia 0.2-alpha · schema 4`, with the same data and still signed in.
-2. **The day strip:** `Mon … Sun` under Today's header. Tap a day ahead and flick sideways, add something there, and
-   check it isn't on today. A day ahead has no water buttons.
-3. **Opening an entry:** tap something you logged: it opens with what it adds, the amount, the meal, Save and Delete.
-4. **The shake:** + on a meal → **Protein shake** → ✎ on **Your powder, one shake** → your powder's real values →
+1. **The updates:** ⋮ → Problems says `Talon 0.6-alpha · schema 4` and `Ambrosia 0.2-alpha · schema 4`, with the
+   same data and still signed in.
+2. **Health Connect:** on Talon's Today, the steps card has **Read from Health Connect**. Tap it and allow steps,
+   active calories and total calories. The card then says `STEPS SO FAR` with `Active … kcal · Total … kcal`,
+   matching OHealth (open OHealth first so it has handed over today's numbers). The ✎ is gone on those days.
+3. **A late sync:** open OHealth, wait a little, then come back to Talon (at least a minute after the last time): a
+   day OHealth updated shows the new numbers. Week has **Steps and calories** under the calendar.
+4. **The rest timer on another day:** flick to another day in Talon's strip, tick a set: the rest timer runs at the
+   bottom, and the alert goes off at zero.
+5. **Ambrosia's day strip:** `Mon … Sun` under Today's header. Tap a day ahead and flick sideways, add something
+   there, and check it isn't on today. A day ahead has no water buttons.
+6. **Opening an entry:** tap something you logged: it opens with what it adds, the amount, the meal, Save and Delete.
+7. **The shake:** + on a meal → **Protein shake** → ✎ on **Your powder, one shake** → your powder's real values →
    Save the powder. Add a shake with this flavour's protein. Today's water goes up by 600 ml, and deleting the shake
    takes it off again.
-5. **Talon's water:** finish a workout in Talon (or wait for midnight). Once both apps have synced, Ambrosia's water
-   that day shows `1,300 ml from your Talon workout`.
-6. **The water editor:** scroll down to the water card and tap ✎: the field opens in the card's own row, above
+8. **Talon's water in Ambrosia:** finish a workout in Talon (or wait for midnight). Once both apps have synced,
+   Ambrosia's water that day shows `1,300 ml from your Talon workout`.
+9. **The water editor:** scroll down to the water card and tap ✎: the field opens in the card's own row, above
    the keyboard, and it sets only what you added.
