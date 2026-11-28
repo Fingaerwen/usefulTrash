@@ -33,6 +33,7 @@ class _PhoneServices:
     """The phone's abilities: our extensions and Flet's services (created once, inside the page)."""
 
     def __init__(self):
+        from healthConnect import HealthConnect
         from nativeGoogleSignIn import NativeGoogleSignIn
         from secureStore import SecureStore
         from weighInNotify import WeighInNotify
@@ -40,6 +41,7 @@ class _PhoneServices:
         self.googleSignIn = NativeGoogleSignIn()
         self.secretStore = SecureStore()
         self.notifier = WeighInNotify()
+        self.health = HealthConnect()  # steps and calories from Health Connect (HC1.1)
         self.clipboard = ft.Clipboard()
         self.filePicker = ft.FilePicker()
 

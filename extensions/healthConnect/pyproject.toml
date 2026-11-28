@@ -1,0 +1,17 @@
+# healthConnect: our own Flet extension that reads Android Health Connect (plan HC1.1): each day's steps, active
+# calories and total calories, which OHealth writes there. Python side (src/healthConnect) talks to a Dart/Kotlin
+# plugin (src/flutter/health_connect) that uses Google's Health Connect client library.
+[project]
+name = "usefulTrashHealthConnect"  # unique prefix (CS1.1)
+version = "0.1.0"
+description = "Steps and calories from Android Health Connect for usefulTrash"
+requires-python = "==3.14.*"
+dependencies = ["flet==1.0.3"]
+
+[tool.setuptools.package-data]
+# Ship the Flutter/Android plugin files inside the Python package so `flet build` finds them.
+"flutter.health_connect" = ["pubspec.yaml", "lib/**", "android/**"]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"

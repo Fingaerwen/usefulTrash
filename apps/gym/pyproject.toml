@@ -14,6 +14,7 @@ dependencies = [
     "usefulTrashNativeGoogleSignIn",
     "usefulTrashSecureStore",
     "usefulTrashWeighInNotify",
+    "usefulTrashHealthConnect",
 ]
 
 # Local packages: paths are relative to this folder, so the repo builds from wherever it's cloned.
@@ -23,6 +24,7 @@ usefulTrashShared = "../../shared"
 usefulTrashNativeGoogleSignIn = "../../extensions/nativeGoogleSignIn"
 usefulTrashSecureStore = "../../extensions/secureStore"
 usefulTrashWeighInNotify = "../../extensions/weighInNotify"
+usefulTrashHealthConnect = "../../extensions/healthConnect"
 
 [tool.flet]
 product = "Talon"  # the name on the phone and the PC view's title (RL1.3, AM1.4, AM9.6)
@@ -32,6 +34,7 @@ build_number = 5  # Android's versionCode: the middle version number, one up eac
 [tool.flet.android]
 bundle_id = "io.github.fingaerwen.gymtracker"  # set explicitly (RL1.3). It stays at the rename, so updates install over (AM1.4)
 target_arch = ["arm64-v8a"]  # your phone's CPU type only: one small APK (RL3)
+min_sdk_version = 26  # Android 8: Health Connect's client library needs it (HC1.1). Flutter's default is 24
 
 [tool.flet.web]
 base_url = "/usefulTrash/talon/"  # the PC view lives at https://fingaerwen.github.io/usefulTrash/talon/ (P6.1, 4c)

@@ -13,7 +13,7 @@
 </head>
 <body>
   <h1>usefulTrash privacy policy</h1>
-  <p>Effective 28 October 2026.</p>
+  <p>Effective 28 November 2026 (Health Connect added).</p>
   <p>usefulTrash is a pair of personal apps made by Fingaerwen for their own use: <strong>Talon</strong>, a gym tracker
     (called Gym Tracker until version 0.4), and <strong>Ambrosia</strong>, a diet tracker. Each is an Android app with a
     companion web page, its "PC view". Both use the same sign-in and the same database. Sign-ups are closed: only the
@@ -23,7 +23,8 @@
   <h2>Data the apps handle</h2>
   <ul>
     <li>What you enter in Talon: your training plan, workouts, body weight (and the time you saved a weigh-in), daily
-      step totals and notes.</li>
+      step totals and notes. With your permission, Talon also reads each day's steps and calories from Health Connect
+      (below).</li>
     <li>What you enter in Ambrosia: what you eat (foods, amounts and meals), the water you drink, your nutrition
       targets and the changes you apply to them. Ambrosia reads your training plan, workouts and body weight from
       Talon's data.</li>
@@ -38,6 +39,18 @@
     <li>To look up a packaged food, Ambrosia sends only its barcode, or the words you search for, to
       <a href="https://world.openfoodfacts.org">Open Food Facts</a>, a free and open food database. Nothing about you
       goes with it.</li>
+  </ul>
+
+  <h2 id="health-connect">Health Connect</h2>
+  <ul>
+    <li>Talon reads three things from Android's Health Connect, and only once you allow it there: each day's step
+      count, active calories burned and total calories burned (active and resting). It reads nothing else and never
+      writes to Health Connect.</li>
+    <li>It reads them on the phone while the app is open, to show your steps and calories and count your steps
+      towards the week's cardio. They're stored like the steps you type: in the app on your phone, in your own
+      Supabase database and in your Drive backups.</li>
+    <li>They're never shared, sold or used for ads, and no one else can read them. Remove Talon's access any time in
+      Health Connect's settings.</li>
   </ul>
 
   <h2>How Google user data is used</h2>
@@ -66,7 +79,8 @@
   <h2>Sharing</h2>
   <p>No data is sold, rented or shared with anyone. There are no ads, analytics or trackers. The only services
     involved are Supabase (sign-in and database), Google (sign-in and Drive) and Open Food Facts (food lookups, which
-    get only a barcode or search words), and only to provide the features above.</p>
+    get only a barcode or search words), and only to provide the features above. Health Connect's data stays in your
+    own storage listed above.</p>
 
   <h2>Limited Use</h2>
   <p>usefulTrash's use and transfer to any other app of information received from Google APIs will adhere to the

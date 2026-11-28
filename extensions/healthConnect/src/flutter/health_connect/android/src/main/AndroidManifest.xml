@@ -1,0 +1,36 @@
+<!-- Merged into the app's manifest automatically: what Talon may read from Health Connect (plan HC1.1) and the page
+     Health Connect opens when you ask why. Without that page Health Connect won't show its permission screen. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Read only: each day's steps, active calories and total calories (active and resting). Nothing is written. -->
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
+    <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
+    <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED" />
+
+    <!-- Android 13 and older: Health Connect is an app of its own, and Talon has to be allowed to see it. -->
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+    </queries>
+
+    <application>
+        <!-- "Why does Talon want this?" opens the site's privacy page, then closes. -->
+        <activity
+            android:name="io.github.fingaerwen.healthconnect.HealthPrivacyActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+        <!-- Android 14 and newer ask the same through this, only Health Connect may open it. -->
+        <activity-alias
+            android:name="io.github.fingaerwen.healthconnect.ViewPermissionUsageActivity"
+            android:exported="true"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE"
+            android:targetActivity="io.github.fingaerwen.healthconnect.HealthPrivacyActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
+    </application>
+</manifest>
