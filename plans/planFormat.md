@@ -8,6 +8,23 @@ in the exact format below. The user imports it in the app's PC view, and the app
 day's workout on the phone, logs what was done and suggests the next weights and reps by itself. The app checks every file strictly: anything outside this format is refused, with
 a list of problems the user pastes back to you.
 
+## What's new in Talon 0.5-alpha (24 November 2026)
+
+Read this first if you knew an older version of this brief.
+
+- **Drop sets:** a weighted exercise can have a `drop` block, so each set is its reps at the weight and then more
+  reps at a lighter weight straight after. Both parts progress on their own. See "A drop set".
+- **Machines marked in pounds:** `weightLb` and `incrementLb` instead of `weightKg` and `incrementKg`. The user
+  types and sees that machine in lb, and only volume and 1RM turn it into kg.
+- **One set at a time:** each tap on an exercise's circle on Today logs the next set, so the user can stop after
+  any set.
+- **A step up needs every planned set:** a session with fewer sets than the plan gives keeps the target where it
+  is, even with every set at `repsMax`.
+- **The week's days on Today:** the user can open any workout day of this week and log it, earlier days and days
+  ahead too, each saved under its own date.
+
+A plan without the new fields works as before, so a plan written for 0.4 still imports as it is.
+
 ## What the app does with a plan
 
 - **A week, Monday to Sunday.** A plan gives each of the 7 days its own session (a workout or a rest
@@ -37,8 +54,8 @@ a list of problems the user pastes back to you.
              [ Finish workout ]
   ```
   On the flex day making up Monday, the top line reads `Upper · Saturday, for Monday · week 4/5`. A
-  lift logged as plates per side shows its weight as `@ 20 kg/side`. The user ticks an exercise (done
-  as targeted), opens it to enter each set's reps and kg, or skips it.
+  lift logged as plates per side shows its weight as `@ 20 kg/side`. Each tap on an exercise's circle
+  logs the next set as targeted, and the user can open it to enter each set's reps and kg, or skip it.
 - **Tapping an exercise's name shows its how-to** underneath, from the plan's optional `setup`,
   `howTo` and `form` fields (a plan without them works too: the app then says there's no how-to):
   ```
@@ -56,8 +73,8 @@ a list of problems the user pastes back to you.
   and each weighted one `"weightKg": 1` (see below). Don't write week-by-week weights. The app's rules:
   - One rep target for all sets, starting at `repsMin`.
   - Every set hits the target → next time, the lowest set's reps + 1.
-  - Every set reaches `repsMax` → add the weight step (`incrementKg`, per side for a `platesPerSide`
-    lift) and go back to `repsMin`.
+  - Every planned set reaches `repsMax` → add the weight step (`incrementKg`, per side for a `platesPerSide`
+    lift) and go back to `repsMin`. A session with fewer sets than the plan's never steps up.
   - Two or more sets under `repsMin` is a miss (a 1-set exercise: that set). Two misses in a row → back
     to the last lower weight that worked, at the reps achieved there. After such a drop, it takes two
     sessions at the top of the range to go heavier again.
@@ -109,8 +126,8 @@ a list of problems the user pastes back to you.
   user sets or logs its weight. A known exercise on a day it wasn't on before starts at its latest weight
   from any day.
 - **Also in the app, but not part of a plan:** daily step counts, PRs and estimated 1RM, volume,
-  streaks, a weekly summary and a daily creatine reminder at 08:00. A weigh-in screen comes later. A
-  plan holds training only.
+  streaks, a weekly summary, a daily creatine reminder at 08:00 and a Weight tab for the Friday weigh-ins,
+  which Ambrosia, the user's diet app, uses for its bulk check. A plan holds training only.
 
 ## What isn't supported, and what to do instead
 
