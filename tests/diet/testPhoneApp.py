@@ -297,7 +297,7 @@ def testProblemsSaysTheVersionSchemaAndSync(phone, cloud):
     assert lines[0].startswith(f"Ambrosia {appVersion} · schema {appSchema}")
     assert lines[1].startswith("Sync: up to date") and "Last backup: 5 Dec 2026 (phone) · 1 day ago" in lines
     phone.run(phone.app.copyProblems())
-    assert phone.services.clipboard.text.startswith("Ambrosia 0.1-alpha")
+    assert phone.services.clipboard.text.startswith(f"Ambrosia {appVersion}")
     phone.app.closeProblems()
     assert phone.app.model.screen == "main"
 

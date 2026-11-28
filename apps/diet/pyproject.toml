@@ -2,7 +2,7 @@
 # Built with tools/buildRelease.py, which checks the package guard before and after (CS1.1).
 [project]
 name = "ambrosia"
-version = "0.1-alpha"  # the visible version (V3a). ambrosia/model.py's appVersion must match (a test checks)
+version = "0.2-alpha"  # the visible version (V3a). ambrosia/model.py's appVersion must match (a test checks)
 description = "Ambrosia"
 requires-python = "==3.14.*"  # the Python Flet bundles for Android (R3)
 dependencies = [
@@ -26,7 +26,7 @@ usefulTrashBarcodeScan = "../../extensions/barcodeScan"
 [tool.flet]
 product = "Ambrosia"  # the name on the phone and the PC view's title (AM1.2)
 org = "io.github.fingaerwen"
-build_number = 1  # Android's versionCode: the middle version number, one up each release (12b)
+build_number = 2  # Android's versionCode: the middle version number, one up each release (12b)
 
 [tool.flet.android]
 bundle_id = "io.github.fingaerwen.ambrosia"  # its own package, apart from the Phase 0 spike's (plan 6)

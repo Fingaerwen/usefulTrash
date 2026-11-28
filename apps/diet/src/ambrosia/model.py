@@ -15,7 +15,7 @@ from ambrosia.sources.openFoodFacts import Product
 from ambrosia.state import BulkCheckView, HistoryDay, TargetsView
 
 appName = "Ambrosia"
-appVersion = "0.1-alpha"
+appVersion = "0.2-alpha"
 
 
 @dataclass(frozen=True, slots=True)

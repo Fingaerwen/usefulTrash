@@ -11,7 +11,7 @@ settings = tomllib.loads((Path(__file__).resolve().parents[2] / "apps" / "diet" 
 
 
 def testShownVersionMatchesTheBuild():
-    assert appVersion == settings["project"]["version"] == "0.1-alpha"
+    assert appVersion == settings["project"]["version"]
 
 
 def testVersionsLookLike0Point1Alpha():
