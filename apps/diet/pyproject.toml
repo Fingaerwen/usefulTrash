@@ -41,5 +41,8 @@ path = "src"
 
 # Workaround for a Flet 1.0.3 template bug (found in Talon's Phase 0): it pins Dart package jni to 1.0.0,
 # but jni_flutter 1.0.4+1 requires jni ^1.1.0, so the Android build fails.
+# jni_flutter 1.1.0 (on pub.dev since our builds started) needs jni 1.2, so a build without a kept lock file would
+# fail: it stays at 1.0.4+1, the version every release so far was built with (found 2026-11-28).
 [tool.flet.flutter.pubspec.dependency_overrides]
 jni = "1.1.0"
+jni_flutter = "1.0.4+1"
