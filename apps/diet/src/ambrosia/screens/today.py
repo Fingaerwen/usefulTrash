@@ -2,6 +2,7 @@
 
     Today                                        ⋮
     Monday 26 Oct · training day
+    [Mon ·] [Tue] [Wed] [Thu] [Fri] [Sat] [Sun]      this week's days (AM12.1), today with a dot
     ┌ LEFT TODAY                       1,600 eaten ┐
     │ 1,600 kcal                          of 3,200 │
     │ ████████████░░░░░░░░░░░░                     │
@@ -15,6 +16,10 @@
 
 A meal's + adds food to it. Tapping an entry unfolds it to change the amount or the meal, or delete it. The
 same parts make History's day editor (AM5.5). A day the phone can't edit any more shows without + and taps.
+
+The strip under the header (AM12.1, like Talon's DY1.1) shows another day of this week, and so does a flick
+sideways (to the left for the next day). That day is laid out and edited the same, a day ahead too, its food saved
+under its own date. Like Talon's steps, water can't be added to a day ahead, since it isn't drunk yet.
 """
 
 import flet as ft
@@ -22,7 +27,7 @@ import flet as ft
 from ambrosia.rules.foods import LoggedFood, mealNames, meals, total
 from ambrosia.rules.today import DayView
 from ambrosia.screens.bulkCheck import blockLine, ruleText, suggestionTitle
-from ambrosia.screens.common import Banners, Menu, Notice, dayText, kcalText
+from ambrosia.screens.common import Banners, Menu, Notice, dayText, dayWords, kcalText, months, weekdays
 from ambrosia.screens.look import (
     big,
     card,
@@ -41,20 +46,52 @@ from ambrosia.screens.look import (
     track,
 )
 
+swipeSpeed = 300  # a sideways flick at least this fast (pixels a second) changes the day (AM12.1, as in Talon)
+
 
 @ft.component
 def TodayTab(app, model):
-    day = model.today
-    if day is None:
+    today = model.today
+    if today is None:
         return screen([])
-    return screen([
-        ft.Row([ft.Column([ft.Text("Today", size=26, weight=ft.FontWeight.BOLD),
-                           quiet(f"{dayText(day.date)} · {day.kind} day"
-                                 + (f" · {model.waiting} waiting" if model.waiting else ""), size=14)],
+    other = model.dayView  # another day of the week picked in the strip (AM12.1), None for today
+    day = other or today
+    if other is None:
+        heading, under = "Today", f"{dayText(day.date)} · {day.kind} day"
+    else:
+        heading = weekdays[day.date.weekday()]
+        under = f"{day.date.day} {months[day.date.month - 1]} · {dayWords(day.date, today.date)} · {day.kind} day"
+    parts = [
+        ft.Row([ft.Column([ft.Text(heading, size=26, weight=ft.FontWeight.BOLD),
+                           quiet(under + (f" · {model.waiting} waiting" if model.waiting else ""), size=14)],
                           spacing=2, expand=True),
                 Menu(app)], vertical_alignment=ft.CrossAxisAlignment.START),
-        Banners(app, model), BulkCheckBanner(app, model), Notice(app, model), *dayParts(app, day),
-    ])
+        DayStrip(app, model), Banners(app, model), BulkCheckBanner(app, model), Notice(app, model),
+        *dayParts(app, day, isToday=other is None),
+    ]
+
+    def swipe(e):
+        """A flick sideways: to the left for the next day, to the right for the one before, like pages."""
+        speed = e.primary_velocity or 0
+        if abs(speed) >= swipeSpeed:
+            app.shiftDay(1 if speed < 0 else -1)
+
+    return ft.GestureDetector(content=screen(parts), on_horizontal_drag_end=swipe, expand=True)
+
+
+@ft.component
+def DayStrip(app, model):
+    """This week's days (AM12.1), Mon Tue Wed …, the one shown filled. Today has a dot. A tap shows that day, and
+    so does a swipe on the screen."""
+    today = model.today.date
+    shown = model.dayShown or today
+    chips = []
+    for date in model.weekDays:
+        name = weekdays[date.weekday()]
+        chips.append(pill(name[:3] + (" ·" if date == today else ""), date == shown,
+                          on_click=lambda e, date=date: app.showDay(date),
+                          tooltip=f"Show {name}" + (" (today)" if date == today else ""), expand=True))
+    return ft.Row(chips, spacing=5)
 
 
 @ft.component
@@ -82,9 +119,9 @@ def BulkCheckBanner(app, model):
     ], spacing=8), padding=16, raised=True)
 
 
-def dayParts(app, day: DayView) -> list[ft.Control]:
-    """A day's summary, its four meals and water: Today, and History's day editor."""
-    return [Summary(day), *[MealCard(app, day, meal) for meal in meals], WaterCard(app, day)]
+def dayParts(app, day: DayView, isToday: bool = False) -> list[ft.Control]:
+    """A day's summary, its four meals and water: Today (and the strip's other days), and History's day editor."""
+    return [Summary(day, isToday), *[MealCard(app, day, meal) for meal in meals], WaterCard(app, day)]
 
 
 def bar(fraction: float, height: int = 6) -> ft.ProgressBar:
@@ -93,7 +130,7 @@ def bar(fraction: float, height: int = 6) -> ft.ProgressBar:
 
 
 @ft.component
-def Summary(day: DayView):
+def Summary(day: DayView, isToday: bool = False):
     """What's left of the day's target: kcal first, then protein, fat and carbs."""
     eaten = day.eaten
     if day.targets is None:
@@ -111,7 +148,8 @@ def Summary(day: DayView):
     left = day.leftKcal
     over = left < 0
     return card(ft.Column([
-        ft.Row([ft.Column([label("Over today" if over else "Left today"), big(kcalText(abs(left)), 30)],
+        ft.Row([ft.Column([label(("Over" if over else "Left") + (" today" if isToday else "")),
+                           big(kcalText(abs(left)), 30)],
                           spacing=2, expand=True),
                 ft.Column([quiet(f"{eaten.kcal:,.0f} eaten"), quiet(f"of {targets.kcal:,}")], spacing=0,
                           horizontal_alignment=ft.CrossAxisAlignment.END)]),
@@ -201,7 +239,7 @@ def WaterCard(app, day: DayView):
         setTyped(str(day.waterMl))
 
     actions = [iconButton(ft.Icons.EDIT_OUTLINED, "Set the day's water", edit), softButton("+250 ml", add)] \
-        if day.editable else []
+        if day.editable and not day.ahead else []
     parts: list[ft.Control] = [ft.Row([
         ft.Icon(ft.Icons.WATER_DROP_OUTLINED, color=ft.Colors.ON_SURFACE_VARIANT),
         ft.Column([heading("Water"), quiet(f"{day.waterMl:,} ml{of}")], spacing=0, expand=True), *actions])]

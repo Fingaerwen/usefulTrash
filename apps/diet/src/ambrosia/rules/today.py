@@ -19,6 +19,7 @@ class DayView:
     waterTargetMl: int | None = None
     editable: bool = True  # the phone edits the last 7 days (AM5.5)
     targetsLater: bool = False  # no targets on this day, but a targets file applies from a later day
+    ahead: bool = False  # a day after today (the day strip, AM12.1): food yes, water not yet, like Talon's steps
 
     @property
     def leftKcal(self) -> float | None:

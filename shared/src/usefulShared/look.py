@@ -219,15 +219,18 @@ def grow(expand: bool) -> bool | None:
 
 
 def pill(text: str, selected: bool = False, on_click=None, tooltip: str | None = None,
-         icon: ft.IconData | None = None, *, form: Form) -> ft.Card:
-    """A small chip in the app's outline. Picked ones are filled."""
+         icon: ft.IconData | None = None, expand: bool = False, *, form: Form) -> ft.Card:
+    """A small chip in the app's outline. Picked ones are filled. With expand, chips share a row's width evenly,
+    their words in the middle (Ambrosia's seven days, AM12.1)."""
     color = ft.Colors.ON_PRIMARY if selected else ft.Colors.ON_SURFACE
-    words = ft.Text(text, size=13, weight=ft.FontWeight.W_600 if selected else ft.FontWeight.W_500, color=color)
+    words = ft.Text(text, size=13, weight=ft.FontWeight.W_600 if selected else ft.FontWeight.W_500, color=color,
+                    no_wrap=expand)
     content = ft.Row([ft.Icon(icon, size=16, color=color), words], spacing=6, tight=True) if icon else words
     inner = ft.Container(content, bgcolor=ft.Colors.PRIMARY if selected else ft.Colors.SURFACE_CONTAINER_HIGH,
-                         padding=ft.Padding.symmetric(horizontal=14, vertical=8),
+                         padding=ft.Padding.symmetric(horizontal=4 if expand else 14, vertical=8),
+                         alignment=ft.Alignment.CENTER if expand else None,
                          ink=on_click is not None, on_click=on_click, tooltip=tooltip)
-    return shaped(inner, form.small, form=form)
+    return shaped(inner, form.small, form=form, **({"expand": True} if expand else {}))
 
 
 def segments(options: list[tuple[str, str]], selected: str, choose, *, form: Form) -> ft.Row:

@@ -22,6 +22,17 @@ def shortDay(date: dt.date) -> str:
     return f"{weekdays[date.weekday()][:3]} {date.day} {months[date.month - 1]}"
 
 
+def dayWords(date: dt.date, today: dt.date) -> str:
+    """How far a day is from today, as Talon says it (DY1.1): "today", "tomorrow", "yesterday", "in 3 days",
+    "3 days ago"."""
+    days = (date - today).days
+    if days == 0:
+        return "today"
+    if abs(days) == 1:
+        return "tomorrow" if days > 0 else "yesterday"
+    return f"in {days} days" if days > 0 else f"{-days} days ago"
+
+
 def kcalText(kcal: float) -> str:
     return f"{kcal:,.0f} kcal"
 

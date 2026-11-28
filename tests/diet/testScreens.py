@@ -152,3 +152,74 @@ def testImportingTargetsThroughTheScreens(loop):
     app.selectTab("today")
     root = drawn(app)
     assert any(text.startswith("of 3,200") for text in visibleTexts(root))
+
+
+def buttons(root) -> list[str]:
+    return [label(control) for control in walk(root) if type(control).__name__ == "Button"]
+
+
+def tooltips(root) -> list[str]:
+    return [control.tooltip for control in walk(root) if isinstance(getattr(control, "tooltip", None), str)]
+
+
+def testTheDayStripShowsAndEditsTheWeeksOtherDays(loop):
+    """AM12.1, like Talon's DY1.1: this week's seven days under the header. A day ahead is looked at and logged
+    under its own date, without water. A swipe moves along the strip, stopping at its ends, and today's chip goes
+    back."""
+    from types import SimpleNamespace
+
+    app = makeApp()  # Monday 26 Oct
+    monday = app.localToday()
+    root = drawn(app)
+    days = [tip for tip in tooltips(root) if tip.startswith("Show ") and tip.split()[1].endswith("day")]
+    assert days == ["Show Monday (today)", "Show Tuesday", "Show Wednesday", "Show Thursday", "Show Friday",
+                    "Show Saturday", "Show Sunday"]
+    press(find(root, "Show Wednesday"))
+    root = drawn(app)
+    texts = visibleTexts(root)
+    assert "Wednesday" in texts and "28 Oct · in 2 days · training day" in texts
+    assert "+250 ml" not in buttons(root) and "Set the day's water" not in tooltips(root)  # not drunk yet
+    press(find(root, "Add to Dinner", "IconButton"))
+    assert app.model.screen == "add" and app.model.addDate == monday + dt.timedelta(days=2)
+    loop.run_until_complete(app.useBarcode("3017620422003"))
+    press(find(drawn(app), "Add to Dinner", "Button"))
+    [log] = [row for row in app.rows["foodLogs"].values() if not row["deleted"]]
+    assert log["date"] == monday + dt.timedelta(days=2) and app.model.screen == "main"
+    root = drawn(app)
+    assert "Nutella · Ferrero" in visibleTexts(root) and app.model.dayShown == monday + dt.timedelta(days=2)
+    assert app.model.today.eaten.kcal == 0  # today's untouched
+
+    gesture = next(control for control in walk(root) if type(control).__name__ == "GestureDetector")
+    gesture.on_horizontal_drag_end(SimpleNamespace(primary_velocity=-800))  # a flick to the left: the next day
+    assert app.model.dayShown == monday + dt.timedelta(days=3)
+    gesture.on_horizontal_drag_end(SimpleNamespace(primary_velocity=-100))  # too slow: nothing
+    assert app.model.dayShown == monday + dt.timedelta(days=3)
+    for _ in range(5):
+        app.shiftDay(1)
+    assert app.model.dayShown == monday + dt.timedelta(days=6)  # the end of the strip
+    press(find(drawn(app), "Show Monday (today)"))
+    assert app.model.dayView is None and "Monday 26 Oct · training day" in visibleTexts(drawn(app))
+    app.shiftDay(-1)  # Monday is the strip's start
+    assert app.model.dayView is None
+
+
+def testTheDayStripEditsADayEarlierInTheWeek(loop):
+    """AM12.1: on Thursday, Monday is in the strip, with its own water."""
+    app = makeApp()
+    app.clock.now += dt.timedelta(days=3)
+    app.refresh()
+    monday = app.localToday() - dt.timedelta(days=3)
+    press(find(drawn(app), "Show Monday"))
+    root = drawn(app)
+    assert "26 Oct · 3 days ago · training day" in visibleTexts(root) and "+250 ml" in buttons(root)
+    press(find(root, "+250 ml", "Button"))
+    assert app.state.water == {monday: 250}
+
+
+def testANewWeekGoesBackToToday(loop):
+    """A day shown last week has left the strip, so Today shows today again."""
+    app = makeApp()
+    app.showDay(app.localToday() + dt.timedelta(days=6))
+    app.clock.now += dt.timedelta(days=7)
+    app.refresh()
+    assert app.model.dayShown is None and app.model.weekDays[0] == app.localToday()

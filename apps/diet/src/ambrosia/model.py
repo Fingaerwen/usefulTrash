@@ -83,6 +83,9 @@ class AppModel:
     failure: str = ""  # why the app can't start (screen "failed")
     downloaded: int = 0  # first download: "Downloading your data… N rows" (plan 14b)
     today: DayView | None = None
+    weekDays: tuple[dt.date, ...] = ()  # Today's day strip (AM12.1): the days of this week, Monday to Sunday
+    dayShown: dt.date | None = None  # the day Today shows when it isn't today, None for today
+    dayView: DayView | None = None  # that day, laid out like Today
     weekOffset: int = 0
     week: WeekView | None = None
     targets: TargetsView | None = None

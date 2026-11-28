@@ -115,6 +115,7 @@ class AmbrosiaBase:
         self.state.load(rows)
         today = self.localToday()
         self.model.today = self.state.dayView(today)
+        self._refreshDays()
         monday = mondayOf(today) - dt.timedelta(weeks=self.model.weekOffset)
         self.model.week = self.state.weekView(monday, today)
         self.model.targets = self.state.targetsView(today)
@@ -130,6 +131,32 @@ class AmbrosiaBase:
         self.model.bulkCheck = self.state.bulkCheckView(today, self.dismissedCheck())
         self.model.applyReady = self.syncedToday()
         self.afterRefresh()
+
+    def _refreshDays(self) -> None:
+        """The day strip (AM12.1, like Talon's DY1.1): this week's seven days, and the day shown if it isn't today.
+        A day that's left the strip (a new week) goes back to today."""
+        today = self.localToday()
+        monday = mondayOf(today)
+        self.model.weekDays = tuple(monday + dt.timedelta(days=offset) for offset in range(7))
+        shown = self.model.dayShown
+        if shown is not None and (shown == today or shown not in self.model.weekDays):
+            shown = self.model.dayShown = None
+        self.model.dayView = self.state.dayView(shown, ahead=shown > today) if shown is not None else None
+
+    def showDay(self, date: dt.date) -> None:
+        """A day in the strip tapped: Today shows it, to look at or edit."""
+        self.model.dayShown = date
+        self.model.notice = ""
+        self._refreshDays()
+
+    def shiftDay(self, step: int) -> None:
+        """A swipe on Today: the next day (1) or the one before (-1) in the strip, stopping at its ends."""
+        days = self.model.weekDays
+        current = self.model.dayShown or self.localToday()
+        if current not in days:
+            return
+        index = min(max(days.index(current) + step, 0), len(days) - 1)
+        self.showDay(days[index])
 
     async def _act(self, work) -> bool:
         """Runs an action. A refused entry shows why, anything unexpected goes to the log. True if it worked."""
